@@ -1,0 +1,16 @@
+%section#content
+  %section#browse
+    .linkimage
+      %a(href="/browse")
+        browse
+    browse our catalog of DNA molecules
+  %section#search
+    .linkimage
+      %a(href="/search")
+        advanced search
+    search for DNA molecules, BLAST DNA sequences, or search for annotations
+  %section#upload
+    .linkimage
+      %a(href="/upload")
+        upload
+  upload DNA molecules to our catalog

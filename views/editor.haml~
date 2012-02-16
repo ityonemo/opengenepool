@@ -1,0 +1,12 @@
+%aside#toolbar
+  #infobox
+  #directory
+    %details
+      %summary root directory
+      nothing
+  #workspace
+    %details
+      %summary workspace
+      nothing
+#editor
+#popupmenu

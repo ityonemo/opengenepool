@@ -1,0 +1,40 @@
+!!! 5
+%html
+  %head
+    %title OpenGenePool - Community DNA Sharing
+    %link(href="ogp.css" rel="stylesheet" type="text/css")
+
+    -@csslist.each do |@i|
+      %link(href=@i rel="stylesheet" type="text/css")
+
+    %script(src="jquery.js" type="text/javascript" charset="utf-8")
+    %script(src="ogp.js" type="text/javascript" charset="utf-8")
+    -@scriptlist.each do |@j|
+      %script(src=@j type="text/javascript" charset="utf-8")
+
+    -#output any other scripts that we may want to generate.
+    #{@otherscripts}
+
+  %body
+    %header
+      %h1 OpenGenePool
+      #loginbox
+        %form(action="login/" method="post")
+          #innerloginleft
+            %input(type="text" name="login" id="loginString")
+              username
+            %input(type="password" name="pass" id="passString")
+              password
+          #innerloginright
+            %button(type="submit" id="loginSubmit")
+              Login
+      #searchbox
+        #searchcomponent
+          %form(action="search/")
+            #innersearch
+              %input(type="text" name="query" id="searchInput")
+              %button(type="submit" id="searchButton")
+                %img(src="searchico.png")
+        #logincomponent
+          #{@logincontent}
+    #{@content}

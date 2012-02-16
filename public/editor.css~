@@ -1,0 +1,51 @@
+#toolbar {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  bottom: 0px;
+  width: 200px;
+
+  background: #999;
+}
+
+#infobox {
+  position: relative;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  padding: 10px;	
+}
+
+#directory {
+  position: relative;
+  left: 0px;
+  right: 0px;
+}
+
+#workspace {
+  position: relative;
+  left: 0px;
+  right: 0px;
+}
+
+.fileman {
+  padding: 10px;
+}
+.subdir {
+  padding: 0px 10px;
+}
+
+#editor {
+    position: absolute;
+    color: #000;
+    background: #FFF;
+
+    overflow: auto;
+    font-family: "Lucida Console", Monaco, monospace;
+
+    bottom: 0px;
+    left: 200px;
+    top: 0px;
+    right: 0px;
+}
+

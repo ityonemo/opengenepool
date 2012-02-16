@@ -1,0 +1,20 @@
+#browse,#search,#upload{
+  position: absolute;
+  width: 33%;
+  top: 0%;
+  bottom: 0%
+}
+
+#browse{
+  left: 0%;
+}
+
+#search{
+  left: 33%;
+}
+
+#upload{
+  left: 66%;
+}
+
+

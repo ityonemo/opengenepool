@@ -1,0 +1,13 @@
+%section
+  %a(href="browse_species")
+    browse
+  by species
+%section
+  %a(href="browse_type")
+    browse
+  by type
+%section
+  %a(href="browse_alpha")
+    index
+  of DNA constructs
+
