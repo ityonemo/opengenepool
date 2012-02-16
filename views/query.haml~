@@ -1,6 +1,0 @@
-%gbml
-  %caption #{@result['name']}
-  %id #{@result['id']}
-  %sequence #{@result['sequence']}
-  -$annotations.each do |@i|
-    %annotation(idnum="#{@i['id']}" caption="#{@i['caption']}" type="#{@i['type']}" start="#{@i['start']}" end="#{@i['end']}") #{@i["notes"]}
