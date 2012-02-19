@@ -1,0 +1,43 @@
+OpenGenePool README
+
+Requires:
+
+Ruby
+MySql
+
+Following Rubygems:
+
+sinatra
+haml
+mysql
+bioruby
+
+Recommended for development:
+
+shotgun
+
+Usage:
+
+run from the command prompt:  ogp.rb
+
+With shotgun:
+
+shotgun -p4567 ogp.rb
+
+To test https, I suggest setting up an https-capable web forwarding server/daemon (I use NGINX)
+and have it point to http://localhost:4567/, ogp is then served from https://localhost/*
+
+Getting started:
+
+*1) point your web browser to http://localhost:4567/initialize/
+
+this will set up the databases appropriately.
+
+2) use test genbank files that are in the ./DNAutics/testfile/ directory.
+
+*3) upload them using the applet at http://localhost:4567/upload/
+
+*currently broken. (19 Feb 2012)
+
+
+Note:  raphael.js is not the default raphael, it has been changed to allow for css to be applied to elements.

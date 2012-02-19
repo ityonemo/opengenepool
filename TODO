@@ -1,0 +1,30 @@
+ogp ToDo list (in no particular order of importance):
+
+Things broken by global update that need to be fixed:
+
+"command line" console
+annotations plugin
+uploader system
+
+
+Global projects
+
+clean up to check for mysql injection hacks.
+allow all changes to sequences, etc. to be marked by user
+create users/groups system.
+
+DNA->Protein ORF translation plugin
+Clone Button
+Export to gb file
+Other types of sequence (primers, etc)
+Create Sequence Tool
+Circular vs Linear DNA
+DNA status (verified, finalized, virtual)
+Handle DNA overhangs or underhangs
+Citations
+Accession codes
+
+Local projects
+
+Change selection tool to allow for modification of the selected entry.
+Fix the layout engine to put a small space between the text line and the annotations
