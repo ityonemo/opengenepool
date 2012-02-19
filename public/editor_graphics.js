@@ -153,7 +153,7 @@ var graphics =
         //push a redraw token to the plugins
         redrawtoken = new Token("redraw");
         redrawtoken.line = i;
-        editor.distributetoken(redrawtoken);
+        editor.broadcasttoken(redrawtoken);
         
         //POSTCONDITION:  None of the plugins have any need
         //to deal with generation of graphics objects.  Graphics
@@ -189,7 +189,7 @@ var graphics =
     graphics.editor.paper.setSize(graphics.metrics.fullwidth,lastbox.top + lastbox.height + graphics.settings.vmargin);
 
     //plugins may like to be notify that there has been a redraw event.
-    editor.distributetoken(new Token("redrawn"))
+    editor.broadcasttoken(new Token("redrawn"))
   },
 
   layout: function(line)

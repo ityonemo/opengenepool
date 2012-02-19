@@ -59,7 +59,7 @@ var editor =
   },
 
   //distributes tokens to the plugins.
-  distributetoken:function(token)
+  broadcasttoken:function(token)
   {
     for (var i = 0; i < plugins.length; i++)
     {
@@ -73,8 +73,8 @@ var editor =
   {
     graphics.setmetrics();
     graphics.newsequence();
-    editor.distributetoken(new Token("initialize"));
-    editor.distributetoken(new Token("newsequence"));
+    editor.broadcasttoken(new Token("initialize"));
+    editor.broadcasttoken(new Token("newsequence"));
     graphics.render();
   },
 };
@@ -88,10 +88,6 @@ Token = function(_type)
 };
 
 //create the base plugin object.
-//TODO:  SWITCH TO A version where the function
-// simply checks for a function of the token type string
-// and executes that, passing the token.  Can save resources by
-// not executing null functions all the time.
 Plugin = function()
 {
   return {

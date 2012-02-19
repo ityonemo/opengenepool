@@ -1,0 +1,61 @@
+How to write a plugin for OpenGenePool.
+
+let's call this plugin XXXXX
+
+1) you MUST have two files 
+  plugin_XXXXX.css
+  plugin_XXXXX.js
+
+plugin_XXXXX.js must create a plugin object named XXXXX.  That requires one line.
+
+var XXXXX = new Plugin();
+
+
+
+EVENT HANDLING
+plugins are passed Token(); objects.  The code for this can be found in editor.js.
+
+in short, the Tokens are distributed to the handletoken() function, which identifies
+the "type" string embedded in the token and finds the appropriate function in the Plugin
+(if it exists) and passes the Token to that plugin.  Tokens may or may not be packaged
+with additional information relevant to the event.  To handle this token, do not override
+handletoken(); merely write a handler function that corresponds to the typestring.
+
+eg:
+
+XXXXX.initialize = function() {//do stuff here
+}
+
+will respond to a token with typestring "initialize".
+
+
+XXXXX.redraw = function(token) {//do stuff here
+}
+
+will respond to a token with typestring "redraw".  You want to have this function accept
+the token because the token contains the "line" member variable which tells you which line
+is being redrawn.  Altering the contents of token is discouraged because it may still
+be passed to.
+
+List of event tokens and member variables
+
+initialize		instruction on the initial loading of plugins
+initialized		information that all plugins have been initialized.  Inter-plugin communication should happen here.
+newsequence		a new sequence has been loaded or the sequence has been changed.
+resize			the windowing screen has been resized.  check the graphics.metrics object for size values.
+redraw			directive to graphics plugins to redraw a line
+  line			draw a line
+redrawn			all of the lines have been drawn
+
+
+EVENT BROADCASTING
+plugins are encouraged to generate their own event tokens and broadcast them to other plugins.
+This can be achieved by cloning the token object
+
+TTTTT = new Token("TYPESTRING");
+
+appending data as necessary, and passing it to the editor broadcast function:
+
+editor.broadcasttoken(TTTTT);
+
+Please do not implement a token with the reserved typestring "handletoken".  This will cause problems.
