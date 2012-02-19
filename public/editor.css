@@ -3,17 +3,22 @@
   top: 0px;
   left: 0px;
   bottom: 0px;
-  width: 200px;
+  width: 150px;
 
   background: #999;
 }
 
 #infobox {
   position: relative;
+  border-color: #000;
+  background: #AAA;
   top: 0px;
   left: 0px;
   right: 0px;
-  padding: 10px;	
+  padding: 10px;
+  margin: 10px;
+  border-width: 1px;
+  text-align: center;
 }
 
 #directory {
@@ -44,7 +49,7 @@
     font-family: "Lucida Console", Monaco, monospace;
 
     bottom: 0px;
-    left: 200px;
+    left: 150px;
     top: 0px;
     right: 0px;
 }

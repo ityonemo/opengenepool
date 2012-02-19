@@ -318,9 +318,9 @@
             cy: 0,
             fill: "#fff",
             "fill-opacity": 1,
-            font: '10px "Arial"',
-            "font-family": '"Arial"',
-            "font-size": "10",
+            font: '',
+            "font-family": '',
+            "font-size": "",
             "font-style": "normal",
             "font-weight": 400,
             gradient: 0,
@@ -341,12 +341,13 @@
             "stroke-opacity": 1,
             "stroke-width": 1,
             target: "_blank",
-            "text-anchor": "middle",
+            "text-anchor": "",
             title: "Raphael",
             transform: "",
             width: 0,
             x: 0,
-            y: 0
+            y: 0,
+            class:"",
         },
         availableAnimAttrs = R._availableAnimAttrs = {
             blur: nu,
@@ -4373,9 +4374,7 @@ window.Raphael.svg && function (R) {
         res.attrs = {
             x: x,
             y: y,
-            "text-anchor": "middle",
             text: text,
-            font: R._availableAttrs.font,
             stroke: "none",
             fill: "#000"
         };

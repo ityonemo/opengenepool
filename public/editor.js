@@ -46,9 +46,10 @@ var editor =
         //submit this information to the infobox.
         var infobox = document.getElementById("infobox");
         infobox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
-
-        editor.initialize();
-        //editor.newsequence();
+        
+        //pass control to the graphics initialization routine.  This routine should return to the 'graphicsinitcallback'
+        //function, since graphics initialization requires asynchronous events.
+        graphics.initialize();
       }
     }
 
@@ -57,8 +58,49 @@ var editor =
     xmlhttp.send();
   },
 
-  initialize: function()
+  //distributes tokens to the plugins.
+  distributetoken:function(token)
   {
-    graphics.initialize();
+    for (var i = 0; i < plugins.length; i++)
+    {
+      plugins[i].handletoken(token);
+    }
+  },
+
+  //upon complete initialization of the graphics routine, then proceed to initialize the plugins.
+  //also tell all the components that there is a new sequence.
+  graphicsinitcallback: function()
+  {
+    graphics.setmetrics();
+    graphics.newsequence();
+    editor.distributetoken(new Token("initialize"));
+    editor.distributetoken(new Token("newsequence"));
+    graphics.render();
+  },
+};
+
+//Token object.  These are informational objects that are to be distributed to all the plugins.
+Token = function(_type)
+{
+  return {
+    type: _type
   }
-} 
+};
+
+//create the base plugin object.
+//TODO:  SWITCH TO A version where the function
+// simply checks for a function of the token type string
+// and executes that, passing the token.  Can save resources by
+// not executing null functions all the time.
+Plugin = function()
+{
+  return {
+    handletoken: function(token)
+    {
+      if (this[token.type])
+      {
+        this[token.type](token);
+      }
+    },
+  }
+}

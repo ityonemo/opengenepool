@@ -3,11 +3,28 @@ require 'json'
 get '/editor&:query' do |query|
   handleuser()
 
+  #list of plugins this user is using.
+  #TODO:  Make thes load from the database.
+  @pluginlist= ["sequence","annotations"]
+
   #assemble information necessary for the execution of the editor.
   @scriptlist = ["raphael.js","editor.js","editor_graphics.js"]
   @csslist = ["editor.css"]
+
+  @pluginlist.each do |@j|
+    @scriptlist.push("plugin_" + @j + ".js")
+    @csslist.push("plugin_" + @j + ".css")
+  end
+
   @content = haml :editor
-  @otherscripts = '<script type="text/javascript" charset="utf-8"> window.onload = editor.load("' + query + '") </script>'  
+
+  #set up the script.  first the window onload.
+  @otherscripts = 'window.onload = editor.load("' + query + '");' + "\n" +
+    'plugins = ['
+  @pluginlist.each do |@k|
+    @otherscripts += @k + ","
+  end
+  @otherscripts += '];'
   
   #call the OGP template.
   haml :ogp
@@ -20,7 +37,8 @@ get '/graphics_settings.js' do
   content_type :json
   {
     :vmargin => 20,
-    :hmargin => 20,
+    :lmargin => 80,
+    :rmargin => 20,
     :zoomlevel => 100,
   }.to_json()
 end

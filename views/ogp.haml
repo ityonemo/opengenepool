@@ -13,7 +13,8 @@
       %script(src=@j type="text/javascript" charset="utf-8")
 
     -#output any other scripts that we may want to generate.
-    #{@otherscripts}
+    %script(type="text/javascript" charset="utf-8")
+      #{@otherscripts}
 
   %body
     %header

@@ -1,0 +1,19 @@
+.sequence{
+  text-anchor: start;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 16px;
+}
+
+.position{
+  text-anchor: end;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 10px;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+}
+
+.sequencebox{
+  fill: #333;
+  stroke: #000;
+  stroke-width: 1px;
+}

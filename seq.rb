@@ -8,7 +8,7 @@ get '/seq/:query' do |query|
   $annotations = Array.new();
 
   #connect to the database.
-  dbh=Mysql.real_connect("localhost","www-data","", "DNAutics")
+  dbh=Mysql.real_connect("localhost","www-data","", "ogp")
     #query the sequences database for the sequence, use the unique ID.
 
     if (query[0..2].eql?("id="))
@@ -21,11 +21,11 @@ get '/seq/:query' do |query|
     @result = res.fetch_hash()
 
     #query the sequence-dependent annotations database for the annotations.
-    #res2=dbh.query("SELECT * FROM annotations WHERE (sequence='#{query}')")
-    #(1..res2.num_rows).each do
-    #  row = res2.fetch_hash()
-    #  $annotations.push(row)
-    #end
+    res2=dbh.query("SELECT * FROM annotations WHERE (sequence='#{@result['id']}')")
+    (1..res2.num_rows).each do
+      row = res2.fetch_hash()
+      $annotations.push(row)
+    end
   dbh.close if dbh
   
   haml :query
