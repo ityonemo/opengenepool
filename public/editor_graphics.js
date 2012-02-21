@@ -180,13 +180,12 @@ var graphics =
       };
     };
 
-    //TODO: actually reflect the below- last line.
     
     var lastline = graphics.lines.length - 1;
     var lastbox = graphics.lines[lastline].content.getBBox();
+    var fullheight = lastbox.y + lastbox.height + graphics.settings.vmargin;
 
-
-    graphics.editor.paper.setSize(graphics.metrics.fullwidth,lastbox.top + lastbox.height + graphics.settings.vmargin);
+    graphics.editor.paper.setSize(graphics.metrics.fullwidth, fullheight);
 
     //plugins may like to be notify that there has been a redraw event.
     editor.broadcasttoken(new Token("redrawn"))
