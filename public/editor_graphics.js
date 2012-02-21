@@ -3,7 +3,7 @@ var graphics =
   //various variables that we'll be keeping track of.
   //NB: these cannot remain zero, will be set in initialize method.
   metrics: {linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0},
-  settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, textsequence: false},  
+  settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, textsequence: false},  
   linecount: 0,
 
   //editor is a two-tuple of the DOM object itself and the raphael-generated paper object.
@@ -209,13 +209,15 @@ var graphics =
       }
     }
 
-    extremetop = 0;
+    extremetop = graphics.metrics.lineheight;
 
-    //find how much we need to move the line.
+    //find how much we need to move the line.  First the bounds of the previous box.
+    var prevbox = (line == 0) ? {} : graphics.lines[line - 1].content.getBBox();
     graphics.lines[line].translatey = 
-      ((line == 0) ? graphics.settings.vmargin : graphics.lines[line-1].translatey) + //prev line
-      graphics.metrics.lineheight -                 //plus the last line's sequence
-      extremetop;				    //plus the height of this sequence.
+      ((line == 0) 
+        ? graphics.settings.vmargin 
+        : (prevbox.y + prevbox.height + graphics.settings.linepadding))
+      + extremetop;
 
     //then translate the entire line.
     graphics.lines[line].content.translate(graphics.lines[line].translatex, graphics.lines[line].translatey)
