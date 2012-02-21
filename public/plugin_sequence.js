@@ -36,8 +36,12 @@ sequence.redraw = function(token)
   else
   {
     // otherwise, we should just draw a black bar.
-    sequenceobject = graphics.editor.paper.rect(0,-graphics.metrics.lineheight * (5/8), 
-                                                graphics.metrics.linewidth, graphics.metrics.lineheight/4);
+
+    //adjust the width of the bar if it's the last line.
+    var barwidth = (token.line == sequence.chunks.length - 1) ? (sequence.chunks[token.line].length * graphics.metrics.charwidth) : graphics.metrics.linewidth;
+
+    sequenceobject = graphics.editor.paper.rect(0,-graphics.metrics.lineheight * (5/8), barwidth, graphics.metrics.lineheight/4);
+
     sequenceobject.attr("class","sequencebox");
     sequenceelement.content.push(sequenceobject);
   }
