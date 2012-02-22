@@ -185,34 +185,39 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
   var thisarrow = {};
   var height = graphics.metrics.lineheight;
   var arrowedge = graphics.metrics.lineheight / 5;
-
-  switch (type)
+  
+  if (((right - left) < graphics.metrics.blockwidth) || (type == 0))
   {
-    case -1:
-      thisarrow = graphics.editor.paper.path(
-      "M " + left.toString() + " " + (height / 2).toString() +
-      " L " + (left + graphics.metrics.charwidth).toString() + " 0 " +
-      " V " + arrowedge.toString() +
-      " H " + right.toString() +
-      " V " + (height - arrowedge).toString() +
-      " H " + (left + graphics.metrics.charwidth).toString() +
-      " V " + height.toString() +
-      " Z");
-    break;
-    case 1:
-      thisarrow = graphics.editor.paper.path(
-        "M " + right.toString() + " " + (height / 2).toString() +
-        " L " + (right - graphics.metrics.charwidth).toString() + " 0 " +
-        " V " + arrowedge.toString() +
-        " H " + left.toString() +
-        " V " + (height - arrowedge).toString() +
-        " H " + (right - graphics.metrics.charwidth).toString() +
-        " V " + height.toString() +
+    thisarrow = graphics.editor.paper.rect
+    (left,-height + arrowedge,right-left,height - arrowedge * 2);
+  }
+  else
+  {
+    switch (type)
+    {
+      case -1:
+        thisarrow = graphics.editor.paper.path(
+        "M " + left.toString() + " " + (-height / 2).toString() +
+        " L " + (left + graphics.metrics.blockwidth).toString() + " 0 " +
+        " V " + (-arrowedge).toString() +
+        " H " + right.toString() +
+        " V " + (-height + arrowedge).toString() +
+        " H " + (left + graphics.metrics.blockwidth).toString() +
+        " V " + (-height).toString() +
         " Z");
-    break;
-    default:
-      thisarrow = graphics.editor.paper.rect
-        (left,arrowedge,right-left,graphics.metrics.charwidth - arrowedge * 2);
+      break;
+      case 1:
+        thisarrow = graphics.editor.paper.path(
+          "M " + right.toString() + " " + (-height / 2).toString() +
+          " L " + (right - graphics.metrics.blockwidth).toString() + " 0 " +
+          " V " + -arrowedge.toString() +
+          " H " + left.toString() +
+          " V " + (-height + arrowedge).toString() +
+          " H " + (right - graphics.metrics.blockwidth).toString() +
+          " V " + (-height).toString() +
+          " Z");
+      break;
+    };
   };
 
   thisarrow.attr("class", "annotation " + ref.type);

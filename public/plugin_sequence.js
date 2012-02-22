@@ -22,7 +22,7 @@ sequence.newsequence = function()
 
 sequence.redraw = function(token)
 {
-  var sequenceelement = new GraphicsElement(graphics.settings.linewidth, graphics.settings.lineheight, true)
+  var sequenceelement = new GraphicsElement(true, graphics.settings.linewidth, graphics.settings.lineheight)
   var sequenceobject = {};
 
   if (graphics.settings.textsequence)
@@ -46,7 +46,7 @@ sequence.redraw = function(token)
     sequenceelement.content.push(sequenceobject);
   }
   
-  positionelement = new GraphicsElement(0,0,true)
+  positionelement = new GraphicsElement(true, 0, 0)
   //in the case that we are drawing a standard forward DNA strand, we will put the "baseline" underneath
   //the object.  Note that Raphael positions text in a centered fashion with respect to height.
   var positionobject = graphics.editor.paper.text(-graphics.settings.rmargin, 0, (token.line * graphics.settings.zoomlevel + 1).toString());

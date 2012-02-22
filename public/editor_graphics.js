@@ -17,6 +17,7 @@ var graphics =
   //  content - raphael set element corresponding to the line.
   //  invalid - boolean, should be called on 'invalidate' call.
  
+
   ////////////////////////////////////////////////////////////////////////////////////////
   //INITIALIZATION FUNCTIONS
 
@@ -35,9 +36,56 @@ var graphics =
     $.getJSON("/graphics_settings.js",function(json){graphics.settings = json; editor.graphicsinitcallback();});
   },
 
+  zoomvalues: [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
+  zoomstrings: ["50bp","100bp","200bp","500bp","1kbp","2kbp","5kbp","10kbp","20kbp","50kbp","100kbp","500kbp","1Mbp","5Mbp","10Mbp"],
+  zoomarray: [],
+
   newsequence: function()
   //this function initializes the the lines array ready to be populated by the various plugins.
   {
+    //first set the linescount based on the sequence and the characters per line.
+    graphics.linecount = Math.ceil(editor.sequence.length / graphics.settings.zoomlevel);
+
+    //create the lines objects.
+    graphics.lines = [];
+    for (var i = 0; i < graphics.linecount; i++)
+    {
+      graphics.lines[i] = new Line();
+    };
+
+    //create the zoomer object
+    var zoomer = document.getElementById("zoomer");
+    graphics.zoomarray = [];
+    for (var i = 0; graphics.zoomvalues[i] < editor.sequence.length; i++)
+    {
+      var selection = document.createElement('option');
+      selection.innerHTML = graphics.zoomstrings[i];
+      graphics.zoomarray.push(graphics.zoomvalues[i]);
+      zoomer.appendChild(selection);
+    }
+
+    var selection = document.createElement('option');
+    selection.innerHTML = 'full';
+    graphics.zoomarray.push(editor.sequence.length);
+    zoomer.appendChild(selection);
+
+    zoomer.onchange = function()
+    {
+      graphics.zoom(graphics.zoomarray[this.selectedIndex]);
+    }
+  },
+
+  zoom: function(level)
+  {
+    for (var i = 0; i < graphics.linecount; i++)
+    {
+      graphics.clearline(i);
+    }
+
+    //empty the lines array.
+    graphics.lines = [];
+
+    graphics.settings.zoomlevel = level;
     //first set the linescount based on the sequence and the characters per line.
     graphics.linecount = Math.ceil(editor.sequence.length / graphics.settings.zoomlevel);
 
@@ -46,6 +94,12 @@ var graphics =
     {
       graphics.lines[i] = new Line();
     };
+
+    //inform the plugins that we have rezoomed.
+    //TODO:  FIX THIS.
+    editor.broadcasttoken(new Token("newsequence"));
+
+    onresize();
   },
 
   onresize: function()
@@ -113,6 +167,15 @@ var graphics =
   ///////////////////////////////////////////////////////////////////////////////////////
   //RENDERING FUNCTIONS
  
+  clearline: function (line)
+  {
+    //nuke the contents of the line.  Raphael doesn't provide a recursive remove, so we
+    //have to do it stage by stage, plus we want the line's set to still be associated
+    //with the paper.
+    graphics.lines[line].content.forEach(function(who){who.remove();});
+    graphics.lines[line].content.clear();
+  },
+
   invalidateall: function()
   {
     for (var i = 0; i < graphics.lines.length; i++)
@@ -141,11 +204,7 @@ var graphics =
       //check to see if this line has been invalidated.
       if (graphics.lines[i].invalid)
       {
-        //nuke the contents of the line.  Raphael doesn't provide a recursive remove, so we
-        //have to do it stage by stage, plus we want the line's set to still be associated
-        //with the paper.
-        graphics.lines[i].content.forEach(function(who){who.remove();});
-        graphics.lines[i].content.clear();
+        graphics.clearline(i);
         
         //first save the translatey variable
         //var oldposition = graphics.lines[i].translatey;
@@ -239,7 +298,7 @@ Line = function()
 }
 
 //styling container.
-GraphicsElement = function(width, height, _anchored)
+GraphicsElement = function(_anchored, width, height)
 {
   return {
     content: graphics.editor.paper.set(),
