@@ -257,6 +257,7 @@ var graphics =
     var elements = graphics.lines[line].elements
 
     //first go through and deal with the anchored content.
+    var unanchored = [];			//temporary array to hold what we don't deal with.
     for (var i = 0; i < elements.length; i++)
     {
       if (elements[i].anchored)
@@ -265,10 +266,45 @@ var graphics =
                            elements[i].top - elements[i].toppadding, 
                            elements[i].right + elements[i].rightpadding, 
                            elements[i].bottom + elements[i].bottompadding));
-      }
+      } else
+      { unanchored.push(elements[i]); }
     }
 
-    extremetop = graphics.metrics.lineheight;
+    //next go through and deal with the unanchored content.
+    for (var i = 0; i < unanchored.length; i++)
+    {
+      //set a cleared variable.
+      var cleared = false;
+      while (!cleared)
+      {
+        cleared = true;  // set this correct, only triggered if we find a problem.
+        //scan through the boxes, checking for a collision.
+          
+        for(var j = 0; j < boxes.length; j++)
+        {
+          //direct check for a collision.
+          if (boxes[j].overlaps(unanchored[i]))
+          {
+            //we are not cleared.
+            cleared = false;
+            //now find out how much we have to move the element up.
+            var deltay = boxes[j].top - unanchored[i].bottom + unanchored[i].bottompadding;
+            unanchored[i].content.translate(0,deltay);
+            unanchored[i].snapto();
+
+            break;  //break out of the for loop and because cleared is false, run through the
+          };         //while loop again.
+        };
+      };
+
+      //since we've cleared, we have to add this item's box to the list of boxes.
+      boxes.push(new Box(unanchored[i].left - unanchored[i].leftpadding,
+                         unanchored[i].top - unanchored[i].toppadding, 
+                         unanchored[i].right + unanchored[i].rightpadding, 
+                         unanchored[i].bottom + unanchored[i].bottompadding));
+    }
+
+    extremetop = -graphics.lines[line].content.getBBox().y;
 
     //find how much we need to move the line.  First the bounds of the previous box.
     var prevbox = (line == 0) ? {} : graphics.lines[line - 1].content.getBBox();
@@ -298,7 +334,7 @@ Line = function()
 }
 
 //styling container.
-GraphicsElement = function(_anchored, width, height)
+GraphicsElement = function(_anchored)
 {
   return {
     content: graphics.editor.paper.set(),
@@ -306,8 +342,8 @@ GraphicsElement = function(_anchored, width, height)
 
     left: 0,
     top: 0,
-    bottom: height,
-    right: width,
+    bottom: 0,
+    right: 0,
 
     leftpadding: 0,
     rightpadding: 0,
@@ -317,10 +353,10 @@ GraphicsElement = function(_anchored, width, height)
     snapto: function()
     {
       var bbox = this.content.getBBox();
-      left = bbox.left;
-      top = bbox.top;
-      right = bbox.left + bbox.width;
-      bottom = bbox.top + bbox.height;
+      this.left = bbox.x;
+      this.top = bbox.y;
+      this.right = bbox.x + bbox.width;
+      this.bottom = bbox.y + bbox.height;
     }
   }
 }

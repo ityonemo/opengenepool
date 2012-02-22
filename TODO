@@ -1,5 +1,11 @@
 ogp ToDo list (in no particular order of importance):
 
+MUST DO NEXT
+
+fix problem where re-zooming annotations doesn't delete the annotations.
+Fix problem where annotations start to expand when you resize the screen.
+
+
 Things broken by global update that need to be fixed:
 
 "command line" console

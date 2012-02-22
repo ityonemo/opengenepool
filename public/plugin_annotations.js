@@ -145,6 +145,7 @@ annotations.redraw = function(token)
     {
       var cleft = currentfragment.start*graphics.metrics.charwidth;
       var cright = (currentfragment.end+1)*graphics.metrics.charwidth;
+
       var height = graphics.metrics.lineheight;
 
       var graphicselement = new GraphicsElement();
@@ -189,7 +190,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
   if (((right - left) < graphics.metrics.blockwidth) || (type == 0))
   {
     thisarrow = graphics.editor.paper.rect
-    (left,-height + arrowedge,right-left,height - arrowedge * 2);
+      (left,-height + arrowedge,right-left,height - arrowedge * 2);
   }
   else
   {
