@@ -36,8 +36,8 @@ var graphics =
     $.getJSON("/graphics_settings.js",function(json){graphics.settings = json; editor.graphicsinitcallback();});
   },
 
-  zoomvalues: [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
-  zoomstrings: ["50bp","100bp","200bp","500bp","1kbp","2kbp","5kbp","10kbp","20kbp","50kbp","100kbp","500kbp","1Mbp","5Mbp","10Mbp"],
+  zoomvalues: [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
+  zoomstrings: ["50bp","75bp","100bp","200bp","500bp","1kbp","2kbp","5kbp","10kbp","20kbp","50kbp","100kbp","500kbp","1Mbp","5Mbp","10Mbp"],
   zoomarray: [],
 
   newsequence: function()
@@ -97,7 +97,7 @@ var graphics =
 
     //inform the plugins that we have rezoomed.
     //TODO:  FIX THIS.
-    editor.broadcasttoken(new Token("newsequence"));
+    editor.broadcasttoken(new Token("setzoom"));
 
     onresize();
   },
@@ -174,6 +174,11 @@ var graphics =
     //with the paper.
     graphics.lines[line].content.forEach(function(who){who.remove();});
     graphics.lines[line].content.clear();
+    graphics.lines[line].elements = [];
+
+    var clearline = new Token("clearline");
+    clearline.line = line;
+    editor.broadcasttoken(clearline);
   },
 
   invalidateall: function()
@@ -288,7 +293,7 @@ var graphics =
             //we are not cleared.
             cleared = false;
             //now find out how much we have to move the element up.
-            var deltay = boxes[j].top - unanchored[i].bottom + unanchored[i].bottompadding;
+            var deltay = boxes[j].top - (unanchored[i].bottom + unanchored[i].bottompadding);
             unanchored[i].content.translate(0,deltay);
             unanchored[i].snapto();
 
@@ -304,7 +309,7 @@ var graphics =
                          unanchored[i].bottom + unanchored[i].bottompadding));
     }
 
-    extremetop = -graphics.lines[line].content.getBBox().y;
+    var extremetop = -graphics.lines[line].content.getBBox().y;
 
     //find how much we need to move the line.  First the bounds of the previous box.
     var prevbox = (line == 0) ? {} : graphics.lines[line - 1].content.getBBox();
@@ -330,6 +335,7 @@ Line = function()
     content: graphics.editor.paper.set(), //an array of raphael objects.
     elements: [],  //elements is an array of graphicscontainers. 
     invalid: true,
+    reset: function(){translatex = graphics.settings.lmargin; translatey = graphics.settings.vmargin;}
   }
 }
 

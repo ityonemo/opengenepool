@@ -46,6 +46,7 @@ resize			the windowing screen has been resized.  check the graphics.metrics obje
 redraw			directive to graphics plugins to redraw a line
   line			draw a line
 redrawn			all of the lines have been drawn
+setzoom			change the zoom level
 
 
 EVENT BROADCASTING

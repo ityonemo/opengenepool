@@ -1,7 +1,13 @@
 var annotations = new Plugin();
 
+////////////////////////////////////////////////////////////////////////
+// MEMBER VARIABLES
+
 //list of annotations
 annotations.annotations = [];
+
+////////////////////////////////////////////////////////////////////////
+// OVERLOADING FUNCTIONS
 
 annotations.newsequence = function()
 {
@@ -129,6 +135,18 @@ annotations.generatefragments = function(i)
   return {start: span.start_s, end: span.end_s}
 };
 
+annotations.setzoom = function(token)
+{
+  //re-initialize the annotation fragments list.
+  annotations.fragments = []; 
+
+  //parse over the annotations array and split into graphically digestible
+  //elements which will go into the "annofragments" array.
+  for (var i = 0; i < annotations.annotations.length; i++)
+  {
+    annotations.generatefragments(i);
+  }
+}
 
 annotations.redraw = function(token)
 {
@@ -154,7 +172,11 @@ annotations.redraw = function(token)
       //by the internal layout engine.
       graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.direction, currentfragment.ref);
       graphicselement.snapto();
-        
+
+      graphicselement.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (currentfragment.direction == 0)) ? 
+        graphics.metrics.lineheight / 5 : 0) + 1;
+      graphicselement.bottompadding = graphicselement.toppadding;
+
       //set up the tooltip associated with the raphael object. 
       //var descriptionstring =
       //      this.annofragments[i].ref.type + 

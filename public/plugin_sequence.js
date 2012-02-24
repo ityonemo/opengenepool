@@ -9,6 +9,7 @@ sequence.chunks = [];
 sequence.newsequence = function()
 {
   var zoomlevel = graphics.settings.zoomlevel;
+  sequence.chunks = [];
   for (var i = 0; i * zoomlevel < editor.sequence.length; i ++)
   {
     //assign the appropriate array index to the corresponding chunk.
@@ -16,6 +17,12 @@ sequence.newsequence = function()
   };
 }
 
+sequence.setzoom = function()
+{
+  //these two functions should basically be identical.
+  //NB in the future this might change.
+  sequence.newsequence();
+}
 
 /////////////////////////////////////////////////////////////////////////
 // RENDERING THE LINE
@@ -44,6 +51,9 @@ sequence.redraw = function(token)
 
     sequenceobject.attr("class","sequencebox");
     sequenceelement.content.push(sequenceobject);
+
+    sequenceelement.toppadding = graphics.metrics.lineheight * (3/8);
+    sequenceelement.bottompadding = graphics.metrics.lineheight * (3/8);
   }
 
   sequenceelement.snapto();
