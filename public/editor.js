@@ -77,6 +77,15 @@ var editor =
     editor.broadcasttoken(new Token("newsequence"));
     graphics.render();
   },
+
+  //export the image as svg:
+  getsvg: function()
+  {
+    mywindow = window.open("","svg output");
+    mywindow.document.write("<code>");
+    mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));
+    mywindow.document.write("</code>");
+  }
 };
 
 //Token object.  These are informational objects that are to be distributed to all the plugins.

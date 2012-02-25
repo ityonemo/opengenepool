@@ -1,14 +1,18 @@
 %aside#toolbar
   #infobox
-  #views
+  #graphics.toolitem
     %details
-      %summary zoom
+      %summary graphics
+      zoom
       %select#zoomer
-  #directory.fileman
+      %br
+      %button#getsvg(type="button" onclick="editor.getsvg()")
+        get svg
+  #directory.toolitem
     %details
       %summary root directory
       nothing
-  #workspace.fileman
+  #workspace.toolitem
     %details
       %summary workspace
       nothing

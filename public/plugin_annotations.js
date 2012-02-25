@@ -5,9 +5,26 @@ var annotations = new Plugin();
 
 //list of annotations
 annotations.annotations = [];
+annotations.annotip = {};
 
 ////////////////////////////////////////////////////////////////////////
-// OVERLOADING FUNCTIONS
+// OVERLOADING TOKEN FUNCTIONS
+
+annotations.initialize = function()
+{
+  //in the initialize function we are going to set up the annotations tooltip.
+  annotations.annotip = document.createElement('div');
+  annotations.annotip.setAttribute('id','annotip');
+  document.body.appendChild(annotations.annotip);
+  
+  var annotip_title = document.createElement('span');
+  annotip_title.setAttribute('id','annotip_title');
+  annotations.annotip.appendChild(annotip_title);
+
+  var annotip_text = document.createElement('span');
+  annotip_text.setAttribute('id','annotip_text');
+  annotations.annotip.appendChild(annotip_text);
+}
 
 annotations.newsequence = function()
 {
@@ -178,14 +195,14 @@ annotations.redraw = function(token)
       graphicselement.bottompadding = graphicselement.toppadding;
 
       //set up the tooltip associated with the raphael object. 
-      //var descriptionstring =
-      //      this.annofragments[i].ref.type + 
-      //'<span class="' + 
-      //((this.annofragments[i].ref.start < this.annofragments[i].ref.end) ? 'annotip_forward' : 'annotip_reverse') + '">' +
-      //" (" + this.annofragments[i].ref.start.toString() +
-      //".." + this.annofragments[i].ref.end.toString() +
-      //")</span><br/>" + this.annofragments[i].ref.notes;
-      // this.addTip(graphicsobject.content,this.annofragments[i].ref.caption, descriptionstring);
+      var descriptionstring = annotations.fragments[i].ref.type + 
+            '<span class="' + 
+            ((annotations.fragments[i].ref.start < annotations.fragments[i].ref.end) ? 'annotip_forward' : 'annotip_reverse')
+            + '">' + " (" + annotations.fragments[i].ref.start.toString() +
+            ".." + annotations.fragments[i].ref.end.toString() +
+            ")</span><br/>" + annotations.fragments[i].ref.notes;
+
+      annotations.addTip(graphicselement.content, annotations.fragments[i].ref.caption, descriptionstring);
 
       //put it into the elements array.
       graphics.lines[token.line].elements.push(graphicselement);
@@ -193,6 +210,35 @@ annotations.redraw = function(token)
       graphics.lines[token.line].content.push(graphicselement.content);
     }
   }
+};
+
+var annotation_tipover = false;
+
+annotations.addTip = function(element, title, text)
+{
+  //jQuery based craziness that associates callback functions with the
+  //selected annotation segment.  jQuery is necessary to deal with overlapping
+  //mouseover/mouseout insanity and resolve to simple functions.
+  element.mouseover(
+    function(){
+      document.getElementById("annotip_title").innerHTML=title;
+      document.getElementById("annotip_text").innerHTML="<br/>" + text;
+      $("#annotip").css("display","block");
+      annotation_tipover = true;
+    })
+  element.mouseout(
+    function()
+    {
+      $("#annotip").css("display","none");
+      annotation_tipover = false;
+    });
+  element.mousemove(
+    function(e)
+    {
+      $("#annotip")
+        .css("left",(e.clientX+20).toString() + "px")
+        .css("top",(e.clientY+20).toString() + "px");
+    }); 
 };
 
 annotations.createfragmentgraphic = function (left, right, type, ref)
