@@ -210,9 +210,6 @@ var graphics =
       if (graphics.lines[i].invalid)
       {
         graphics.clearline(i);
-        
-        //first save the translatey variable
-        //var oldposition = graphics.lines[i].translatey;
 
         //push a redraw token to the plugins
         redrawtoken = new Token("redraw");
@@ -225,22 +222,6 @@ var graphics =
 
         //layout this array.
         graphics.layout(i);
-
-        //figure out how much we need to move
-//        var deltay = graphics.lines[i].translatey - oldposition;
-
-        //if it's nonzero
-//        if (deltay != 0)
-//        { //go through and nudge all of the other lines.
-//          for(var j = i+1; j < graphics.lines.length; j++)
-//          {
-//            graphics.lines[j].translatey += deltay;
-//            graphics.lines[j].content.translate(0, deltay);
-//          }
-//        }
-
-        //disinvalidate the array element. 
-//        graphics.lines[i].invalid = false;
       };
     };
 

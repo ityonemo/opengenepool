@@ -1,0 +1,13 @@
+/*css for SVG.  In the future this may be dynamic*/
+
+.forward_select {
+  stroke:white;
+  fill:green;
+  fill-opacity:0.5;
+}
+
+.reverse_select {
+  stroke:white;
+  fill:red;
+  fill-opacity:0.5;
+}

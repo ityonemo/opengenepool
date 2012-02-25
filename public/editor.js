@@ -85,6 +85,15 @@ var editor =
     mywindow.document.write("<code>");
     mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));
     mywindow.document.write("</code>");
+  },
+
+  //retrieve a subsequence.
+  subsequence: function(range)
+  {
+    if (range.orientation == 1)
+    { return editor.sequence.substr(start - 1, end - start + 1); }
+    else
+    { return reversecomplement(editor.sequence.substr(end - 1, start - end + 1)); }
   }
 };
 
