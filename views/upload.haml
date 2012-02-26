@@ -1,0 +1,31 @@
+%button(type="button" onclick="uploaddialog();")
+  upload a file
+%form(action="/postseq" enctype="multipart/form-data" method="post")
+  -$keywordarray.each do |@j|
+    .keyword(id="#{@j}")
+      #{@j}
+      %input(type="text" name="#{@j.downcase()}" value="#{$keywordhash[@j]}")
+      %br
+
+  -(0..$annotationscount - 1).each do |@i|
+    .annotation(id="annotation_#{@i}")
+      ANNOTATION
+      %input(type="text" name="annotationtype_#{@i}" class="upload_annotation" value="#{$annotationstype[@i]}")
+      RANGE
+      %input(type="text" name="annotationrange_#{@i}" class="upload_annotation" value="#{$annotationsrange[@i]}")
+      CONTENT
+      %input(type="text" name="annotationdata_#{@i}" class="upload_annotation" value="#{$annotationsdata[@i]}")
+      %br
+
+  SEQUENCE
+  %input(type="textarea" name="sequence" value="#{$sequence}")
+  %br
+
+  %input(type="submit" value="submit")
+
+#uploaddialog
+  %form(action="/upload" enctype="multipart/form-data" method="post")
+    %p please choose a genbank file to upload.
+    %input(type="file" name="file" size="40")
+    %p/
+    %input(type="submit" value="Send")

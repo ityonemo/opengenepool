@@ -7,6 +7,7 @@ require 'haml'
 
 #code for non-main pages
 require 'userman' #user management
+require 'upload' #sequence data upload tool
 require 'content' #HTML content/xml management
 require 'editor' #DNA editor
 require 'seq' #sequence management
