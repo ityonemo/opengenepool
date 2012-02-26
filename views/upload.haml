@@ -1,15 +1,19 @@
 %button(type="button" onclick="uploaddialog();")
   upload a file
 %form(action="/postseq" enctype="multipart/form-data" method="post")
+  %h2 sequence information
   -$keywordarray.each do |@j|
     .keyword(id="#{@j}")
       #{@j}
       %input(type="text" name="#{@j.downcase()}" value="#{$keywordhash[@j]}")
+      %button(type="button" onclick="$('#'+'#{@j}').remove();")
+        delete
       %br
 
+  %h2 sequence annotations
   -(0..$annotationscount - 1).each do |@i|
     .annotation(id="annotation_#{@i}")
-      ANNOTATION
+      TYPE
       %input(type="text" name="annotationtype_#{@i}" class="upload_annotation" value="#{$annotationstype[@i]}")
       RANGE
       %input(type="text" name="annotationrange_#{@i}" class="upload_annotation" value="#{$annotationsrange[@i]}")
@@ -17,7 +21,7 @@
       %input(type="text" name="annotationdata_#{@i}" class="upload_annotation" value="#{$annotationsdata[@i]}")
       %br
 
-  SEQUENCE
+  %h2 sequence
   %input(type="textarea" name="sequence" value="#{$sequence}")
   %br
 

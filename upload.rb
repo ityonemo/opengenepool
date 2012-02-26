@@ -62,9 +62,10 @@ def process()
   $sequence = simpleextract("ORIGIN").gsub(/[\d\s\/]/,"")
   
   $annotationstype = Array.new()
+  $annotationscaption = Array.new()
   $annotationsrange = Array.new()
   $annotationsdata = Array.new()
-  $annotation_data = String.new("");
+  $annotation_data = String.new("")
 
   $annotationslines = simpletransfer("FEATURES")
   $annotationslines.each_line do |line|
