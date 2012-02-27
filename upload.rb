@@ -38,8 +38,10 @@ post '/upload' do
   haml :ogp
 end
 
+#data in the haml file that can be filled in.
 $keywordhash = Hash.new()
 $keywordarray = ["LOCUS", "DEFINITION", "ACCESSION", "VERSION", "KEYWORDS", "SOURCE", "ORGANISM"]
+$annotations = Array.new()
 $sequence = ""
 $featureindent = 0
 
@@ -51,6 +53,22 @@ def simpletransfer(string)
   $keywordhash[string] = simpleextract(string)
 end
 
+class Annotation
+  attr_accessor :type, :caption, :range, :data, :index, :datahash
+  
+  def initialize
+    @datahash = Hash.new()
+  end
+
+  def finalize
+    if @datahash.has_key?("/gene")
+      @caption = @datahash["/gene"][/[\w\s]+/]
+    elsif @datahash.has_key?("/note")
+      @caption = @datahash["/note"].split(/[^\w\s]/)[1]
+    end
+  end
+end
+
 def process()
   $keywordhash["LOCUS"] = simpleextract("LOCUS").split(/\s+/)[0]
   simpletransfer("DEFINITION")
@@ -60,27 +78,35 @@ def process()
   $keywordhash["SOURCE"] = simpleextract("SOURCE").split(/\n/)[0]
   $keywordhash["ORGANISM"] = simpleextract("SOURCE").split(/\n/)[1].strip().split(/\s+/,2)[1]
   $sequence = simpleextract("ORIGIN").gsub(/[\d\s\/]/,"")
-  
-  $annotationstype = Array.new()
-  $annotationscaption = Array.new()
-  $annotationsrange = Array.new()
-  $annotationsdata = Array.new()
-  $annotation_data = String.new("")
+
+  $current_annotation = nil
+  $current_property = nil
 
   $annotationslines = simpletransfer("FEATURES")
   $annotationslines.each_line do |line|
     if (line.index(/\S/) < $featureindent)
+      if ($current_annotation != nil)
+        $current_annotation.finalize()
+        $annotations.push($current_annotation)
+      end
+      $current_annotation = Annotation.new()
       myline = line.strip().split(/\s+/)
-      $annotationstype.push(String.new(myline[0]))
-      $annotationsrange.push(String.new(myline[1]))
-      $annotationsdata.push($annotation_data)
-      $annotation_data = String.new("")
+      $current_annotation.type = String.new(myline[0])
+      $current_annotation.range = String.new(myline[1])
+      $current_annotation.index = $annotations.length()
+      $current_annotation.data = "";
     else
-      $annotation_data += line.strip()
+      $current_annotation.data += line;
+      temp = line.strip()
+      if (temp[0] == 47)  #check to see if we have a slash winner!
+        temparray = temp.split('=',2)
+        $current_property = temparray[0]
+        $current_annotation.datahash[$current_property] = temparray[1]
+      else
+        $current_annotation.datahash[$current_property] += temp
+      end
     end
   end
-  $annotationsdata.shift()
-  $annotationscount = $annotationstype.length() - 1
 end
 
 def gbparse(file)
@@ -109,5 +135,8 @@ def gbparse(file)
     end
   end
   process()
+end
+
+post '/uploadseq' do
 end
 

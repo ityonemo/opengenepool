@@ -1,7 +1,13 @@
-%button(type="button" onclick="uploaddialog();")
-  upload a file
-%form(action="/postseq" enctype="multipart/form-data" method="post")
+%form(action="/uploadseq" enctype="multipart/form-data" method="post")
+  %button(type="button" onclick="uploaddialog();")
+    upload a file
+  %input(type="submit" value="submit")
   %h2 sequence information
+
+  TITLE
+  %input(type="text" name="title" value="#{$keywordhash['LOCUS']}")
+  %br
+
   -$keywordarray.each do |@j|
     .keyword(id="#{@j}")
       #{@j}
@@ -11,14 +17,18 @@
       %br
 
   %h2 sequence annotations
-  -(0..$annotationscount - 1).each do |@i|
-    .annotation(id="annotation_#{@i}")
+  -$annotations.each do |@j|
+    .upload_annotation(id="annotation_#{@j.index}")
+      CAPTION
+      %input(type="text" name="annotationrange_#{@j.index}" class="annotation_caption" value="#{@j.caption}")
       TYPE
-      %input(type="text" name="annotationtype_#{@i}" class="upload_annotation" value="#{$annotationstype[@i]}")
+      %input(type="text" name="annotationtype_#{@j.index}" class="annotation_type" value="#{@j.type}")
       RANGE
-      %input(type="text" name="annotationrange_#{@i}" class="upload_annotation" value="#{$annotationsrange[@i]}")
+      %input(type="text" name="annotationrange_#{@j.index}" class="annotation_range" value="#{@j.range}")
       CONTENT
-      %input(type="text" name="annotationdata_#{@i}" class="upload_annotation" value="#{$annotationsdata[@i]}")
+      %input(type="text" name="annotationdata_#{@j.index}" class="annotation_content" value="#{@j.data}")
+      %button(type="button" onclick="$('#'+'annotation_#{@j.index}').remove();")
+        delete
       %br
 
   %h2 sequence

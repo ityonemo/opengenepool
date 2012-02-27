@@ -8,13 +8,14 @@
       %br
       %button#getsvg(type="button" onclick="editor.getsvg()")
         get svg
-  #directory.toolitem
-    %details
-      %summary root directory
-      nothing
-  #workspace.toolitem
-    %details
-      %summary workspace
-      nothing
+  -if(session[:user] != nil)
+    #directory.toolitem
+      %details
+        %summary root directory
+        nothing yet
+    #workspace.toolitem
+      %details
+        %summary workspace
+        nothing yet
 #editor
 #popupmenu
