@@ -1,5 +1,3 @@
-require 'bio'
-
 get '/upload' do
   handleuser()
 
@@ -66,6 +64,10 @@ class Annotation
     elsif @datahash.has_key?("/note")
       @caption = @datahash["/note"].split(/[^\w\s]/)[1]
     end
+  end
+
+  def to_s
+    "'" + @caption + "', '" + @type + "', '" + @range + "', '" + @data + "'"  
   end
 end
 
@@ -137,6 +139,55 @@ def gbparse(file)
   process()
 end
 
+$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism"]
+#helper function that evaluates a hash with an array
+def transcode(array, hash)
+  @t_array = Array.new
+  array.each() do |key|
+    @t_array.push(hash.has_key?(key) ? hash[key] : '')
+  end
+  @t_array
+end
+
 post '/uploadseq' do
+  if(session[:user])
+    
+    #generate the command for creating the sequence in MySQL.
+    #TODO: do some checking to make sure we aren't going to pull a bobby tables here.
+    $keyjoin = $mysqlarray.join(", ")
+    $valjoin = "'" + transcode($mysqlarray,params).join("', '") + "'"
+
+    $annotations = Hash.new()
+    #generate the hash storing the annotations, recollated
+    params.each_key() do |key|
+      if (key =~ /\Aannotation/)
+        keyarray = key.split("_")
+        trimmedkey = keyarray[0]
+        unless ($annotations.has_key?(trimmedkey))  #if we need it, generate the annotation
+          $annotations[trimmedkey] = Annotation.new()
+        end
+        #TODO: fix this so that we don't do a bobby tables
+        case keyarray[1]
+          when "caption"
+            $annotations[trimmedkey].caption = params[key]
+          when "type"
+            $annotations[trimmedkey].type = params[key]
+          when "range"
+            $annotations[trimmedkey].range = params[key]
+          when "data"
+            $annotations[trimmedkey].data = params[key]
+        end
+      end
+    end
+
+    #generate the commands for creating the annotations
+    $text = ""
+    $annotations.each() do |key,value|
+      $text += "INSERT INTO annotations (caption, type, range, data) VALUES (#{value})" + "<br/>"
+    end
+
+    "INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')" + "<br/>" + $text
+
+  end
 end
 

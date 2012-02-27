@@ -10,7 +10,6 @@ Following Rubygems:
 sinatra
 haml
 mysql
-bioruby
 
 Recommended for development:
 
@@ -31,13 +30,13 @@ Getting started:
 
 *1) point your web browser to http://localhost:4567/initialize/
 
-this will set up the databases appropriately.
+this will allow you to initialize the databases and set up a superuser account
 
-2) use test genbank files that are in the ./DNAutics/testfile/ directory.
+2) login using the superuser
 
-*3) upload them using the applet at http://localhost:4567/upload/
+3) find test genbank files that are in the ./testfile/ directory.
 
-*currently broken. (19 Feb 2012)
+4) upload them using the applet at http://localhost:4567/upload/
 
+*currently broken. (26 Feb 2012)
 
-Note:  raphael.js is not the default raphael, it has been changed to allow for css to be applied to elements.

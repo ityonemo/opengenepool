@@ -1,0 +1,59 @@
+Database notes
+
+
+sequences
+
+id
+owner		int		id from owner table
+group		int		id from group table
+created         date
+supercedes      int		id from within sequence table
+replacement     int		id from within sequence table
+
+locus		vc64
+title		vc64
+definition	text
+accession	vc64
+keywords	text
+source		vc64
+organism	vc64	
+sequence	text
+
+status		vc64		virtual, finalized, verified, etc
+type		vc64		linear, circular, etc		
+class		vc64		plasmid, chromosome, primer, etc
+length		int		
+
+
+annotations
+
+id		
+sequence	int		id of linked sequence
+owner		int		id from owner table
+group		int		id from group table
+created		date
+supercedes	int		id from within annotations table
+replacement	int		id from within annotations table
+
+caption		vc64
+type		vc64		orf/CDS, mRNA, promoter, etc.
+range		vc64
+data		text		default null, may be useful for
+
+
+
+users
+
+id
+name		vc256
+login		vc64
+email		vc64
+hash		vc64
+level		int		level 0 is superuser.  Other values are reserved.
+
+
+groups
+
+id
+name		vc64
+owner		int
