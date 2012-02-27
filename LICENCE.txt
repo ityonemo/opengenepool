@@ -1,7 +1,7 @@
 <3 Copyheart 2012 by Isaac Yonemoto.
 You are free to copy and share this software.
 
-the files jquery.js and raphael.js may subject to separate licensing.
+the files jquery.js and raphael.js are subject to separate licensing.
 raphael.js is modified from the original.
 
 Detailed explanation of copyheart available at:
