@@ -139,7 +139,7 @@ def gbparse(file)
   process()
 end
 
-$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism"]
+$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism","sequence"]
 #helper function that evaluates a hash with an array
 def transcode(array, hash)
   @t_array = Array.new
@@ -175,19 +175,28 @@ post '/uploadseq' do
           when "range"
             $annotations[trimmedkey].range = params[key]
           when "data"
-            $annotations[trimmedkey].data = params[key]
+            $annotations[trimmedkey].data = params[key].gsub(/\s+/," ").strip()
         end
       end
     end
 
-    #generate the commands for creating the annotations
-    $text = ""
-    $annotations.each() do |key,value|
-      $text += "INSERT INTO annotations (caption, type, range, data) VALUES (#{value})" + "<br/>"
-    end
+    #initiate the connection to the mysql database
+    dbh=Mysql.real_connect("localhost","www-data","","ogp")
 
-    "INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')" + "<br/>" + $text
+      #upload the sequence data into the database.
+      res = dbh.query("INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')")
+      #retrieve the id.
+      id_string = dbh.insert_id().to_s
 
+      #generate the commands for creating the annotations
+      $annotations.each() do |key,value|
+        #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
+        STDOUT.puts("INSERT INTO annotations (sequence, caption, type, range, data, owner)" +
+          " VALUES ('#{id_string}', #{value}, '#{session[:user]}')")
+      end
+
+      #close the connection
+    dbh.close if dbh
   end
 end
 

@@ -15,7 +15,7 @@ post '/initialize' do
 
     #create the sequences table
     res=dbh.query("CREATE TABLE sequences (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-      "owner varchar(16), locus varchar(64), title varchar(64), accession varchar(64), definition text, keywords text, " +
+      "owner varchar(16), locus varchar(64), title varchar(64), accession varchar(64), definition text, version varchar(64), keywords text, " +
       "source varchar(64), organism varchar(64), sequence text, status varchar(64), type varchar(64), class varchar(64), " +
       "created date, supercedes int(64), replacement int(64), " +
       "INDEX (owner, locus, title, accession), " +
@@ -34,6 +34,8 @@ post '/initialize' do
     #create the self-referential foreign keys
     res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (supercedes) REFERENCES annotations(id);")
     res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (replacement) REFERENCES annotations(id);")
+
+    #reserved space for other tables to be created.
 
   dbh.close if dbh
 

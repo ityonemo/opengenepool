@@ -18,7 +18,7 @@ post '/login/' do
   #TODO: sanitize so that we don't have a mysql injection attack.
 
   #check to make sure that this user exists:
-  dbh=Mysql.real_connect("localhost","www-data","","DNAutics")
+  dbh=Mysql.real_connect("localhost","www-data","","ogp")
     res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "')");
 
     if (res.num_rows == 1)
