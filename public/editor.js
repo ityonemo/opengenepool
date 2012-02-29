@@ -40,7 +40,7 @@ var editor =
           
         //use the xml jQuery object to find the sequence tag and use it.
         editor.sequence = queriedxml.find("sequence").text().trim();
-        editor.sequence_name = queriedxml.find("name").text().trim();
+        editor.sequence_name = queriedxml.find("title").text().trim();
         editor.sequence_id = parseInt(queriedxml.find("id").text().trim());
 
         //submit this information to the infobox.
@@ -82,9 +82,9 @@ var editor =
   getsvg: function()
   {
     mywindow = window.open("","svg output");
-    mywindow.document.write("<code>");
-    mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));
-    mywindow.document.write("</code>");
+    mywindow.document.write("<code>");  //flank the output with code to make it look nice.
+    mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));  //substitute &, <, and > for proper HTML characters
+    mywindow.document.write("</code>"); //end code tag
   },
 
   //retrieve a subsequence.

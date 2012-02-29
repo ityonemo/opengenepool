@@ -6,7 +6,6 @@ Things broken by global update that need to be fixed:
 annotations plugin
 
 Quickies
-Fix initializer to recognize when not to initialize anymore.
 Make the user management suite check to see if you're logged in as superuser.
 
 Global projects
