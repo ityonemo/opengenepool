@@ -27,13 +27,19 @@ post '/initialize' do
 
     #create the annotations table
     res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-      "owner varchar(16), sequence int(64), caption varchar(64), type varchar(64), seqrange varchar(64), data text, " +
+      "owner varchar(16), sequence int(64), caption varchar(64), type varchar(64), seqrange varchar(64), " +
       "created date, supercedes int(64), replacement int(64), " +
-      "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login), FOREIGN KEY (sequence) REFERENCES sequences(id));")
+      "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
+      "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
 
     #create the self-referential foreign keys
     res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (supercedes) REFERENCES annotations(id);")
     res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (replacement) REFERENCES annotations(id);")
+
+    #create the annotations data table
+    res=dbh.query("CREATE TABLE annotationdata (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+      "annotation int(64), infokey varchar(64), value text, " +
+      "INDEX (annotation), FOREIGN KEY (annotation) REFERENCES annotations(id) ON DELETE CASCADE);")
 
     #reserved space for other tables to be created.
 

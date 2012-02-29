@@ -59,15 +59,15 @@ class Annotation
   end
 
   def finalize
-    if @datahash.has_key?("/gene")
-      @caption = @datahash["/gene"][/[\w\s]+/]
-    elsif @datahash.has_key?("/note")
-      @caption = @datahash["/note"].split(/[^\w\s]/)[1]
+    if @datahash.has_key?("gene")
+      @caption = @datahash["gene"][/[\w\s]+/]
+    elsif @datahash.has_key?("note")
+      @caption = @datahash["note"].split(/[^\w\s]/)[0]
     end
   end
 
   def to_s
-    "'" + @caption + "', '" + @type + "', '" + @range + "', '" + @data + "'"  
+    "'" + @caption + "', '" + @type + "', '" + @range + "'" 
   end
 end
 
@@ -102,10 +102,14 @@ def process()
       temp = line.strip()
       if (temp[0] == 47)  #check to see if we have a slash winner!
         temparray = temp.split('=',2)
-        $current_property = temparray[0]
-        $current_annotation.datahash[$current_property] = temparray[1]
+        $current_property = temparray[0].slice(1..-1) #chop off the slash.
+        $current_annotation.datahash[$current_property] = temparray[1].slice(1..-1) #chop off the starting quote.
+        $current_annotation.datahash[$current_property].chomp!('"')
+        $current_annotation.datahash[$current_property].gsub('/','-')
       else
         $current_annotation.datahash[$current_property] += temp
+        $current_annotation.datahash[$current_property].chomp!('"')
+        $current_annotation.datahash[$current_property].gsub('/','-')
       end
     end
   end
@@ -161,7 +165,7 @@ post '/uploadseq' do
     #generate the hash storing the annotations, recollated
     params.each_key() do |key|
       if (key =~ /\Aannotation/)
-        keyarray = key.split("_")
+        keyarray = key.split("_",3)
         trimmedkey = keyarray[0]
         unless ($annotations.has_key?(trimmedkey))  #if we need it, generate the annotation
           $annotations[trimmedkey] = Annotation.new()
@@ -175,7 +179,7 @@ post '/uploadseq' do
           when "range"
             $annotations[trimmedkey].range = params[key]
           when "data"
-            $annotations[trimmedkey].data = params[key].gsub(/\s+/," ").strip()
+            $annotations[trimmedkey].datahash[keyarray[2]] = params[key]
         end
       end
     end
@@ -184,15 +188,21 @@ post '/uploadseq' do
     dbh=Mysql.real_connect("localhost","www-data","","ogp")
 
       #upload the sequence data into the database.
-      res = dbh.query("INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')")
+      dbh.query("INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')")
       #retrieve the id.
       id_string = dbh.insert_id().to_s
 
       #generate the commands for creating the annotations
       $annotations.each() do |key,value|
         #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
-        STDOUT.puts("INSERT INTO annotations (sequence, caption, type, range, data, owner)" +
-          " VALUES ('#{id_string}', #{value}, '#{session[:user]}')")
+        dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, owner)" +
+          " VALUES ('#{id_string}', #{value}, '#{session[:user]}');")
+
+        id_string = dbh.insert_id().to_s
+
+        value.datahash.each() do |hkey, hvalue|
+          dbh.query("INSERT INTO annotationdata (annotation, infokey, value) VALUES ('#{id_string}','#{hkey}','#{hvalue}');")
+        end
       end
 
       #close the connection
