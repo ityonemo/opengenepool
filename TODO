@@ -1,8 +1,6 @@
 ogp ToDo list (in no particular order of importance):
 
-Finish uploader to interface with MySQL.
 Fix initializer to recognize when not to initialize anymore.
-Fix annotation to have an annotation further data table
 
 Things broken by global update that need to be fixed:
 
