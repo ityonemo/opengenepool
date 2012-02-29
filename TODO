@@ -1,11 +1,13 @@
 ogp ToDo list (in no particular order of importance):
 
-Fix initializer to recognize when not to initialize anymore.
-
 Things broken by global update that need to be fixed:
 
 "command line" console
 annotations plugin
+
+Quickies
+Fix initializer to recognize when not to initialize anymore.
+Make the user management suite check to see if you're logged in as superuser.
 
 Global projects
 

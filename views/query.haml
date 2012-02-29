@@ -1,7 +1,17 @@
 %gbml
-  %name #{@result['name']}
+  %locus #{@result['locus']}
+  %title #{@result['title']}
+  %definition #{@result['definition']}
+  %accession #{@result['accession']}
+  %version #{@result['version']}
+  %keywords #{@result['keywords']}
+  %soure #{@result['source']}
+  %organism #{@result['organism']}
   %id #{@result['id']}
   %sequence #{@result['sequence']}
+
   -$annotations.each do |@i|
-    %annotation
-      #{@i}
+    %annotation(id="#{@i.id}" type="#{@i.type}" caption="#{@i.caption}" range="#{@i.range}")
+      -@i.dataarray.each do |@data|
+        %data(id="#{@data[0]}" type="#{@data[1]}")
+          #{@data[2]}
