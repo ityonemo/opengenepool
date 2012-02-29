@@ -14,7 +14,7 @@ get '/seq/:query' do |query|
     if (query[0..2].eql?("id="))
       res=dbh.query("SELECT * FROM sequences WHERE (id='"+ query[3..-1] +"');")
     else
-      res=dbh.query("SELECT * FROM sequences WHERE (name='#{query}');")
+      res=dbh.query("SELECT * FROM sequences WHERE (title='#{query}');")
     end
 
     #save in the "sequence" variable for haml.

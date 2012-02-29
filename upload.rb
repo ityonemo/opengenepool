@@ -190,18 +190,18 @@ post '/uploadseq' do
       #upload the sequence data into the database.
       dbh.query("INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')")
       #retrieve the id.
-      id_string = dbh.insert_id().to_s
+      sequence_id_string = dbh.insert_id().to_s
 
       #generate the commands for creating the annotations
       $annotations.each() do |key,value|
         #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
         dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, owner)" +
-          " VALUES ('#{id_string}', #{value}, '#{session[:user]}');")
+          " VALUES ('#{sequence_id_string}', #{value}, '#{session[:user]}');")
 
-        id_string = dbh.insert_id().to_s
+        annotation_id_string = dbh.insert_id().to_s
 
         value.datahash.each() do |hkey, hvalue|
-          dbh.query("INSERT INTO annotationdata (annotation, infokey, value) VALUES ('#{id_string}','#{hkey}','#{hvalue}');")
+          dbh.query("INSERT INTO annotationdata (annotation, infokey, value) VALUES ('#{annotation_id_string}','#{hkey}','#{hvalue}');")
         end
       end
 
