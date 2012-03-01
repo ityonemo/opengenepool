@@ -24,11 +24,11 @@ With shotgun:
 shotgun -p4567 ogp.rb
 
 To test https, I suggest setting up an https-capable web forwarding server/daemon (I use NGINX)
-and have it point to http://localhost:4567/, ogp is then served from https://localhost/*
+and have it point to http://localhost:4567/, ogp is then served from https://localhost/
 
 Getting started:
 
-*1) point your web browser to http://localhost:4567/initialize/
+1) point your web browser to http://localhost:4567/initialize/
 
 this will allow you to initialize the databases and set up a superuser account
 
@@ -38,5 +38,21 @@ this will allow you to initialize the databases and set up a superuser account
 
 4) upload them using the applet at http://localhost:4567/upload/
 
-*currently broken. (26 Feb 2012)
 
+VERSION 0.1
+
+features:
+  Database initialization and setup.
+  Superuser creation.
+  Upload of genbank files, light modification, and display.
+  Tweaking graphics settings.
+
+current, prioritized limitations:  Essentially single-user.  (mostly) Read-only.
+
+VERSION 0.2 intended milestones:
+
+clone button.
+workspace/filesystem manipulation.
+user-modified graphics settings.
+modification of annotations.
+sequence selection gimmickry.
