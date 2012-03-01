@@ -7,6 +7,7 @@ var annotations = new Plugin();
 annotations.annotations = [];
 annotations.annotip = {};
 
+
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING TOKEN FUNCTIONS
 
@@ -37,21 +38,14 @@ annotations.newsequence = function()
   queriedxml.find("annotation").each(
     function()
     {
-      //pull temporary storage for various values.
-      var t_start = parseInt($(this).attr("start"));
-      var t_end = parseInt($(this).attr("end"));
-      var t_ori = ($(this).attr("orientation"));
+      var myannotation = 
+        new Annotation($(this).attr("caption"),
+                       $(this).attr("type"),
+                       $(this).attr("range"),
+                       $(this).attr("id"));
+
       //generate the structure and push it onto the annotations list.
-      annotations.annotations.push(
-        {caption: $(this).attr("caption"),
-         type: $(this).attr("type"),
-         start: t_start,
-         end: t_end,
-         internal_id: $(this).attr("idnum"),
-         notes: $(this).text(),
-         orientation: (t_ori ? t_ori : ((t_start < t_end) ? 1 : -1)),
-        }
-      )
+      annotations.annotations.push(myannotation)
     }
   );
 
@@ -75,8 +69,8 @@ annotations.annospan = function(i)
 //  end_p - position within ending segment
 {
   //set some convienience variables.
-  var tstart = annotations.annotations[i].start;
-  var tend = annotations.annotations[i].end;
+  var tstart = annotations.annotations[i].range.start;
+  var tend = annotations.annotations[i].range.end;
 
   //TODO: fix this so that it really refers to the "orientation" variable.
   //seq_start and seq_ends are actually the ends in sequence order (not orientation order)
@@ -197,9 +191,9 @@ annotations.redraw = function(token)
       //set up the tooltip associated with the raphael object. 
       var descriptionstring = annotations.fragments[i].ref.type + 
             '<span class="' + 
-            ((annotations.fragments[i].ref.start < annotations.fragments[i].ref.end) ? 'annotip_forward' : 'annotip_reverse')
-            + '">' + " (" + annotations.fragments[i].ref.start.toString() +
-            ".." + annotations.fragments[i].ref.end.toString() +
+            ((annotations.fragments[i].ref.range.start < annotations.fragments[i].ref.range.end) ? 'annotip_forward' : 'annotip_reverse')
+            + '">' + " (" + annotations.fragments[i].ref.range.start.toString() +
+            ".." + annotations.fragments[i].ref.range.end.toString() +
             ")</span><br/>" + annotations.fragments[i].ref.notes;
 
       annotations.addTip(graphicselement.content, annotations.fragments[i].ref.caption, descriptionstring);
@@ -304,3 +298,20 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 
   return thisfragment;
 };
+
+////////////////////////////////////////////////////////////////////////
+// HELPER OBJECTS
+
+Annotation = function(_caption, _type, _range, _id){
+  return {
+    caption:_caption,
+    type: _type,
+    range: new GenBankSeqRange(_range),
+    id: _id,
+    data: new Array(),
+  }
+}
+
+AnnoData = function (_id, _type, _data){
+  return { id:_id, type:_type, data:_data }
+}

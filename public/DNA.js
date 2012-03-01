@@ -11,6 +11,33 @@ Sequence = function(string)
   }
 };
 
+GenBankSeqRange = function(rangetext)
+{
+  //set default orientation to forward.
+  var orientation = 1;
+  var originaltext = new String(rangetext);
+
+  //for now, just check for the presence of a "complement"
+  if (rangetext.substring(0,11) == "complement(")
+  {
+    //trim that shit off the front.
+    rangetext = rangetext.substring(11);
+    orientation = -1;
+  };
+
+  var starttext = rangetext.split("..")[0];
+  var endtext = rangetext.split("..")[1];
+
+  if (!endtext) {endtext = starttext};
+
+  var start = parseInt(starttext);
+  var end = parseInt(endtext);
+
+  range = new SeqRange(start, end, orientation);
+  range.text = originaltext;  //associate the range text with our object.
+  return range;
+}
+
 SeqRange = function(_start, _end, _orientation)
 {
   //preconditions:
@@ -23,7 +50,9 @@ SeqRange = function(_start, _end, _orientation)
 
   //normalize the orientation to clear all false values to zero.
   //this allows passing null to this function as a default value.
-  _orientantion = (_orientation) ? (_orientation) : 0;
+  _orientation = (_orientation) ? (_orientation) : 0;
+  _start = (_start) ? (_start) : 0;
+  _end = (_end) ? (_end) : 0;
 
   var output = {
     start: _start,
