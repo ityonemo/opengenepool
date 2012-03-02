@@ -7,7 +7,6 @@ var annotations = new Plugin();
 annotations.annotations = [];
 annotations.annotip = {};
 
-
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING TOKEN FUNCTIONS
 
@@ -27,6 +26,9 @@ annotations.initialize = function()
   annotations.annotip.appendChild(annotip_text);
 }
 
+//temporary variable to store current annotation.
+var current_annotation = {};
+
 annotations.newsequence = function()
 {
   //rebuild the annotation list: pull from XML.  For now just use the internal list.
@@ -43,6 +45,15 @@ annotations.newsequence = function()
                        $(this).attr("type"),
                        $(this).attr("range"),
                        $(this).attr("id"));
+
+      current_annotation = myannotation;
+
+      $(this).children().each(
+        function()
+        {
+          current_annotation.data[$(this).attr("type")] = new AnnoData($(this).text(), $(this).attr("id"));
+        }
+      );
 
       //generate the structure and push it onto the annotations list.
       annotations.annotations.push(myannotation)
@@ -188,13 +199,19 @@ annotations.redraw = function(token)
         graphics.metrics.lineheight / 5 : 0) + 1;
       graphicselement.bottompadding = graphicselement.toppadding;
 
+      //find what to use as the description string.
+      var finalstring = (annotations.fragments[i].ref.data["note"] ? 
+        annotations.fragments[i].ref.data["note"].data :
+        (annotations.fragments[i].ref.data["gene"] ?
+          annotations.fragments[i].ref.data["gene"].data + " gene" : ""));
+
       //set up the tooltip associated with the raphael object. 
       var descriptionstring = annotations.fragments[i].ref.type + 
             '<span class="' + 
             ((annotations.fragments[i].ref.range.start < annotations.fragments[i].ref.range.end) ? 'annotip_forward' : 'annotip_reverse')
             + '">' + " (" + annotations.fragments[i].ref.range.start.toString() +
             ".." + annotations.fragments[i].ref.range.end.toString() +
-            ")</span><br/>" + annotations.fragments[i].ref.notes;
+            ")</span><br/>" + finalstring;
 
       annotations.addTip(graphicselement.content, annotations.fragments[i].ref.caption, descriptionstring);
 
@@ -308,10 +325,10 @@ Annotation = function(_caption, _type, _range, _id){
     type: _type,
     range: new GenBankSeqRange(_range),
     id: _id,
-    data: new Array(),
+    data: {},
   }
 }
 
-AnnoData = function (_id, _type, _data){
-  return { id:_id, type:_type, data:_data }
+AnnoData = function (_data, _id){
+  return { id:_id, data:$.trim(_data) } //use jQuery because we can.
 }

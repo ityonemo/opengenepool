@@ -49,7 +49,7 @@ features:
 
 current, prioritized limitations:  Essentially single-user.  (mostly) Read-only.
 
-VERSION 0.2 intended milestones:
+VERSION 0.15 intended milestones:
 
 clone button.
 workspace/filesystem manipulation.
