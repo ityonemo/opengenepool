@@ -74,11 +74,15 @@
   font-weight: bold;
 }
 
-.annotip_forward{
+.annotation_forward{
   color:green;
 }
 
-.annotip_reverse{
+.annotation_undirected{
+  color:black;
+}
+
+.annotation_reverse{
   color:red;
 }
 

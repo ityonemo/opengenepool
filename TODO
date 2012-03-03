@@ -7,6 +7,7 @@ annotations plugin
 
 Quickies
 Make the user management suite check to see if you're logged in as superuser.
+Create a general "fragment generator".
 
 Global projects
 

@@ -71,36 +71,10 @@ annotations.newsequence = function()
   }
 };
 
-annotations.annospan = function(i)
-//return spanning information for the annotation at index i
-//spanning information is an object with the following properties:
-//  start_s - starting segment
-//  end_s - ending segment
-//  start_p - position within starting segment
-//  end_p - position within ending segment
-{
-  //set some convienience variables.
-  var _start = annotations.annotations[i].range.start;
-  var _end = annotations.annotations[i].range.end;
-
-  //figure out which segment they're going to be in, and where in that segement.
-  var startsegment = Math.floor((_start - 1)/graphics.settings.zoomlevel);
-  var endsegment = Math.floor((_end - 1)/graphics.settings.zoomlevel);
-  var startpos = (_start - 1)%graphics.settings.zoomlevel;
-  var endpos = (_end - 1)%graphics.settings.zoomlevel;
-
-  return {
-    start_s: startsegment,
-    end_s: endsegment,
-    start_p: startpos,
-    end_p: endpos
-  }
-};
-
 annotations.generatefragments = function(i)
 //generate annotation fragments for annotation of index i.
 {
-  var span = annotations.annospan(i);
+  var span = annotations.annotations[i].range.span();
   var orientation = annotations.annotations[i].range.orientation;
 
   //check if it's really short.
@@ -175,6 +149,7 @@ annotations.redraw = function(token)
   for (var i = 0; i < annotations.fragments.length; i++)
   {
     var currentfragment = annotations.fragments[i];
+    var currentannotation = annotations.fragments[i].ref;
 
     if (currentfragment.line == token.line)
     {
@@ -195,20 +170,18 @@ annotations.redraw = function(token)
       graphicselement.bottompadding = graphicselement.toppadding;
 
       //find what to use as the description string.
-      var finalstring = (annotations.fragments[i].ref.data["note"] ? 
-        annotations.fragments[i].ref.data["note"].data :
-        (annotations.fragments[i].ref.data["gene"] ?
-          annotations.fragments[i].ref.data["gene"].data + " gene" : ""));
+      var finalstring = (currentannotation.data["note"] ? 
+        currentannotation.data["note"].data :
+        (currentannotation.data["gene"] ?
+          currentannotation.data["gene"].data + " gene" : ""));
 
       //set up the tooltip associated with the raphael object. 
-      var descriptionstring = annotations.fragments[i].ref.type + 
-            '<span class="' + 
-            ((annotations.fragments[i].ref.range.start < annotations.fragments[i].ref.range.end) ? 'annotip_forward' : 'annotip_reverse')
-            + '">' + " (" + annotations.fragments[i].ref.range.start.toString() +
-            ".." + annotations.fragments[i].ref.range.end.toString() +
-            ")</span><br/>" + finalstring;
+      var descriptionstring = currentannotation.type + 
+            '<span class="' + (currentannotation.cssclass()) + '"> ' + 
+            currentannotation.to_s() +
+            " </span><br/>" + finalstring;
 
-      annotations.addTip(graphicselement.content, annotations.fragments[i].ref.caption, descriptionstring);
+      annotations.addTip(graphicselement.content, currentannotation.caption, descriptionstring);
 
       //put it into the elements array.
       graphics.lines[token.line].elements.push(graphicselement);
@@ -321,6 +294,28 @@ Annotation = function(_caption, _type, _range, _id){
     range: new GenBankSeqRange(_range),
     id: _id,
     data: {},
+
+    //outputs the css class for such an annotation
+    cssclass: function()
+    {
+      return ["annotation_reverse","annotation_undirected","annotation_forward"][this.range.orientation + 1];
+    },
+
+    to_s: function()
+    {
+      switch (this.range.orientation)
+      {
+        case 1:
+          return this.range.start + ".." + this.range.end;
+        break;
+        case 0:
+          return "[" + this.range.start + ".." + this.range.end + "]";
+        break;
+        case -1:
+          return "(" + this.range.start + ".." + this.range.end + ")";
+        break;
+      }
+    }
   }
 }
 

@@ -58,6 +58,28 @@ SeqRange = function(_start, _end, _orientation)
     start: _start,
     end: _end,
     orientation: _orientation,
+
+    span: function ()
+    //return spanning information for the range
+    //spanning information is an object with the following properties:
+    //  start_s - starting segment
+    //  end_s - ending segment
+    //  start_p - position within starting segment
+    //  end_p - position within ending segment
+    {
+      //figure out which segment they're going to be in, and where in that segement.
+      var startsegment = Math.floor((start - 1)/graphics.settings.zoomlevel);
+      var endsegment = Math.floor((end - 1)/graphics.settings.zoomlevel);
+      var startpos = (start - 1)%graphics.settings.zoomlevel;
+      var endpos = (end - 1)%graphics.settings.zoomlevel;
+
+      return {
+        start_s: startsegment,
+        end_s: endsegment,
+        start_p: startpos,
+        end_p: endpos
+      }
+    };
   };
 
   //refactor the orientation if we have supplied it with a zero value.
