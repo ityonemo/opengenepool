@@ -80,19 +80,14 @@ annotations.annospan = function(i)
 //  end_p - position within ending segment
 {
   //set some convienience variables.
-  var tstart = annotations.annotations[i].range.start;
-  var tend = annotations.annotations[i].range.end;
-
-  //TODO: fix this so that it really refers to the "orientation" variable.
-  //seq_start and seq_ends are actually the ends in sequence order (not orientation order)
-  var seq_start = (tstart < tend) ? tstart : tend;
-  var seq_end = (tstart < tend) ? tend : tstart;
+  var _start = annotations.annotations[i].range.start;
+  var _end = annotations.annotations[i].range.end;
 
   //figure out which segment they're going to be in, and where in that segement.
-  var startsegment = Math.floor((seq_start - 1)/graphics.settings.zoomlevel);
-  var endsegment = Math.floor((seq_end - 1)/graphics.settings.zoomlevel);
-  var startpos = (seq_start - 1)%graphics.settings.zoomlevel;
-  var endpos = (seq_end - 1)%graphics.settings.zoomlevel;
+  var startsegment = Math.floor((_start - 1)/graphics.settings.zoomlevel);
+  var endsegment = Math.floor((_end - 1)/graphics.settings.zoomlevel);
+  var startpos = (_start - 1)%graphics.settings.zoomlevel;
+  var endpos = (_end - 1)%graphics.settings.zoomlevel;
 
   return {
     start_s: startsegment,
@@ -106,7 +101,7 @@ annotations.generatefragments = function(i)
 //generate annotation fragments for annotation of index i.
 {
   var span = annotations.annospan(i);
-  var orientation = annotations.annotations[i].orientation;
+  var orientation = annotations.annotations[i].range.orientation;
 
   //check if it's really short.
   if (span.start_s == span.end_s)
