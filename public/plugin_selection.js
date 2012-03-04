@@ -47,9 +47,9 @@ selectrc = function(start, end)
 
 selection.select = function(token)
 {
-  //copy over the details described in the token
-  //TODO: run error checking on this funciton.
   selection.range = token.range;
+  //clear any previous selected range.
+  selection.fragments = [];
   //throw the selected flag.
   selection.selected = true;
   //throw a graphics invalidate.

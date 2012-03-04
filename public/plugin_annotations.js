@@ -162,7 +162,8 @@ annotations.redraw = function(token)
 
       //set up the content.  Note that the Y position is very likely to be altered
       //by the internal layout engine.
-      graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.direction, currentfragment.ref);
+      graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.direction,
+      currentannotation);
       graphicselement.snapto();
 
       graphicselement.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (currentfragment.direction == 0)) ? 
@@ -271,15 +272,31 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
   thisarrow.attr("class", "annotation " + ref.type);
   thisfragment.push(thisarrow);
 
-//    if (ref.caption.length > 0)  // make sure it's worth making.
-//    {
-//      //next make the text object:
-//      var thistext = graphics.editor.text(right + 10, height / 2, ref.caption);
-//      thistext.attr("font","");
-//      thistext.attr("text-anchor","");
-//      thistext.attr("class","caption");
-//      thisfragment.push(thistext);
-//    }
+  thisfragment.mousedown(
+    function(e)
+    {
+      if (!e) var e = window.event;
+      if (e.which) rightclick = (e.which == 3);
+      else if (e.button) rightclick = (e.button == 2);
+
+      if (rightclick)
+      {
+        //annotations_plugin.popupselected = ref;
+        //document.getElementById("popupmenu").innerHTML=annotations_plugin.annomenutext;
+        //right click triggers the menu.
+        //editor.showpopup(e.clientX, e.clientY);
+
+        //for aesthetic purpsoses, hide the annotatation tooltip.
+        //$("#annotip").css("display","none");
+        //annotations_plugin.annotation_tipover = false;
+      }
+      else //normal click triggers selection of underlying sequence
+      {
+        var token = new Token("select");
+        token.range = ref.range;
+        editor.broadcasttoken(token);
+      }
+    })
 
   return thisfragment;
 };
