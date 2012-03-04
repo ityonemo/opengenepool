@@ -31,6 +31,13 @@ selection.initialize = function()
 ////////////////////////////////////////////////////////////////////////
 // IMPLEMENTED TOKEN FUNCTIONS
 
+select = function(start, end)
+{
+  var mytoken = new Token("select");
+  mytoken.range = new SeqRange(start, end, 1);
+  editor.broadcasttoken(mytoken);
+};
+
 selection.select = function(token)
 {
   //copy over the details described in the token
@@ -51,7 +58,8 @@ selection.select = function(token)
        start: span.start_p, 
        end: span.end_p,
        direction: orientation}; 
-    selection.fragments.push(fragment)
+    selection.fragments.push(fragment);
+    graphics.invalidate(span.start_s);
   }
   else
   {
@@ -62,12 +70,14 @@ selection.select = function(token)
        end: graphics.settings.zoomlevel - 1,
        direction: orientation};
     selection.fragments.push(startfragment);
+    graphics.invalidate(span.start_s);
     var endfragment =
       {line: span.end_s,
        start: 0, 
        end: span.end_p,
        direction: orientation};
     selection.fragments.push(endfragment);
+    graphics.invalidate(span.end_s);
 
     //if it's reaaaly long, then you have fill in middle fragments.
     if (span.start_s < span.end_s - 1)
@@ -80,15 +90,17 @@ selection.select = function(token)
            end: graphics.settings.zoomlevel -1,
            direction: orientation};
         selection.fragments.push(midfragment);
+        graphics.invalidate(j);
       }
     }
   }
+  graphics.render();
 };
 
-annotations.redraw = function(token)
+selection.redraw = function(token)
 {
   //kludgey, can we have some sort of hash?  Or at least a sorted array.
-  for (var i = 0; i < annotations.fragments.length; i++)
+  for (var i = 0; i < selection.fragments.length; i++)
   {
     var currentfragment = selection.fragments[i];
 
@@ -99,11 +111,11 @@ annotations.redraw = function(token)
       var selectionobject = graphics.editor.paper.rect(
       currentfragment.start * graphics.metrics.charwidth, 
       -graphics.metrics.lineheight,
-      currentfragment.end + 1) * graphics.metrics.charwidth,
-      0)
+      (currentfragment.end - currentfragment.start + 1) * graphics.metrics.charwidth,
+      graphics.metrics.lineheight)
  
       selectionobject.attr("class",(selection.range.orientation == -1) ? "reverse_select" : "forward_select");
-      select_frag.toBack();
+      selectionobject.toBack();
 
       //associate the element with the content.
       selectionelement.content = selectionobject

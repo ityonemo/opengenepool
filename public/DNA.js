@@ -68,10 +68,10 @@ SeqRange = function(_start, _end, _orientation)
     //  end_p - position within ending segment
     {
       //figure out which segment they're going to be in, and where in that segement.
-      var startsegment = Math.floor((start - 1)/graphics.settings.zoomlevel);
-      var endsegment = Math.floor((end - 1)/graphics.settings.zoomlevel);
-      var startpos = (start - 1)%graphics.settings.zoomlevel;
-      var endpos = (end - 1)%graphics.settings.zoomlevel;
+      var startsegment = Math.floor((this.start - 1)/graphics.settings.zoomlevel);
+      var endsegment = Math.floor((this.end - 1)/graphics.settings.zoomlevel);
+      var startpos = (this.start - 1)%graphics.settings.zoomlevel;
+      var endpos = (this.end - 1)%graphics.settings.zoomlevel;
 
       return {
         start_s: startsegment,
@@ -79,7 +79,7 @@ SeqRange = function(_start, _end, _orientation)
         start_p: startpos,
         end_p: endpos
       }
-    };
+    }
   };
 
   //refactor the orientation if we have supplied it with a zero value.
