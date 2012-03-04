@@ -91,9 +91,9 @@ var editor =
   subsequence: function(range)
   {
     if (range.orientation == 1)
-    { return editor.sequence.substr(start - 1, end - start + 1); }
+    { return editor.sequence.substring(range.start - 1, range.end); }
     else
-    { return reversecomplement(editor.sequence.substr(end - 1, start - end + 1)); }
+    { return reversecomplement(editor.sequence.substring(range.start - 1, range.end)); }
   }
 };
 

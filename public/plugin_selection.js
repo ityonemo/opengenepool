@@ -38,6 +38,13 @@ select = function(start, end)
   editor.broadcasttoken(mytoken);
 };
 
+selectrc = function(start, end)
+{
+  var mytoken = new Token("select");
+  mytoken.range = new SeqRange(start, end, -1);
+  editor.broadcasttoken(mytoken);
+};
+
 selection.select = function(token)
 {
   //copy over the details described in the token
