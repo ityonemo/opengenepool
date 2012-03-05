@@ -56,6 +56,9 @@ var editor =
     //send the AJAX query.  here we are passing the 'id/name-detection' buck to the seq.rb file.
     xmlhttp.open("GET","../seq/" + query,true);
     xmlhttp.send();
+
+    //disable context menus.
+    window.oncontextmenu = function () {return false;}
   },
 
   //distributes tokens to the plugins.
@@ -94,8 +97,48 @@ var editor =
     { return editor.sequence.substring(range.start - 1, range.end); }
     else
     { return reversecomplement(editor.sequence.substring(range.start - 1, range.end)); }
-  }
+  },
+
+  //////////////////////////////////////////////////////////////////////
+  // CONTEXT MENU STUFF
+  context_menu_visible: false,
+  context_menu_array: [],  //array of menuitems.
+
+  addcontextmenu: function(what) {context_menu_array.push(what)}, //synonymous call.
+
+  showcontextmenu: function()
+  {
+    //populate the context menu array.
+    var contextmenu = document.getElementById("contextmenu");
+    for (i = 0; i < editor.context_menu_array.length; i++)
+    {
+      var menuitem = editor.context_menu_array[i];
+      childdiv = document.createElement("div");
+      childdiv.innerHTML = menuitem.html;
+      childdiv.onclick = menuitem.callback(menuitem.payload);  //set up the correct onclick.
+      contextmenu.addChild()
+    };
+
+    //actually show the context menu:
+    $("#contextmenu").css("display", "block");
+    //set the context menu visibility flag
+    editor.context_menu_visible = true;
+  },
+
+  hidecontextmenu: function()
+  {
+    //clear the context menu array.
+    editor.context_menu_array = [];
+    //hide the context menu:
+    $("#contextmenu").css("display", "none");
+    //reset the context menu visibility flag
+    editor.context_menu_visible = false;
+  },
 };
+
+//////////////////////////////////////////////////////////////////////
+// CONTEXT MENU STUFF
+
 
 //Token object.  These are informational objects that are to be distributed to all the plugins.
 Token = function(_type)
@@ -106,9 +149,11 @@ Token = function(_type)
 };
 
 //create the base plugin object.
-Plugin = function()
+Plugin = function(_name)
 {
   return {
+    title: _name,
+
     handletoken: function(token)
     {
       if (this[token.type])
@@ -116,5 +161,29 @@ Plugin = function()
         this[token.type](token);
       }
     },
+
+    sendcontextmenu: function(x, y, ref)
+    {
+      //set up values for the token.
+      token = new Token("contextmenu");
+      token.x = x;
+      token.y = y;
+      token.subtype = this.title;
+      token.ref = ref;
+      //tell the plugins about the context menu.
+      editor.broadcasttoken(token);
+      editor.showcontextmenu(x, y);
+    }
+  }
+}
+
+//menuitem object
+
+MenuItem = function(_html, _callback, _payload)
+{
+  return {
+    html: _html, //what appears on the context menu.
+    callback: _callback, //callback should be a function that takes a single value (payload)
+    payload: _payload,  //payload should be whatever needs to be passed to callback.
   }
 }

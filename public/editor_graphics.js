@@ -302,6 +302,28 @@ var graphics =
 
     //then translate the entire line.
     graphics.lines[line].content.translate(graphics.lines[line].translatex, graphics.lines[line].translatey)
+  },
+
+  //take an event mapped to a target and retrieve internal and external x and y coordinates for this event.
+  getlocation: function(event, target)
+  {
+    var location = {};
+    location.internalx = event.clientX - target.getBoundingClientRect().left;
+    location.internaly = event.clientY - target.getBoundingClientRect().top;
+    location.svgx = event.clientX - graphics.editor.dom.getBoundingClientRect().left;
+    location.svgy = event.clientY - graphics.editor.dom.getBoundingClientRect().top + graphics.editor.dom.scrollTop;
+    
+    return location;
+  },
+
+  getline: function(ypos)
+  {
+    var i = 0;
+    for (; i < graphics.lines.length; i++)
+    {
+      if (graphics.lines[i].translatey > ypos) break; 
+    }
+    return i;
   }
 };
 

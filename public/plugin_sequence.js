@@ -1,4 +1,4 @@
-var sequence = new Plugin();
+var sequence = new Plugin("sequence");
 
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING FUNCTIONS
@@ -23,6 +23,9 @@ sequence.setzoom = function()
   //NB in the future this might change.
   sequence.newsequence();
 }
+
+
+var temp;
 
 /////////////////////////////////////////////////////////////////////////
 // RENDERING THE LINE
@@ -55,6 +58,30 @@ sequence.redraw = function(token)
     sequenceelement.toppadding = graphics.metrics.lineheight * (3/8);
     sequenceelement.bottompadding = graphics.metrics.lineheight * (3/8);
   }
+
+  sequenceobject.mousedown(function(e)
+    {
+      if (!e) var e = window.event;
+      if (e.which) rightclick = (e.which == 3);
+      else if (e.button) rightclick = (e.button == 2);
+
+      temp = e;
+
+      if (rightclick)
+      {
+        //retrieve the position within the sequence object that we are at.
+        //nb:  0 is on the very left side, and y coordinates go from -lineheight to 0.
+        var point = graphics.getlocation(e, e.target.parentNode);
+        //figure out the row and character we clicked on.
+        var ref = {};
+        ref.line = graphics.getline(point.svgy); 
+        ref.pos = Math.ceil(point.internalx / graphics.metrics.charwidth);
+
+        sequence.sendcontextmenu(e.clientX, e.clientY, ref);
+      }
+      else //normal click
+      {}
+    });
 
   sequenceelement.snapto();
   

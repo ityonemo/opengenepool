@@ -1,4 +1,4 @@
-var selection = new Plugin();
+var selection = new Plugin("selections");
 
 ////////////////////////////////////////////////////////////////////////
 // MEMBER VARIABLES
@@ -122,7 +122,7 @@ selection.redraw = function(token)
       graphics.metrics.lineheight)
  
       selectionobject.attr("class",(selection.range.orientation == -1) ? "reverse_select" : "forward_select");
-      selectionobject.toBack();
+      selectionobject.toBack();      //set up the clickresponder.
 
       //associate the element with the content.
       selectionelement.content = selectionobject
@@ -133,7 +133,7 @@ selection.redraw = function(token)
       graphics.lines[token.line].content.push(selectionobject);
     }
   }
-}
+};
 
 ////////////////////////////////////////////////////////////////////////
 // GENERAL MEMBER FUNCTIONS

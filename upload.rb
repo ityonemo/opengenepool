@@ -188,15 +188,15 @@ post '/uploadseq' do
     dbh=Mysql.real_connect("localhost","www-data","","ogp")
 
       #upload the sequence data into the database.
-      dbh.query("INSERT INTO sequences (#{$keyjoin}, owner) VALUES (#{$valjoin}, '#{session[:user]}')")
+      dbh.query("INSERT INTO sequences (#{$keyjoin}, created, owner) VALUES (#{$valjoin}, NOW(), '#{session[:user]}')")
       #retrieve the id.
       sequence_id_string = dbh.insert_id().to_s
 
       #generate the commands for creating the annotations
       $annotations.each() do |key,value|
         #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
-        dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, owner)" +
-          " VALUES ('#{sequence_id_string}', #{value}, '#{session[:user]}');")
+        dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
+          " VALUES ('#{sequence_id_string}', #{value}, NOW(), '#{session[:user]}');")
 
         annotation_id_string = dbh.insert_id().to_s
 

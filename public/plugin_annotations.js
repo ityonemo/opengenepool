@@ -1,4 +1,4 @@
-var annotations = new Plugin();
+var annotations = new Plugin("annotations");
 
 ////////////////////////////////////////////////////////////////////////
 // MEMBER VARIABLES
@@ -192,6 +192,23 @@ annotations.redraw = function(token)
   }
 };
 
+annotations.contextmenu = function(token)
+{
+  switch (token.subtype)
+  {
+    case "annotations":
+      alert("populate menu with cool options");
+    break;
+    case "selection":
+      alert("annotation option to create, " + selection.range.start + ".." + selection.range.end);
+    break;
+  }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// GENERAL MEMBER FUNCTIONS
+
 var annotation_tipover = false;
 
 annotations.addTip = function(element, title, text)
@@ -209,8 +226,7 @@ annotations.addTip = function(element, title, text)
   element.mouseout(
     function()
     {
-      $("#annotip").css("display","none");
-      annotation_tipover = false;
+      annotations.hideTip()
     });
   element.mousemove(
     function(e)
@@ -220,6 +236,12 @@ annotations.addTip = function(element, title, text)
         .css("top",(e.clientY+20).toString() + "px");
     }); 
 };
+
+annotations.hideTip = function()
+{
+  $("#annotip").css("display","none");
+  annotation_tipover = false;
+}
 
 annotations.createfragmentgraphic = function (left, right, type, ref)
 //create graphics element for an annotation.  
@@ -281,14 +303,12 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 
       if (rightclick)
       {
-        //annotations_plugin.popupselected = ref;
-        //document.getElementById("popupmenu").innerHTML=annotations_plugin.annomenutext;
+        annotations.sendcontextmenu(e.clientX, e.clientY)
         //right click triggers the menu.
         //editor.showpopup(e.clientX, e.clientY);
 
         //for aesthetic purpsoses, hide the annotatation tooltip.
-        //$("#annotip").css("display","none");
-        //annotations_plugin.annotation_tipover = false;
+        annotations.hideTip();
       }
       else //normal click triggers selection of underlying sequence
       {

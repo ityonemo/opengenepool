@@ -24,7 +24,7 @@ post '/initialize' do
         "owner varchar(16), locus varchar(64), title varchar(64), accession varchar(64), definition text, " +
         "version varchar(64), keywords text, source varchar(64), organism varchar(64), sequence text, " +
         "status varchar(64), type varchar(64), class varchar(64), " +
-        "created date, supercedes int(64), replacement int(64), " +
+        "created timestamp, supercedes int(64), replacement int(64), " +
         "INDEX (owner, locus, title, accession), " +
         "FOREIGN KEY (owner) REFERENCES users(login));")
 
@@ -35,7 +35,7 @@ post '/initialize' do
       #create the annotations table
       res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
         "owner varchar(16), sequence int(64), caption varchar(64), type varchar(64), seqrange varchar(64), " +
-        "created date, supercedes int(64), replacement int(64), " +
+        "created timestamp, supercedes int(64), replacement int(64), " +
         "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
         "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
 
