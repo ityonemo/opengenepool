@@ -6,6 +6,9 @@ var editor =
   queriedxml: {},	//jQuery-processed AJAX query xml
   sequence: "",		//the actual sequence
 
+  //DOM items
+  infobox: {},
+
   //plugin management
   plugins: [],
 
@@ -47,9 +50,13 @@ var editor =
         var infobox = document.getElementById("infobox");
         infobox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
         
+        //assign relevant dom items
+        editor.infobox = document.getElementById("information");
+
         //pass control to the graphics initialization routine.  This routine should return to the 'graphicsinitcallback'
         //function, since graphics initialization requires asynchronous events.
         graphics.initialize();
+
       }
     }
 

@@ -355,7 +355,7 @@ var graphics =
     var token = new Token("drag");
     token.line = graphics.getline(location.internaly);
     token.linepos = graphics.getpos(location.internalx);
-    token.pos = token.line * graphics.zoomlevel + token.linepos;
+    token.pos = token.line * graphics.settings.zoomlevel + token.linepos;
     token.event = event;
     dragtarget.handletoken(token);
   },

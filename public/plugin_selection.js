@@ -99,11 +99,43 @@ selection.contextmenu = function(token)
   }
 };
 
+////////////////////////////////////////////////////////////////////////
+// DRAG and DROP handling.
+
 selection.startselect = function(token)
 {
   selection.range = new SeqRange(token.pos, token.pos);
+  selection.startpoint = token.pos;
   selection.selecting = true;
+  graphics.registerdrag(selection);
+  editor.infobox.innerHTML = "ready";
   selection.drawnewselection();
+};
+
+selection.drag = function(token)
+{
+  if (token.pos)
+  {
+    if (token.pos < selection.startpoint)
+    {
+      selection.range.start = token.pos;
+      selection.range.end = selection.startpoint;
+      selection.range.orientation = -1;
+      editor.infobox.innerHTML = "(" + selection.range.start + ".." + selection.range.end + ")";
+    } else
+    {
+      selection.range.end = token.pos;
+      selection.range.start = selection.startpoint;
+      selection.range.orientation = 1;
+      editor.infobox.innerHTML = selection.range.start + ".." + selection.range.end;
+    }
+    selection.drawnewselection();
+  }
+};
+
+selection.drop = function(token)
+{
+  selection.selecting = false;
 };
 
 ////////////////////////////////////////////////////////////////////////
