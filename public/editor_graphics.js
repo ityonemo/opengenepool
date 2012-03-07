@@ -339,14 +339,14 @@ var graphics =
   {
     dragtarget = who;
     graphics.editor.dom.onmousemove = graphics.dragmove;
-    graphics.editor.dom.onmouseup = graphics.dragfinish;
+    window.onmouseup = graphics.dragfinish;
   },
 
   unregisterdrag: function()
   {
     dragtarget = null;
     graphics.editor.dom.onmousemove = null;
-    graphics.editor.dom.onmouseup = null;
+    window.onmouseup = null;
   },
   
   dragmove: function(event)
@@ -364,10 +364,7 @@ var graphics =
   {
     var token = new Token("drop");
     dragtarget.handletoken(token);
-    dragtarget = null
-    
-    graphics.editor.dom.onmousemove = null;
-    graphics.editor.dom.onmouseup = null;
+    graphics.unregisterdrag();
   },
 };
 
