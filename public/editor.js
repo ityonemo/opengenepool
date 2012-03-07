@@ -104,23 +104,29 @@ var editor =
   context_menu_visible: false,
   context_menu_array: [],  //array of menuitems.
 
-  addcontextmenu: function(what) {context_menu_array.push(what)}, //synonymous call.
+  addcontextmenuitem: function(what) {editor.context_menu_array.push(what)}, //synonymous call.
 
-  showcontextmenu: function()
+  showcontextmenu: function(x, y)
   {
     //populate the context menu array.
     var contextmenu = document.getElementById("contextmenu");
+    //clear the context menu.
+    contextmenu.innerHTML = "";
     for (i = 0; i < editor.context_menu_array.length; i++)
     {
       var menuitem = editor.context_menu_array[i];
       childdiv = document.createElement("div");
       childdiv.innerHTML = menuitem.html;
-      childdiv.onclick = menuitem.callback(menuitem.payload);  //set up the correct onclick.
-      contextmenu.addChild()
+      childdiv.onclick = new Function(menuitem.callback + "editor.hidecontextmenu();");  //set up the correct onclick.
+      childdiv.setAttribute("class","menuitem");
+      contextmenu.appendChild(childdiv);
     };
 
     //actually show the context menu:
-    $("#contextmenu").css("display", "block");
+    $("#contextmenu")
+      .css("left",(x - 5).toString() + "px")
+      .css("top",(y - 5).toString() + "px")
+      .css("display","block");
     //set the context menu visibility flag
     editor.context_menu_visible = true;
   },
@@ -135,6 +141,11 @@ var editor =
     editor.context_menu_visible = false;
   },
 };
+
+document.onclick = function()
+{
+  editor.hidecontextmenu();
+}
 
 //////////////////////////////////////////////////////////////////////
 // CONTEXT MENU STUFF
@@ -179,11 +190,10 @@ Plugin = function(_name)
 
 //menuitem object
 
-MenuItem = function(_html, _callback, _payload)
+MenuItem = function(_html, _callback)
 {
   return {
     html: _html, //what appears on the context menu.
-    callback: _callback, //callback should be a function that takes a single value (payload)
-    payload: _payload,  //payload should be whatever needs to be passed to callback.
+    callback: _callback, //callback should be a string described function
   }
 }

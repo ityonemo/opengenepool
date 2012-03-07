@@ -60,28 +60,33 @@ sequence.redraw = function(token)
   }
 
   sequenceobject.mousedown(function(e)
+  {
+    if (!e) var e = window.event;
+    if (e.which) rightclick = (e.which == 3);
+    else if (e.button) rightclick = (e.button == 2);
+
+    var point = graphics.getlocation(e, e.target.parentNode);
+    //figure out the row and character we clicked on.
+    var ref = {};
+    //retrieve the position within the sequence object that we are at.
+    //nb:  0 is on the very left side, and y coordinates go from -lineheight to 0.
+    ref.line = graphics.getline(point.svgy); 
+    ref.linepos = Math.ceil(point.internalx / graphics.metrics.charwidth);
+    ref.pos = ref.line * graphics.settings.zoomlevel + ref.linepos;
+
+    if (rightclick)
     {
-      if (!e) var e = window.event;
-      if (e.which) rightclick = (e.which == 3);
-      else if (e.button) rightclick = (e.button == 2);
-
-      temp = e;
-
-      if (rightclick)
-      {
-        //retrieve the position within the sequence object that we are at.
-        //nb:  0 is on the very left side, and y coordinates go from -lineheight to 0.
-        var point = graphics.getlocation(e, e.target.parentNode);
-        //figure out the row and character we clicked on.
-        var ref = {};
-        ref.line = graphics.getline(point.svgy); 
-        ref.pos = Math.ceil(point.internalx / graphics.metrics.charwidth);
-
-        sequence.sendcontextmenu(e.clientX, e.clientY, ref);
-      }
-      else //normal click
-      {}
-    });
+      sequence.sendcontextmenu(e.clientX, e.clientY, ref);
+    }
+    else //normal click
+    {
+      var token = new Token("startselect");
+      token.line = ref.line;
+      token.linepos = ref.linepos;
+      token.pos = ref.pos;
+      editor.broadcasttoken(token);
+    }
+  });
 
   sequenceelement.snapto();
   

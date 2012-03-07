@@ -316,6 +316,12 @@ var graphics =
     return location;
   },
 
+  getpos: function(xpos)
+  {
+    var value = Math.ceil((xpos - graphics.settings.lmargin) / graphics.metrics.charwidth)
+    return ((value < 0) || (value > graphics.settings.zoomlevel)) ? undefined : value;
+  },
+
   getline: function(ypos)
   {
     var i = 0;
@@ -324,8 +330,48 @@ var graphics =
       if (graphics.lines[i].translatey > ypos) break; 
     }
     return i;
-  }
+  },
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  //drag and drop function.
+  dragtarget: {},
+  registerdrag: function(who)
+  {
+    dragtarget = who;
+    graphics.editor.dom.onmousemove = graphics.dragmove;
+    graphics.editor.dom.onmouseup = graphics.dragfinish;
+  },
+
+  unregisterdrag: function()
+  {
+    dragtarget = null;
+    graphics.editor.dom.onmousemove = null;
+    graphics.editor.dom.onmouseup = null;
+  },
+  
+  dragmove: function(event)
+  {
+    var location = graphics.getlocation(event, graphics.editor.dom);
+    var token = new Token("drag");
+    token.line = graphics.getline(location.internaly);
+    token.linepos = graphics.getpos(location.internalx);
+    token.pos = token.line * graphics.zoomlevel + token.linepos;
+    token.event = event;
+    dragtarget.handletoken(token);
+  },
+
+  dragfinish: function(event)
+  {
+    var token = new Token("drop");
+    dragtarget.handletoken(token);
+    dragtarget = null
+    
+    graphics.editor.dom.onmousemove = null;
+    graphics.editor.dom.onmouseup = null;
+  },
 };
+
+
 
 /////////////////////////////////////////////////////////////////////
 // HELPER OBJECT DEFINITIONS

@@ -41,8 +41,8 @@ GenBankSeqRange = function(rangetext)
 SeqRange = function(_start, _end, _orientation)
 {
   //preconditions:
-  //_start < _end, unless _orientation == 0;
-  //if _orientation == 0 then redefine based on relative
+  //_start < _end, unless _orientation == null;
+  //if _orientation == null then redefine based on relative
   //positions of start and end
 
   //postcondition:
@@ -79,11 +79,16 @@ SeqRange = function(_start, _end, _orientation)
         start_p: startpos,
         end_p: endpos
       }
-    }
+    },
+
+    datastring: function()
+    {
+      return this.start + ", " + this.end + ", " + this.orientation;
+    },
   };
 
   //refactor the orientation if we have supplied it with a zero value.
-  if (_orientation == 0)
+  if (_orientation == null)
   {
     if (_start > _end)
     {

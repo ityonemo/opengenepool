@@ -200,9 +200,14 @@ annotations.contextmenu = function(token)
       alert("populate menu with cool options");
     break;
     case "selection":
-      alert("annotation option to create, " + selection.range.start + ".." + selection.range.end);
+      editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
     break;
   }
+}
+
+annotations.createdialog = function(start, end, orientation)
+{
+  alert("range: " + start + ".." + end);
 }
 
 

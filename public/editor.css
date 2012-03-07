@@ -55,3 +55,21 @@
     right: 0px;
 }
 
+#contextmenu {
+    font-family: "Lucida Sans", sans-serif;
+    position: fixed;
+
+    border: 1px solid black;
+    background-color: #666;
+    color: #fff;
+    padding:5px;
+    z-index: 2000;
+    max-width: 300px;
+    display: none;
+}
+
+.menuitem{
+    margin: 5px;
+}
+
+
