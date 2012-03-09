@@ -452,3 +452,16 @@ Box = function(_left, _top, _right, _bottom)
     }
   }
 }
+
+//generalized fragment
+
+Fragment = function(_line, _start, _end, _orientation, _ref)
+{
+  return {
+    line: _line,
+    start: _start,
+    end: _end,
+    orientation: _orientation,
+    ref: _ref,
+  }
+}

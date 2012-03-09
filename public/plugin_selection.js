@@ -112,12 +112,17 @@ selection.startselect = function(token)
 
 selection.drag = function(token)
 {
-  if (token.pos)
+  if (token.pos && selection.selecting)
   {
     if (token.pos < selection.startpoint)
     {
+      //reset the values for the selection.
       selection.range.start = token.pos;
       selection.range.end = selection.startpoint;
+      //reset the front end of the graphics.
+      selection.fragment[0].
+      
+
       selection.range.orientation = -1;
       editor.infobox.innerHTML = "(" + selection.range.start + ".." + selection.range.end + ")";
     } else
@@ -127,7 +132,6 @@ selection.drag = function(token)
       selection.range.orientation = 1;
       editor.infobox.innerHTML = selection.range.start + ".." + selection.range.end;
     }
-    selection.drawnewselection();
   }
 };
 
@@ -188,45 +192,23 @@ selection.generatefragments = function()
   //check if it's really short.
   if (span.start_s == span.end_s)
   {
-    var fragment =
-      {line: span.start_s,
-       start: span.start_p, 
-       end: span.end_p,
-       direction: orientation}; 
-    selection.fragments.push(fragment);
-    graphics.invalidate(span.start_s);
+    selection.fragments.push(new Fragment(span.start_s, span.start_p, span.end_p, orientation));
   }
   else
   {
-    //set up distinct start and end fragments.
-    var startfragment =
-      {line: span.start_s,
-       start: span.start_p, 
-       end: graphics.settings.zoomlevel - 1,
-       direction: orientation};
-    selection.fragments.push(startfragment);
-    graphics.invalidate(span.start_s);
-    var endfragment =
-      {line: span.end_s,
-       start: 0, 
-       end: span.end_p,
-       direction: orientation};
-    selection.fragments.push(endfragment);
-    graphics.invalidate(span.end_s);
-
+    //set up start fragment.
+    selection.fragments.push(new Fragment(span.start_s, span.start_p, graphics.settings.zoomlevel - 1, orientation));
     //if it's reaaaly long, then you have fill in middle fragments.
     if (span.start_s < span.end_s - 1)
     {
       for(var j = span.start_s + 1; j < span.end_s; j++)
       {
-        var midfragment =
-          {line: j,
-           start: 0,
-           end: graphics.settings.zoomlevel -1,
-           direction: orientation};
-        selection.fragments.push(midfragment);
-        graphics.invalidate(j);
+        selection.fragments.push(new Fragment(j, 0, graphics.settings.zoomlevel -1, orientation));
       }
     }
+    //set up end fragment.
+    selection.fragments.push(new Fragment(span.end_s, 0, span.end_p, orientation));
   }
 }
+
+//fragment variable

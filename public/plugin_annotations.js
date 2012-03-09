@@ -80,46 +80,26 @@ annotations.generatefragments = function(i)
   //check if it's really short.
   if (span.start_s == span.end_s)
   {
-    var fragment =
-      {ref: annotations.annotations[i],
-       line: span.start_s,
-       start: span.start_p, 
-       end: span.end_p,
-       direction: orientation}; 
-    annotations.fragments.push(fragment)
+    //then there's only one fragment.
+    annotations.fragments.push(new Fragment(span.start_s, span.start_p, span.end_p, orientation, annotations.annotations[i]));
   }
   else
   {
-    //set up distinct start and end fragments.
-    var startfragment =
-      {ref: annotations.annotations[i],
-       line: span.start_s,
-       start: span.start_p, 
-       end: graphics.settings.zoomlevel - 1,
-       direction: orientation};
-    annotations.fragments.push(startfragment);
-    var endfragment =
-      {ref: annotations.annotations[i],
-       line: span.end_s,
-       start: 0, 
-       end: span.end_p,
-       direction: orientation};
-    annotations.fragments.push(endfragment);
+    //set up start fragment.
+    annotations.fragments.push(new Fragment(
+      span.start_s, span.start_p, graphics.settings.zoomlevel - 1, orientation, annotations.annotations[i]));
 
     //if it's reaaaly long, then you have fill in middle fragments.
     if (span.start_s < span.end_s - 1)
     {
       for(var j = span.start_s + 1; j < span.end_s; j++)
       {
-        var midfragment =
-          {ref: annotations.annotations[i],
-           line: j,
-           start: 0,
-           end: graphics.settings.zoomlevel -1,
-           direction: orientation};
-        annotations.fragments.push(midfragment);
+        annotations.fragments.push(new Fragment(j, 0, graphics.settings.zoomlevel -1, orientation, annotations.annotations[i]));
       }
     }
+
+    //set up end fragment
+    annotations.fragments.push(new Fragment(span.end_s, 0, span.end_p, orientation, annotations.annotations[i]));
   }
 
   //return a structure reporting the start and end lines.
@@ -162,11 +142,11 @@ annotations.redraw = function(token)
 
       //set up the content.  Note that the Y position is very likely to be altered
       //by the internal layout engine.
-      graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.direction,
+      graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.orientation,
       currentannotation);
       graphicselement.snapto();
 
-      graphicselement.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (currentfragment.direction == 0)) ? 
+      graphicselement.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (currentfragment.orientation == 0)) ? 
         graphics.metrics.lineheight / 5 : 0) + 1;
       graphicselement.bottompadding = graphicselement.toppadding;
 
