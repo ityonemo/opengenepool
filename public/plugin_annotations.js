@@ -185,9 +185,7 @@ annotations.redraw = function(token)
       annotations.addTip(graphicselement.content, currentannotation.caption, descriptionstring);
 
       //put it into the elements array.
-      graphics.lines[token.line].elements.push(graphicselement);
-      //put the raphael object into the raphael array.
-      graphics.lines[token.line].content.push(graphicselement.content);
+      graphics.lines[token.line].push(graphicselement);
     }
   }
 };

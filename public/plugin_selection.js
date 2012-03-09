@@ -73,12 +73,10 @@ selection.redraw = function(token)
       selectionobject.toBack();      //set up the clickresponder.
 
       //associate the element with the content.
-      selectionelement.content = selectionobject
+      selectionelement.content.push(selectionobject);
 
       //put it into the elements array.
-      graphics.lines[token.line].elements.push(selectionelement);
-      //put the raphael object into the raphael array.
-      graphics.lines[token.line].content.push(selectionobject);
+      graphics.lines[token.line].push(selectionelement);
     }
   }
 };

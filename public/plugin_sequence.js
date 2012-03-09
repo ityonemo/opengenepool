@@ -106,10 +106,7 @@ sequence.redraw = function(token)
   positionelement.snapto(); //to set the properties of the GraphicsElement.
 
   //put it into the elements array.
-  graphics.lines[token.line].elements.push(sequenceelement);
-  graphics.lines[token.line].elements.push(positionelement);
-  //put the raphael object into the raphael array.
-  graphics.lines[token.line].content.push(sequenceobject);
-  graphics.lines[token.line].content.push(positionobject);
+  graphics.lines[token.line].push(sequenceelement);
+  graphics.lines[token.line].push(positionelement);
 }
 

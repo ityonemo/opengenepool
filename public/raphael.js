@@ -327,6 +327,7 @@
             height: 0,
             href: "http://raphaeljs.com/",
             "letter-spacing": 0,
+            id: "",
             opacity: 1,
             path: "M0,0",
             r: 0,
@@ -2125,6 +2126,11 @@
     };
     var draggable = [];
     
+    elproto.mouseenter = function(handler)
+    {
+        return $(this[0]).mouseenter(handler);
+    }
+
     elproto.drag = function (onmove, onstart, onend, move_scope, start_scope, end_scope) {
         function start(e) {
             (e.originalEvent || e).preventDefault();
@@ -4343,7 +4349,7 @@ window.Raphael.svg && function (R) {
         var el = $("rect");
         svg.canvas && svg.canvas.appendChild(el);
         var res = new Element(el, svg);
-        res.attrs = {x: x, y: y, width: w, height: h, r: r || 0, rx: r || 0, ry: r || 0, fill: "none", stroke: "#000"};
+        res.attrs = {x: x, y: y, width: w, height: h, r: r || 0, rx: r || 0, ry: r || 0};
         res.type = "rect";
         $(el, res.attrs);
         return res;
@@ -4375,8 +4381,7 @@ window.Raphael.svg && function (R) {
             x: x,
             y: y,
             text: text,
-            stroke: "none",
-            fill: "#000"
+            stroke: "none"
         };
         res.type = "text";
         setFillAndStroke(res, res.attrs);

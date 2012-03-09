@@ -72,10 +72,19 @@
     margin: 5px;
 }
 
+/*stuff for making the selections go away */
+
 ::-moz-selection{
 background: rgba(0,0,0,0);
 } 
 
 ::selection {
 background: rgba(0,0,0,0);
+}
+
+/*general svg graphics elements*/
+
+.framebox {
+  stroke:rgb(0,0,0);
+  fill:rgb(0,0,0);
 }

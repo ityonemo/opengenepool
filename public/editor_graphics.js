@@ -16,7 +16,6 @@ var graphics =
   //  translatex - x component of translation matrix - usually leftmargin
   //  content - raphael set element corresponding to the line.
   //  invalid - boolean, should be called on 'invalidate' call.
- 
 
   ////////////////////////////////////////////////////////////////////////////////////////
   //INITIALIZATION FUNCTIONS
@@ -50,7 +49,7 @@ var graphics =
     graphics.lines = [];
     for (var i = 0; i < graphics.linecount; i++)
     {
-      graphics.lines[i] = new Line();
+      graphics.lines[i] = new Line(i);
     };
 
     //create the zoomer object
@@ -92,7 +91,7 @@ var graphics =
     //create the lines objects.
     for (var i = 0; i < graphics.linecount; i++)
     {
-      graphics.lines[i] = new Line();
+      graphics.lines[i] = new Line(i);
     };
 
     //inform the plugins that we have rezoomed.
@@ -240,7 +239,7 @@ var graphics =
   {
     //create a local variable to hold the bounding boxes.
     var boxes = [];
-    var elements = graphics.lines[line].elements
+    var elements = graphics.lines[line].elements;
 
     //first go through and deal with the anchored content.
     var unanchored = [];			//temporary array to hold what we don't deal with.
@@ -290,7 +289,8 @@ var graphics =
                          unanchored[i].bottom + unanchored[i].bottompadding));
     }
 
-    var extremetop = -graphics.lines[line].content.getBBox().y;
+    var contentbox = graphics.lines[line].content.getBBox();
+    var extremetop = -contentbox.y;
 
     //find how much we need to move the line.  First the bounds of the previous box.
     var prevbox = (line == 0) ? {} : graphics.lines[line - 1].content.getBBox();
@@ -323,6 +323,8 @@ var graphics =
   },
 
   getline: function(ypos)
+    //this function is slow, there may be better ways to do this for UI-response snappiness
+    //for example how the drag and drop code immediately below handles the situation.
   {
     var i = 0;
     for (; i < graphics.lines.length; i++)
@@ -335,6 +337,8 @@ var graphics =
   /////////////////////////////////////////////////////////////////////////////////////////
   //drag and drop function.
   dragtarget: {},
+  dragline: 0,  //hack to get more responsive drag and drop events.
+
   registerdrag: function(who)
   {
     dragtarget = who;
@@ -353,11 +357,12 @@ var graphics =
   {
     var location = graphics.getlocation(event, graphics.editor.dom);
     var token = new Token("drag");
-    token.line = graphics.getline(location.internaly);
+    token.line = graphics.dragline
     token.linepos = graphics.getpos(location.internalx);
     token.pos = token.line * graphics.settings.zoomlevel + token.linepos;
     token.event = event;
     dragtarget.handletoken(token);
+    return true;
   },
 
   dragfinish: function(event)
@@ -373,7 +378,7 @@ var graphics =
 /////////////////////////////////////////////////////////////////////
 // HELPER OBJECT DEFINITIONS
 
-Line = function()
+Line = function(_index)
 {
   return {
     translatex: graphics.settings.lmargin, 
@@ -381,9 +386,17 @@ Line = function()
     content: graphics.editor.paper.set(), //an array of raphael objects.
     elements: [],  //elements is an array of graphicscontainers. 
     invalid: true,
-    reset: function(){translatex = graphics.settings.lmargin; translatey = graphics.settings.vmargin;}
-  }
-}
+    index: _index,
+    reset: function(){translatex = graphics.settings.lmargin; translatey = graphics.settings.vmargin;},
+
+    push: function(who)
+    {
+      this.elements.push(who);
+      this.content.push(who.content);
+      this.content.mouseenter(new Function("graphics.dragline = " + this.index + ";"));
+    },
+  };
+};
 
 //styling container.
 GraphicsElement = function(_anchored)
