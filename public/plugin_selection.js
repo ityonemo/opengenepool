@@ -50,6 +50,7 @@ selection.select = function(token)
   selection.range = token.range;
   //clear any previous selected range.
   selection.drawnewselection();
+  selection.infobox();
 };
 
 selection.redraw = function(token)
@@ -63,20 +64,18 @@ selection.redraw = function(token)
     {
       var selectionelement = new GraphicsElement(true)
 
-      var selectionobject = graphics.editor.paper.rect(
-      currentfragment.start * graphics.metrics.charwidth, 
-      -graphics.metrics.lineheight,
-      (currentfragment.end - currentfragment.start + 1) * graphics.metrics.charwidth,
-      graphics.metrics.lineheight)
+      var selectionobject = graphics.editor.paper.rect(0,0);
+      //store it in the fragments array
+      currentfragment.ref = selectionobject;
+
+      //move the fragment to where it needs to be.
+      selection.paintfragment(i);      
  
       selectionobject.attr("class",(selection.range.orientation == -1) ? "reverse_select" : "forward_select");
       selectionobject.toBack();      //set up the clickresponder.
 
       //associate the element with the content.
       selectionelement.content.push(selectionobject);
-
-      //store it in the fragments array
-      currentfragment.ref = selectionobject;
 
       //put it into the elements array.
       graphics.lines[token.line].push(selectionelement);
@@ -119,34 +118,98 @@ selection.drag = function(token)
   {
     if (token.pos < selection.startpoint)
     {
-      //store old position
-      var _o = selection.range.start % graphics.settings.zoomlevel;
+      //store the value of the old line.
+      var _o = Math.floor(selection.range.start / graphics.settings.zoomlevel);
       //reset the values for the selection.
       selection.range.start = token.pos;
       selection.range.end = selection.startpoint;
-      //reset the front end of the graphics.
-      var _a = selection.fragments[0].ref.attr();
-      selection.fragments[0].ref.attr("x", token.linepos * graphics.metrics.charwidth);
-      selection.fragments[0].ref.attr("width", (_o - token.linepos) * graphics.metrics.charwidth + _a.width);
-      selection.fragments[0].ref.attr("class", "reverse_select");
-      selection.range.orientation = -1;
-      editor.infobox.innerHTML = "(" + selection.range.start + ".." + selection.range.end + ")";
-    } else
+      //check to see if we need to create new fragments.
+      if (token.line < selection.fragments[0].line)
+      {
+        //first set the first fragment to the front.
+        selection.fragments[0].start = 0;
+        selection.fragments[0].orientation = -1;
+        selection.paintfragment(0);
+
+        for (var j = selection.fragments[0].line - 1; j >= token.line; j--)
+        {
+          selection.createline(token, j, -1);
+        }
+      }
+      else
+      {
+        //reset the first fragment.
+        selection.fragments[0].start = token.linepos;
+        selection.fragments[0].orientation = -1;
+        selection.range.orientation = -1;
+        selection.paintfragment(0);
+      }
+    } 
+    else
     {
-      //store old position
-      var _o = selection.range.end % graphics.settings.zoomlevel;
       //reset the values for the selection.
       selection.range.end = token.pos;
       selection.range.start = selection.startpoint;
-      //reset the back end of the graphics.
-      var _a = selection.fragments[0].ref.attr();
-      selection.fragments[0].ref.attr("width", (token.linepos - _o) * graphics.metrics.charwidth + _a.width);
-      selection.fragments[0].ref.attr("class", "forward_select");
-      selection.range.orientation = 1;
-      editor.infobox.innerHTML = selection.range.start + ".." + selection.range.end;
+
+      //reset the last fragment.
+      var _last = selection.fragments.length - 1;
+
+      if (token.line > selection.fragments[_last].line)
+      { 
+        //first set the last fragment to the end.
+        selection.fragments[_last].end = graphics.settings.zoomlevel - 1;
+        selection.fragments[_last].orientation = 1;
+        selection.paintfragment(_last);
+
+        for (var j = selection.fragments[_last].line + 1; j <= token.line; j++)
+        {
+          selection.createline(token, j, 1);
+        }
+      }
+      else
+      {
+        if (token.pos == selection.startpoint)
+        {
+          selection.fragments[_last].start = token.linepos;
+        };
+
+        selection.fragments[_last].end = token.linepos;
+        selection.fragments[_last].orientation = 1;
+        selection.range.orientation = 1;
+        selection.paintfragment(_last);
+      };
     }
+    selection.infobox();
   }
 };
+
+selection.createline = function(token, j, o)
+{
+  var selectionelement = new GraphicsElement(true)
+  var selectionobject = graphics.editor.paper.rect(0,0);
+  var new_f = new Fragment(j, 
+    (((j == token.line) && (o == -1)) ? token.linepos : 0),
+    (((j == token.line) && (o == 1)) ? token.linepos : graphics.settings.zoomlevel - 1), o);
+        
+  //store it in the fragments array
+  new_f.ref = selectionobject;
+
+  selectionobject.translate(graphics.lines[j].translatex, graphics.lines[j].translatey);
+  selectionobject.toBack();      //set up the clickresponder.
+
+  //push or unshift it to the fragments array.
+  if (o == -1) { selection.fragments.unshift(new_f);}
+  else {selection.fragments.push(new_f);}
+
+  //move the fragment to where it needs to be.
+  selection.paintfragment((o == -1) ? 0 : selection.fragments.length - 1);
+                 
+  //associate the element with the content.
+  selectionelement.content.push(selectionobject);
+
+  //put it into the elements array.
+  graphics.lines[j].push(selectionelement); 
+}
 
 selection.drop = function(token)
 {
@@ -155,6 +218,26 @@ selection.drop = function(token)
 
 ////////////////////////////////////////////////////////////////////////
 // GENERAL MEMBER FUNCTIONS
+
+selection.infobox = function()
+{
+  var _c = (selection.range.orientation == -1)
+  editor.infobox.innerHTML = (_c?"(":"") + selection.range.start + ".." + selection.range.end + (_c?")":"");
+}
+
+selection.paintfragment = function(i)
+{ 
+  var currentfragment = selection.fragments[i];
+
+  currentfragment.ref.attr(
+  {
+    x:       currentfragment.start * graphics.metrics.charwidth, 
+    y:       -graphics.metrics.lineheight,
+    width:   (currentfragment.end - currentfragment.start + 1) * graphics.metrics.charwidth,
+    height:  graphics.metrics.lineheight,
+    "class": ((currentfragment.orientation == -1) ? "reverse_select" : "forward_select")
+  });
+};
 
 selection.trapclip = function()
 {
