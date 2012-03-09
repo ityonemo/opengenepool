@@ -75,6 +75,9 @@ selection.redraw = function(token)
       //associate the element with the content.
       selectionelement.content.push(selectionobject);
 
+      //store it in the fragments array
+      currentfragment.ref = selectionobject;
+
       //put it into the elements array.
       graphics.lines[token.line].push(selectionelement);
     }
@@ -116,19 +119,29 @@ selection.drag = function(token)
   {
     if (token.pos < selection.startpoint)
     {
+      //store old position
+      var _o = selection.range.start % graphics.settings.zoomlevel;
       //reset the values for the selection.
       selection.range.start = token.pos;
       selection.range.end = selection.startpoint;
       //reset the front end of the graphics.
-      selection.fragment[0].
-      
-
+      var _a = selection.fragments[0].ref.attr();
+      selection.fragments[0].ref.attr("x", token.linepos * graphics.metrics.charwidth);
+      selection.fragments[0].ref.attr("width", (_o - token.linepos) * graphics.metrics.charwidth + _a.width);
+      selection.fragments[0].ref.attr("class", "reverse_select");
       selection.range.orientation = -1;
       editor.infobox.innerHTML = "(" + selection.range.start + ".." + selection.range.end + ")";
     } else
     {
+      //store old position
+      var _o = selection.range.end % graphics.settings.zoomlevel;
+      //reset the values for the selection.
       selection.range.end = token.pos;
       selection.range.start = selection.startpoint;
+      //reset the back end of the graphics.
+      var _a = selection.fragments[0].ref.attr();
+      selection.fragments[0].ref.attr("width", (token.linepos - _o) * graphics.metrics.charwidth + _a.width);
+      selection.fragments[0].ref.attr("class", "forward_select");
       selection.range.orientation = 1;
       editor.infobox.innerHTML = selection.range.start + ".." + selection.range.end;
     }
@@ -167,21 +180,22 @@ selection.trapclip = function()
 selection.drawnewselection = function()
 {
   selection.clearfragments();
-  selection.fragments = [];
   //throw the selected flag.
   selection.selected = true;
   //generate the fragments
   selection.generatefragments();
   //throw a graphics invalidate.
+  selection.repaint();
   graphics.render();
 };
 
 selection.clearfragments = function()
 {
-  for(var i = 0; i < selection.fragments.length; i ++)
-  {
-    graphics.invalidate(selection.fragments[i].line);
-  }
+  //first go through and invalidate all the relevant lines.
+  selection.repaint();
+  //then clean out the array.
+  selection.fragments = [];
+  //the effects of emptying this array should propagate when the render() call is made.
 };
 
 selection.generatefragments = function()
@@ -211,4 +225,11 @@ selection.generatefragments = function()
   }
 }
 
-//fragment variable
+selection.repaint = function()
+{
+  //go through and invalidate all the relevant lines.
+  for(var i = 0; i < selection.fragments.length; i ++)
+  {
+    graphics.invalidate(selection.fragments[i].line);
+  }
+}
