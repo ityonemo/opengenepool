@@ -1,9 +1,19 @@
 #selection.forward{
   fill: rgba(0,255,0,0.5);
-  stroke: rgba(0,0,0,0);
+  stroke: rgba(0,128,0,1);
 }
 
 #selection.reverse{
   fill: rgba(255,0,0,0.5);
-  stroke: rgba(0,0,0,0);
+  stroke: rgba(255,0,0,1);
+}
+
+.forward_handle{
+  fill: rgba(200,200,200,1);
+  stroke: rgba(0,128,0,1);
+}
+
+.reverse_handle{
+  fill: rgba(200,200,200,1);
+  stroke: rgba(255,0,0,1);
 }

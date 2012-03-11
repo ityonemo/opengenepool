@@ -10,7 +10,14 @@ selection.range = new SeqRange();
 selection.clipboardstylesheet = {};
 
 selection.path = {};
+selection.handler = {};
+selection.handlef = {};
+selection.fpos = {x: -100, y: -100};
+selection.rpos = {x: -100, y: -100};
 selection.selected = false;
+
+selection.animateout = {};
+selection.animatein = {};
 
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING TOKEN FUNCTIONS
@@ -31,6 +38,15 @@ selection.initialize = function()
   selection.path = graphics.editor.paper.path("");
   selection.path.attr("id", "selection");
   selection.path.translate(graphics.settings.lmargin, 0);
+
+  selection.handler = graphics.editor.paper.circle(0,0,5);
+  selection.handler.attr("id", "handler");
+
+  selection.handlef = graphics.editor.paper.circle(0,0,5);
+  selection.handlef.attr("id", "handlef");
+
+  selection.animateout = Raphael.animation({opacity:0}, 250, "<>");
+  selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -97,6 +113,9 @@ selection.startselect = function(token)
   selection.selectionstart = token.pos;
   selection.selected = true;
   graphics.registerdrag(selection);
+
+  selection.handlef.animate(selection.animateout);
+  selection.handler.animate(selection.animateout);
 };
 
 selection.drag = function(token)
@@ -122,6 +141,22 @@ selection.drag = function(token)
 
 selection.drop = function(token)
 {
+  var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
+  selection.handlef.attr("class", classtext);
+  selection.handler.attr("class", classtext);
+  selection.handlef.toFront();
+  selection.handler.toFront();
+
+  var sel_span = selection.range.span();
+  var linef = graphics.lines[sel_span.end_s];
+  var liner = graphics.lines[sel_span.start_s];
+  selection.handlef.attr("cx", graphics.settings.lmargin + (sel_span.end_p + 1) * graphics.metrics.charwidth);
+  selection.handlef.attr("cy", linef.translatey - linef.content.getBBox().height/2);
+  selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
+  selection.handler.attr("cy", liner.translatey - liner.content.getBBox().height/2);
+
+  selection.handlef.animate(selection.animatein);
+  selection.handler.animate(selection.animatein);
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -144,7 +179,6 @@ selection.trapclip = function()
   //we will almost certainly need to make changes to make this work with safari and IE.
 
   var _sel_actual = window.getSelection();       //named such to prevent confusion with the selection plugin object.
-  selection._temp_selection = _sel_actual.getRangeAt(0);
   _sel_actual.removeAllRanges();                 //clear whatever we think is selected.
 
   selection.clipboard.innerHTML = 
@@ -153,14 +187,6 @@ selection.trapclip = function()
   var temprange = document.createRange();                  //create a new range          
   temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
   _sel_actual.addRange(temprange);
-
-  //set a callback that restores the old selection.
-  window.setTimeout(function()
-  {
-    var _sel_actual = window.getSelection();
-    _sel_actual.removeAllRanges();
-    _sel_actual.addRange(selection._temp_selection);
-  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
