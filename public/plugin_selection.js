@@ -70,6 +70,7 @@ selection.select = function(token)
 {
   selection.range = token.range;
   //clear any previous selected range.
+  selection.selected = true;
   selection.redraw();
 };
 

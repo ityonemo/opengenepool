@@ -302,6 +302,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
   return thisfragment;
 };
 
+
 ////////////////////////////////////////////////////////////////////////
 // HELPER OBJECTS
 
