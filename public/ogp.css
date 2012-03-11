@@ -9,6 +9,10 @@ header {
   top: 0px;
   height: 100px;
 
+
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
 header h1 {

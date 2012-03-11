@@ -1,3 +1,9 @@
+aside {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
 #toolbar {
   position: absolute;
   top: 0px;
@@ -70,16 +76,6 @@
 
 .menuitem{
     margin: 5px;
-}
-
-/*stuff for making the selections go away */
-
-::-moz-selection{
-background: rgba(0,0,0,0);
-} 
-
-::selection {
-background: rgba(0,0,0,0);
 }
 
 /*general svg graphics elements*/

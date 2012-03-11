@@ -81,6 +81,11 @@ SeqRange = function(_start, _end, _orientation)
       }
     },
 
+    toString: function()
+    {
+      return ((this.orientation == -1) ? "(" : "") + this.start + ".." + this.end + ((this.orientation == -1) ? ")" : "");
+    },
+
     datastring: function()
     {
       return this.start + ", " + this.end + ", " + this.orientation;

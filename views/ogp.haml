@@ -4,9 +4,6 @@
     %title OpenGenePool - Community DNA Sharing
     %link(href="ogp.css" rel="stylesheet" type="text/css")
 
-    -@csslist.each do |@i|
-      %link(href=@i rel="stylesheet" type="text/css")
-
     %script(src="jquery.js" type="text/javascript" charset="utf-8")
     %script(src="ogp.js" type="text/javascript" charset="utf-8")
     -@scriptlist.each do |@j|
@@ -15,6 +12,10 @@
     -#output any other scripts that we may want to generate.
     %script(type="text/javascript" charset="utf-8")
       #{@otherscripts}
+
+    -@csslist.each do |@i|
+      %link(href=@i rel="stylesheet" type="text/css")
+
 
   %body
     %header
