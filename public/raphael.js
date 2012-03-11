@@ -349,6 +349,7 @@
             x: 0,
             y: 0,
             class:"",
+            d:"",
         },
         availableAnimAttrs = R._availableAnimAttrs = {
             blur: nu,

@@ -9,8 +9,8 @@ selection.range = new SeqRange();
 
 selection.clipboardstylesheet = {};
 
-selection._forwardselectcss = "::selection {background:rgba(0,255,0,0.5)}";
-selection._reverseselectcss = "::selection {background:rgba(255,0,0,0.5)}";
+selection.path = {};
+selection.selected = false;
 
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING TOKEN FUNCTIONS
@@ -28,14 +28,9 @@ selection.initialize = function()
   //set up the injection hack.
   document.oncopy = selection.trapclip;
 
-  //create a short stylesheet just for the selection color manipulation.
-  selection.clipboardstylesheet = document.createElement('style');
-  selection.clipboardstylesheet.setAttribute('id', 'clipstyle');
-  document.head.appendChild(selection.clipboardstylesheet);
-
-  //assign the css object.
-  //selection.targetstylesheet = document.styleSheets[document.styleSheets.length - 1];
-  //selection.targetstylesheet.insertRule(selection._forwardselectcss, 0);
+  selection.path = graphics.editor.paper.path("");
+  selection.path.attr("id", "selection");
+  selection.path.translate(graphics.settings.lmargin, 0);
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -46,11 +41,53 @@ selection.select = function(token)
 {
   selection.range = token.range;
   //clear any previous selected range.
-  //selection.infobox();
+  selection.redraw();
 };
 
+selection.redraw = function(token)
+{
+  if (selection.selected)
+  {
+    selection.path.attr("class", (selection.range.orientation == -1) ? "reverse" : "forward");
+    var sel_span = selection.range.span();
+    if (sel_span.start_s == sel_span.end_s)
+    {
+      var xpos = sel_span.start_p * graphics.metrics.charwidth;
+      var height = graphics.lines[sel_span.start_s].content.getBBox().height; 
+      selection.path.attr("d",
+      "M " + xpos + "," + (graphics.lines[sel_span.start_s].translatey - height) +
+      " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
+      " v " + height  +
+      " H " + xpos +
+      " Z"
+      );
+    }
+    else
+    {
+      var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
+      var xpos2 = sel_span.end_p * graphics.metrics.charwidth;
+      var ypos1 = graphics.lines[sel_span.start_s].translatey;
+      var ypos2 = graphics.lines[sel_span.end_s].translatey;
+      var height1 = graphics.lines[sel_span.start_s].content.getBBox().height; 
+      var height2 = graphics.lines[sel_span.end_s].content.getBBox().height;
+
+      selection.path.attr("d",
+      "M " + xpos1 + "," + (ypos1 - height1) +
+      " H " + graphics.metrics.linewidth +
+      " V " + (ypos2 - height2) +
+      " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
+      " v " + height2  +
+      " H " + 0 +
+      " V " + ypos1 +
+      " H " + xpos1 +
+      " Z"
+      );
+    }
+  };
+}
+
 ////////////////////////////////////////////////////////////////////////
-// DRAG and DROP handling.
+// DRAG and DROP TOKEN handling.
 
 selection.selectionstart = 0;
 
@@ -58,7 +95,7 @@ selection.startselect = function(token)
 {
   selection.range = new SeqRange(token.pos, token.pos);
   selection.selectionstart = token.pos;
-  selection.enforce();
+  selection.selected = true;
   graphics.registerdrag(selection);
 };
 
@@ -80,8 +117,7 @@ selection.drag = function(token)
     selection.range.orientation = 1;
   }
 
-  //enforce the position of selection to match the actual selection.
-  selection.enforce();
+  selection.redraw();
 };
 
 selection.drop = function(token)
@@ -96,10 +132,7 @@ selection.report = function()  //reports the selection contents to the informati
   document.getElementById("information").innerHTML = selection.range.toString();
 };
 
-selection.enforce = function()
-{
-  selection.report();
-};
+temp_blah = {};
 
 selection._temp_selection = {};
 selection.trapclip = function()

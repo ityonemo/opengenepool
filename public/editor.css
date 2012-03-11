@@ -59,6 +59,11 @@ aside {
     left: 150px;
     top: 0px;
     right: 0px;
+
+
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
 #contextmenu {

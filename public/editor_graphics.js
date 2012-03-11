@@ -362,7 +362,7 @@ var graphics =
     token.pos = token.line * graphics.settings.zoomlevel + token.linepos;
     token.event = event;
     dragtarget.handletoken(token);
-    return true;
+    return false;
   },
 
   dragfinish: function(event)
