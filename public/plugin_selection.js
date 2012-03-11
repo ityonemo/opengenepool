@@ -49,6 +49,19 @@ selection.initialize = function()
   selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
 };
 
+selection.contextmenu = function(token)
+{
+  switch (token.subtype)
+  {
+    case "sequence":
+      if ((token.ref.pos >= selection.range.start) && (token.ref.pos <= selection.range.end))
+      {
+        selection.sendcontextmenu(token.x, token.y, selection.range);
+      }
+    break;
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////
 // IMPLEMENTED TOKEN FUNCTIONS
 

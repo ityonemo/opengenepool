@@ -175,7 +175,7 @@ annotations.contextmenu = function(token)
   switch (token.subtype)
   {
     case "annotations":
-      alert("populate menu with cool options");
+      editor.addcontextmenuitem(new MenuItem("delete annotation", "alert('delete annotation: " + token.ref.caption + "');"));
     break;
     case "selection":
       editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
@@ -286,9 +286,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 
       if (rightclick)
       {
-        annotations.sendcontextmenu(e.clientX, e.clientY)
-        //right click triggers the menu.
-        //editor.showpopup(e.clientX, e.clientY);
+        annotations.sendcontextmenu(e.clientX, e.clientY, ref)
 
         //for aesthetic purpsoses, hide the annotatation tooltip.
         annotations.hideTip();
