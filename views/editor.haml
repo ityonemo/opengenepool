@@ -1,5 +1,9 @@
 %aside#toolbar
   #infobox
+    #innerbox
+    -if(session[:user])
+      %button#fork(type="button" onclick="editor.fork()")
+        fork
   #information
   #graphics.toolitem
     %details

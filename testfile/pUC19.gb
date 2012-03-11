@@ -28,30 +28,30 @@ FEATURES             Location/Qualifiers
      misc_feature    396..452
                      /gene="lacZalpha"
                      /note="multiple cloning site (EcoRI-HindIII)"
-     -10_signal      complement(514..519)
-                     /note="Plac promoter (drives lacZalpha;
+     promoter        complement(514..519)
+                     /note="Plac -10 (drives lacZalpha;
                      counter-clockwise); TATGTT"
-     -35_signal      complement(538..543)
-                     /note="Plac promoter (drives lacZalpha;
+     promoter        complement(538..543)
+                     /note="Plac -35 (drives lacZalpha;
                      counter-clockwise); TTTACA"
      protein_bind    complement(563..575)
                      /note="CAP protein binding site"
                      /bound_moiety="catabolite activator protein (CAP)"
-     rep_origin      complement(867..1455)
+     origin          complement(867..1455)
                      /note="pMB1 origin of replication (counter-clockwise)
                      (RNAII -35 to RNA/DNA switch point)"
      misc_RNA        complement(867..1419)
                      /note="RNAII transcript (complementary strand)"
-     -35_signal      1273..1278
-                     /note="RNAI promoter (clockwise); TTGAAG"
-     -10_signal      1295..1300
-                     /note="RNAI promoter (clockwise); GCTACA"
+     promoter        1273..1278
+                     /note="RNAI promoter -35 (clockwise); TTGAAG"
+     promoter        1295..1300
+                     /note="RNAI promoter -10 (clockwise); GCTACA"
      misc_RNA        1309..1416
                      /note="RNAI transcript"
-     -10_signal      complement(1429..1434)
-                     /note="RNAII promoter (counter-clockwise); CGTAAT"
-     -35_signal      complement(1450..1455)
-                     /note="RNAII promoter (counter-clockwise); TTGAGA"
+     promoter        complement(1429..1434)
+                     /note="RNAII promoter -10 (counter-clockwise); CGTAAT"
+     promoter      complement(1450..1455)
+                     /note="RNAII promoter -35 (counter-clockwise); TTGAGA"
      gene            complement(1626..2486)
                      /gene="bla"
      CDS             complement(1626..2486)
@@ -69,10 +69,10 @@ FEATURES             Location/Qualifiers
                      /gene="bla"
                      /note="required for secretion to the periplasm; cleaved
                      off to form the mature beta-lactamase protein."
-     -10_signal      complement(2530..2535)
-                     /note="bla promoter (counter-clockwise); GAGACA"
-     -35_signal      complement(2551..2556)
-                     /note="bla promoter (counter-clockwise); TTCAAA"
+     promoter        complement(2530..2535)
+                     /note="bla promoter -10 (counter-clockwise); GAGACA"
+     promoter        complement(2551..2556)
+                     /note="bla promoter -35 (counter-clockwise); TTCAAA"
 BASE COUNT      667 a    675 c    685 g    659 t
 ORIGIN
         1 tcgcgcgttt cggtgatgac ggtgaaaacc tctgacacat gcagctcccg gagacggtca

@@ -47,8 +47,8 @@ var editor =
         editor.sequence_id = parseInt(queriedxml.find("id").text().trim());
 
         //submit this information to the infobox.
-        var infobox = document.getElementById("infobox");
-        infobox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
+        var innerbox = document.getElementById("innerbox");
+        innerbox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
         
         //assign relevant dom items
         editor.infobox = document.getElementById("information");
@@ -140,13 +140,16 @@ var editor =
 
   hidecontextmenu: function()
   {
-    //clear the context menu array.
-    editor.context_menu_array = [];
     //hide the context menu:
     $("#contextmenu").css("display", "none");
     //reset the context menu visibility flag
     editor.context_menu_visible = false;
   },
+
+  fork: function()
+  {
+    alert("fork!");
+  }
 };
 
 document.onclick = function()
@@ -180,8 +183,9 @@ Plugin = function(_name)
       }
     },
 
-    sendcontextmenu: function(x, y, ref)
+    sendcontextmenu: function(x, y, ref, savemenu)
     {
+      if (!savemenu) {editor.context_menu_array = [];};
       //set up values for the token.
       token = new Token("contextmenu");
       token.x = x;

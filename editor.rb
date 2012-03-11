@@ -25,6 +25,9 @@ get '/editor&:query' do |query|
     @otherscripts += @k + ","
   end
   @otherscripts += '];'
+  if (session[:user])
+    @otherscripts += "\n user_loggedin = true;"
+  end
   
   #call the OGP template.
   haml :ogp

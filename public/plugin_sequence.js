@@ -24,8 +24,26 @@ sequence.setzoom = function()
   sequence.newsequence();
 }
 
+sequence.contextmenu = function (token)
+{
+  switch (token.subtype)
+  {
+    case "selection":
+      editor.addcontextmenuitem(new MenuItem("edit selection", "sequence.editdialog(" + selection.range.datastring() + ");"));
+      editor.addcontextmenuitem(new MenuItem("excise selection", "sequence._excise(" + selection.range.datastring() + ");"));
+    break;
+  }
+}
 
-var temp;
+sequence.editdialog = function (a, b, c)
+{
+  alert("editing " + a + ".." + b);
+}
+
+sequence._excise = function (a, b, c)
+{
+  alert("excising " + a + ".." + b);
+}
 
 /////////////////////////////////////////////////////////////////////////
 // RENDERING THE LINE
@@ -109,4 +127,3 @@ sequence.redraw = function(token)
   graphics.lines[token.line].push(sequenceelement);
   graphics.lines[token.line].push(positionelement);
 }
-

@@ -40,13 +40,13 @@ selection.initialize = function()
   selection.path.translate(graphics.settings.lmargin, 0);
 
   selection.handler = graphics.editor.paper.circle(0,0,5);
-  selection.handler.attr("id", "handler");
-
   selection.handlef = graphics.editor.paper.circle(0,0,5);
-  selection.handlef.attr("id", "handlef");
 
   selection.animateout = Raphael.animation({opacity:0}, 250, "<>");
   selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
+
+  selection.handler.animate(selection.animateout);
+  selection.handlef.animate(selection.animateout);
 };
 
 selection.contextmenu = function(token)
@@ -56,7 +56,7 @@ selection.contextmenu = function(token)
     case "sequence":
       if ((token.ref.pos >= selection.range.start) && (token.ref.pos <= selection.range.end))
       {
-        selection.sendcontextmenu(token.x, token.y, selection.range);
+        selection.sendcontextmenu(token.x, token.y, selection.range, true);
       }
     break;
   }
@@ -72,6 +72,9 @@ selection.select = function(token)
   //clear any previous selected range.
   selection.redraw();
 };
+
+_oldf = {};
+_oldr = {};
 
 selection.redraw = function(token)
 {
@@ -112,6 +115,33 @@ selection.redraw = function(token)
       " Z"
       );
     }
+
+    var linef = graphics.lines[sel_span.end_s];
+    var liner = graphics.lines[sel_span.start_s];
+
+    _oldf = selection.handlef;
+    _oldr = selection.handler;
+    selection.animateout.callback = new Function("_olf.remove(); _oldr.remove(); selection.animateout.callback = null;");
+
+    selection.handlef.animate(selection.animateout);
+    selection.handler.animate(selection.animateout);
+
+    selection.handler = graphics.editor.paper.circle(0,0,5);
+    selection.handler.attr("opacity", 0);
+    selection.handlef = graphics.editor.paper.circle(0,0,5);
+    selection.handlef.attr("opacity", 0);
+
+    var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
+    selection.handlef.attr("class", classtext);
+    selection.handler.attr("class", classtext);
+
+    selection.handlef.attr("cx", graphics.settings.lmargin + (sel_span.end_p + 1) * graphics.metrics.charwidth);
+    selection.handlef.attr("cy", linef.translatey - linef.content.getBBox().height/2);
+    selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
+    selection.handler.attr("cy", liner.translatey - liner.content.getBBox().height/2);
+
+    selection.handlef.animate(selection.animatein);
+    selection.handler.animate(selection.animatein);
   };
 }
 
