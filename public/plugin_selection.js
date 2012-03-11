@@ -81,68 +81,8 @@ selection.redraw = function(token)
 {
   if (selection.selected)
   {
-    selection.path.attr("class", (selection.range.orientation == -1) ? "reverse" : "forward");
-    var sel_span = selection.range.span();
-    if (sel_span.start_s == sel_span.end_s)
-    {
-      var xpos = sel_span.start_p * graphics.metrics.charwidth;
-      var height = graphics.lines[sel_span.start_s].content.getBBox().height; 
-      selection.path.attr("d",
-      "M " + xpos + "," + (graphics.lines[sel_span.start_s].translatey - height) +
-      " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
-      " v " + height  +
-      " H " + xpos +
-      " Z"
-      );
-    }
-    else
-    {
-      var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
-      var xpos2 = sel_span.end_p * graphics.metrics.charwidth;
-      var ypos1 = graphics.lines[sel_span.start_s].translatey;
-      var ypos2 = graphics.lines[sel_span.end_s].translatey;
-      var height1 = graphics.lines[sel_span.start_s].content.getBBox().height; 
-      var height2 = graphics.lines[sel_span.end_s].content.getBBox().height;
-
-      selection.path.attr("d",
-      "M " + xpos1 + "," + (ypos1 - height1) +
-      " H " + graphics.metrics.linewidth +
-      " V " + (ypos2 - height2) +
-      " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
-      " v " + height2  +
-      " H " + 0 +
-      " V " + ypos1 +
-      " H " + xpos1 +
-      " Z"
-      );
-    }
-
-    var linef = graphics.lines[sel_span.end_s];
-    var liner = graphics.lines[sel_span.start_s];
-
-    _oldf = selection.handlef;
-    _oldr = selection.handler;
-    selection.animateout.callback = new Function("_olf.remove(); _oldr.remove(); selection.animateout.callback = null;");
-
-    selection.handlef.animate(selection.animateout);
-    selection.handler.animate(selection.animateout);
-
-    selection.handler = graphics.editor.paper.circle(0,0,5);
-    selection.handler.attr("opacity", 0);
-    selection.handlef = graphics.editor.paper.circle(0,0,5);
-    selection.handlef.attr("opacity", 0);
-
-    var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
-    selection.handlef.attr("class", classtext);
-    selection.handler.attr("class", classtext);
-
-    selection.handlef.attr("cx", graphics.settings.lmargin + (sel_span.end_p + 1) * graphics.metrics.charwidth);
-    selection.handlef.attr("cy", linef.translatey - linef.content.getBBox().height/2);
-    selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
-    selection.handler.attr("cy", liner.translatey - liner.content.getBBox().height/2);
-
-    selection.handlef.animate(selection.animatein);
-    selection.handler.animate(selection.animatein);
+    selection.drawoutline();
+    selection.drawhandles(true);
   };
 }
 
@@ -180,20 +120,43 @@ selection.drag = function(token)
     selection.range.orientation = 1;
   }
 
-  selection.redraw();
+  selection.drawoutline();
 };
 
 selection.drop = function(token)
 {
-  var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
-  selection.handlef.attr("class", classtext);
-  selection.handler.attr("class", classtext);
-  selection.handlef.toFront();
-  selection.handler.toFront();
+  selection.drawoutline();
+  selection.drawhandles();
+};
 
+//////////////////////////////////////////////////////////////////////////
+// GENERAL FUNCTIONS
+
+selection.drawhandles = function(killoldhandles)
+{
   var sel_span = selection.range.span();
   var linef = graphics.lines[sel_span.end_s];
   var liner = graphics.lines[sel_span.start_s];
+
+  if (killoldhandles)
+  {
+    _oldf = selection.handlef;
+    _oldr = selection.handler;
+    selection.animateout.callback = new Function("_olf.remove(); _oldr.remove(); selection.animateout.callback = null;");
+
+    selection.handlef.animate(selection.animateout);
+    selection.handler.animate(selection.animateout);
+
+    selection.handler = graphics.editor.paper.circle(0,0,5);
+    selection.handler.attr("opacity", 0);
+    selection.handlef = graphics.editor.paper.circle(0,0,5);
+    selection.handlef.attr("opacity", 0);
+  };
+
+  var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
+  selection.handlef.attr("class", classtext);
+  selection.handler.attr("class", classtext);
+
   selection.handlef.attr("cx", graphics.settings.lmargin + (sel_span.end_p + 1) * graphics.metrics.charwidth);
   selection.handlef.attr("cy", linef.translatey - linef.content.getBBox().height/2);
   selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
@@ -201,10 +164,46 @@ selection.drop = function(token)
 
   selection.handlef.animate(selection.animatein);
   selection.handler.animate(selection.animatein);
-};
+}
 
-//////////////////////////////////////////////////////////////////////////
-// GENERAL FUNCTIONS
+selection.drawoutline = function()
+{
+  selection.path.attr("class", (selection.range.orientation == -1) ? "reverse" : "forward");
+  var sel_span = selection.range.span();
+  if (sel_span.start_s == sel_span.end_s)
+  {
+    var xpos = sel_span.start_p * graphics.metrics.charwidth;
+    var height = graphics.lines[sel_span.start_s].content.getBBox().height; 
+    selection.path.attr("d",
+    "M " + xpos + "," + (graphics.lines[sel_span.start_s].translatey - height) +
+    " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
+    " v " + height  +
+    " H " + xpos +
+    " Z"
+    );
+  }
+  else
+  {
+    var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
+    var xpos2 = sel_span.end_p * graphics.metrics.charwidth;
+    var ypos1 = graphics.lines[sel_span.start_s].translatey;
+    var ypos2 = graphics.lines[sel_span.end_s].translatey;
+    var height1 = graphics.lines[sel_span.start_s].content.getBBox().height; 
+    var height2 = graphics.lines[sel_span.end_s].content.getBBox().height;
+
+    selection.path.attr("d",
+    "M " + xpos1 + "," + (ypos1 - height1) +
+    " H " + graphics.metrics.linewidth +
+    " V " + (ypos2 - height2) +
+    " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
+    " v " + height2  +
+    " H " + 0 +
+    " V " + ypos1 +
+    " H " + xpos1 +
+    " Z"
+    );
+  }
+};
 
 selection.report = function()  //reports the selection contents to the informational div.
 {
