@@ -1,6 +1,6 @@
 require 'json'
 
-get '/editor&:query' do |query|
+get '/editor/:query' do |query|
   handleuser()
 
   #list of plugins this user is using.
@@ -33,7 +33,7 @@ get '/editor&:query' do |query|
   haml :ogp
 end
 
-get '/graphics_settings.js' do
+get '/settings/graphics_settings.js' do
   handleuser()
 
   #for now, simply output fixed values.  Eventually we will pull this from the database.

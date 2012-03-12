@@ -32,7 +32,7 @@ var graphics =
 
     //pull the settings data from the database.  This should be formatted as json.
     //then execute the callback function.
-    $.getJSON("/graphics_settings.js",function(json){graphics.settings = json; editor.graphicsinitcallback();});
+    $.getJSON("/settings/graphics_settings.js",function(json){graphics.settings = json; editor.graphicsinitcallback();});
   },
 
   zoomvalues: [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],

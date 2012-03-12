@@ -31,6 +31,7 @@ sequence.contextmenu = function (token)
     case "selection":
       editor.addcontextmenuitem(new MenuItem("edit selection", "sequence.editdialog(" + selection.range.datastring() + ");"));
       editor.addcontextmenuitem(new MenuItem("excise selection", "sequence._excise(" + selection.range.datastring() + ");"));
+      editor.addcontextmenuitem(new MenuItem("fork selection", "sequence._fork(" + selection.range.datastring() + ");"));
     break;
   }
 }
@@ -43,6 +44,11 @@ sequence.editdialog = function (a, b, c)
 sequence._excise = function (a, b, c)
 {
   alert("excising " + a + ".." + b);
+}
+
+sequence._fork = function(a, b, c)
+{
+  alert("forking " + a + ".." + b);
 }
 
 /////////////////////////////////////////////////////////////////////////

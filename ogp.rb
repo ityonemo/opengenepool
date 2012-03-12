@@ -21,7 +21,7 @@ get '/' do
   handleuser()
 
   @scriptlist = []
-  @csslist = ["main.css"]
+  @csslist = ["/main.css"]
   @content = haml :main
 
   haml :ogp
@@ -31,7 +31,7 @@ get '/browse' do
   handleuser()
 
   @scriptlist = []
-  @csslist = ["browse.css"]
+  @csslist = ["/browse.css"]
   @content = haml :browse
 
   haml :ogp

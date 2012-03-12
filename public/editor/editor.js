@@ -61,7 +61,7 @@ var editor =
     }
 
     //send the AJAX query.  here we are passing the 'id/name-detection' buck to the seq.rb file.
-    xmlhttp.open("GET","../seq/" + query,true);
+    xmlhttp.open("GET","/seq/" + query,true);
     xmlhttp.send();
 
     //disable context menus.

@@ -65,7 +65,6 @@ selection.contextmenu = function(token)
 ////////////////////////////////////////////////////////////////////////
 // IMPLEMENTED TOKEN FUNCTIONS
 
-
 selection.select = function(token)
 {
   selection.range = token.range;
@@ -179,9 +178,9 @@ selection.drawoutline = function()
     " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
     " v " + height  +
     " H " + xpos +
-    " Z"
-    );
-  }
+    " Z" //NB there is a bug here because the graphics.lines[].translatey is incorrect AFTER
+    );   //a setzoom() call because it hasn't been subjected to a layout yet.  Need to run a callback that
+  }      //redraws just selections after the redraw event.
   else
   {
     var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
