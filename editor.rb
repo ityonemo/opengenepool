@@ -8,7 +8,7 @@ get '/editor/:query' do |query|
   @pluginlist= ["sequence","annotations","selection"]
 
   #assemble information necessary for the execution of the editor.
-  @scriptlist = ["raphael.js","DNA.js","editor.js","editor_graphics.js"]
+  @scriptlist = ["/raphael.js","editor.js","editor_graphics.js", "editor_files.js","DNA.js"]
   @csslist = ["editor.css"]
 
   @pluginlist.each do |@j|

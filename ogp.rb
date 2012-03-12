@@ -5,13 +5,15 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 
-#code for non-main pages
+#code for utility pages
 require 'initialize' #initialization
-require 'userman' #user management
-require 'upload' #sequence data upload tool
-require 'content' #HTML content/xml management
-require 'editor' #DNA editor
 require 'seq' #sequence management
+require 'userman' #user management
+
+#code for UI pages
+require 'editor' #DNA editor
+require 'upload' #sequence data upload tool
+require 'fork' #DNA forking 
 
 #enable sessions and user management
 enable :sessions

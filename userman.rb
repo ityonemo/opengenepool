@@ -9,7 +9,7 @@ require 'mysql'
 
 #handle logins.  Will redirect to the "callback" parameter, if available;
 #the callback path is set if a non-user-dependent webpage is accessed.
-post '/login/' do
+post '/login' do
   #access parameters.
   $login = params[:login]
   $password = params[:pass]

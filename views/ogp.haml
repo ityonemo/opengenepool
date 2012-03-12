@@ -20,7 +20,7 @@
     %header
       %h1 OpenGenePool
       #loginbox
-        %form(action="login/" method="post")
+        %form(action="/login" method="post")
           #innerloginleft
             %input(type="text" name="login" id="loginString")
               username
@@ -35,7 +35,7 @@
             #innersearch
               %input(type="text" name="query" id="searchInput")
               %button(type="submit" id="searchButton")
-                %img(src="searchico.png")
+                %img(src="/searchico.png")
         #logincomponent
           #{@logincontent}
     %section#content

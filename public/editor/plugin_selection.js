@@ -161,6 +161,9 @@ selection.drawhandles = function(killoldhandles)
   selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
   selection.handler.attr("cy", liner.translatey - liner.content.getBBox().height/2);
 
+  selection.handlef.toFront();
+  selection.handler.toFront();
+
   selection.handlef.animate(selection.animatein);
   selection.handler.animate(selection.animatein);
 }

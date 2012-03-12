@@ -2,7 +2,7 @@
   #infobox
     #innerbox
     -if(session[:user])
-      %button#fork(type="button" onclick="editor.fork()")
+      %button#fork(type="button" onclick="files.forkall()")
         fork
   #information
   #graphics.toolitem
@@ -15,13 +15,15 @@
         get svg
   -if(session[:user])
     #directory.toolitem
-      %details
+      %details(open)
         %summary root directory
-        nothing yet
+        %button#addtoroot(type="button" onclick="files.addtoroot()")
+          add here
     #workspace.toolitem
-      %details
+      %details(open)
         %summary workspace
-        nothing yet
+        %button#addtowksp(type="button" onclick="files.addtowksp()")
+          add here
 #editor
 #popupmenu
 #contextmenu

@@ -33,23 +33,31 @@ get '/seq/:query' do |query|
     #save in the "sequence" variable for haml.
     @result = res.fetch_hash()
 
-    #query the sequence-dependent annotations database for the annotations.
-    res2=dbh.query("SELECT * FROM annotations WHERE (sequence='#{@result['id']}')")
-    (1..res2.num_rows).each do
-      @annoresult = res2.fetch_hash()
- 
-      curranno = AnnoML.new(@annoresult["caption"],@annoresult["type"],@annoresult["seqrange"],@annoresult["id"])
-      
-      #query the annotations-dependent subdata database.
-      res3=dbh.query("SELECT * FROM annotationdata WHERE (annotation='#{@annoresult['id']}')")
-      (1..res3.num_rows).each do
-        @annodata = res3.fetch_hash()
-        curranno.dataarray.push([@annodata["id"], @annodata["infokey"], @annodata["value"]])
-      end
+    @error = (@result == nil);
 
-      $annotations.push(curranno)
+    unless (@error)  #because don't bother, is why.
+      #query the sequence-dependent annotations database for the annotations.
+      res2=dbh.query("SELECT * FROM annotations WHERE (sequence='#{@result['id']}')")
+      (1..res2.num_rows).each do
+        @annoresult = res2.fetch_hash()
+ 
+        curranno = AnnoML.new(@annoresult["caption"],@annoresult["type"],@annoresult["seqrange"],@annoresult["id"])
+      
+        #query the annotations-dependent subdata database.
+        res3=dbh.query("SELECT * FROM annotationdata WHERE (annotation='#{@annoresult['id']}')")
+        (1..res3.num_rows).each do
+          @annodata = res3.fetch_hash()
+          curranno.dataarray.push([@annodata["id"], @annodata["infokey"], @annodata["value"]])
+        end
+
+        $annotations.push(curranno)
+      end
     end
   dbh.close if dbh
   
-  haml :query
+  if @error
+    status 404
+  else
+    haml :query
+  end
 end

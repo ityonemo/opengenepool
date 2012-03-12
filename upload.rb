@@ -190,7 +190,7 @@ post '/uploadseq' do
       #upload the sequence data into the database.
       dbh.query("INSERT INTO sequences (#{$keyjoin}, created, owner) VALUES (#{$valjoin}, NOW(), '#{session[:user]}')")
       #retrieve the id.
-      sequence_id_string = dbh.insert_id().to_s
+      $sequence_id_string = dbh.insert_id().to_s
 
       #generate the commands for creating the annotations
       $annotations.each() do |key,value|
@@ -207,6 +207,10 @@ post '/uploadseq' do
 
       #close the connection
     dbh.close if dbh
+
+    redirect("/editor/id=" + $sequence_id_string)
+  else
+    status 403.3
   end
 end
 
