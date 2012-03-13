@@ -19,7 +19,7 @@ post '/login' do
 
   #check to make sure that this user exists:
   dbh=Mysql.real_connect("localhost","www-data","","ogp")
-    res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "')");
+    res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "')")
 
     if (res.num_rows == 1)
       #set the session variable.

@@ -196,7 +196,7 @@ post '/uploadseq' do
       $annotations.each() do |key,value|
         #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
         dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
-          " VALUES ('#{sequence_id_string}', #{value}, NOW(), '#{session[:user]}');")
+          " VALUES ('#{$sequence_id_string}', #{value}, NOW(), '#{session[:user]}');")
 
         annotation_id_string = dbh.insert_id().to_s
 

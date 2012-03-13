@@ -20,8 +20,8 @@ var files = {
       params.orientation = ((range.orientation == "1") ? "forward" : "reverse");
     };
 
-    //do it the jQuery way.
-    $.post("/fork/" + newname, params, "application/x-www-form-urlencoded", function(data){ window.location = data; });
+    //post the request to fork the construct the jQuery way.
+    $.post("/fork/" + newname, params, function(data){window.location = "/editor/id=" + data; });
   },
 
   addtoroot: function()

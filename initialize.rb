@@ -48,7 +48,19 @@ post '/initialize' do
         "annotation int(64), infokey varchar(64), value text, " +
         "INDEX (annotation), FOREIGN KEY (annotation) REFERENCES annotations(id) ON DELETE CASCADE);")
 
-      #reserved space for other tables to be created.
+      #create the sources data table
+      res=dbh.query("CREATE TABLE sources (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+        "parent int(64), child int(64), pstart int(64), pend int(64), porientation int(64), " +
+        "cstart int(64), cend int(64), corientation int(64), " +
+        "INDEX (parent, child), FOREIGN KEY (parent) REFERENCES sequences(id) ON DELETE CASCADE, " +
+        "FOREIGN KEY (child) REFERENCES sequences(id) ON DELETE CASCADE);")
+
+      #create the workspaces data table
+      res=dbh.query("CREATE TABLE workspaces (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+        "login varchar(64), sequence int(64), " +
+        "INDEX (login, sequence), FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE, " +
+        "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
+      
     end
   dbh.close if dbh
 

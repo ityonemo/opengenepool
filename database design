@@ -41,6 +41,24 @@ range		vc64
 data		text		default null, may be useful for
 
 
+sources
+
+id
+parent		int		id of parent sequence
+child		int		id of child sequence
+pstart		int		start of parent sequence
+pend		int		end of parent sequence
+porientation	vc64		orientation of parent sequence
+cstart		int		start of child sequence
+cend		int		end of child sequence
+corientation    vc64 		orientation of child sequence
+
+
+workspaces
+
+id
+user		vc64		username
+sequence	int             sequence id
 
 users
 
