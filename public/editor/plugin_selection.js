@@ -33,10 +33,23 @@ selection.initialize = function()
   //set up the injection hack.
   document.oncopy = selection.trapclip;
 
+  //initialize the graphics elements: path
   selection.path = graphics.editor.paper.path("");
   selection.path.attr("id", "selection");
   selection.path.translate(graphics.settings.lmargin, 0);
+  selection.path.mousedown(function(e)
+  {
+    if (!e) var e = window.event;
+    if (e.which) rightclick = (e.which == 3);
+    else if (e.button) rightclick = (e.button == 2);
 
+    if (rightclick)
+    {
+      selection.sendcontextmenu(e.clientX, e.clientY, selection.range);
+    }
+  })
+
+  //initialize the graphics elements: handles
   selection.handler = graphics.editor.paper.circle(0,0,4);
   selection.handlef = graphics.editor.paper.circle(0,0,4);
 
@@ -60,11 +73,11 @@ selection.contextmenu = function(token)
         selection.sendcontextmenu(token.x, token.y, selection.range, true);
       }
     break;
+    case "selection":
+      editor.addcontextmenuitem(new MenuItem("flip selection", "selection.flip();"));
+    break;
   }
 }
-
-////////////////////////////////////////////////////////////////////////
-// IMPLEMENTED TOKEN FUNCTIONS
 
 selection.select = function(token)
 {
@@ -130,7 +143,7 @@ selection.drop = function(token)
 };
 
 //////////////////////////////////////////////////////////////////////////
-// GENERAL FUNCTIONS
+// GRAPHICS FUNCTIONS
 
 selection.drawhandles = function(killoldhandles)
 {
@@ -147,9 +160,9 @@ selection.drawhandles = function(killoldhandles)
     selection.handlef.animate(selection.animateout);
     selection.handler.animate(selection.animateout);
 
-    selection.handler = graphics.editor.paper.circle(0,0,3);
+    selection.handler = graphics.editor.paper.circle(0,0,4);
     selection.handler.attr("opacity", 0);
-    selection.handlef = graphics.editor.paper.circle(0,0,3);
+    selection.handlef = graphics.editor.paper.circle(0,0,4);
     selection.handlef.attr("opacity", 0);
 
     selection.handler.drag(selection.handlemove, selection.handlestart, selection.handleend);
@@ -216,7 +229,16 @@ selection.report = function()  //reports the selection contents to the informati
   document.getElementById("information").innerHTML = selection.range.toString();
 };
 
-temp_blah = {};
+
+//////////////////////////////////////////////////////////////////////////
+// GENERAL FUNCTIONS
+
+selection.flip = function()
+{
+  selection.range.orientation *= -1;
+  selection.drawoutline();
+  selection.drawhandles();
+}
 
 selection._temp_selection = {};
 selection.trapclip = function()
