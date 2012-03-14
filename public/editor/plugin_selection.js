@@ -12,8 +12,6 @@ selection.clipboardstylesheet = {};
 selection.path = {};
 selection.handler = {};
 selection.handlef = {};
-selection.fpos = {x: -100, y: -100};
-selection.rpos = {x: -100, y: -100};
 selection.selected = false;
 
 selection.animateout = {};
@@ -39,8 +37,11 @@ selection.initialize = function()
   selection.path.attr("id", "selection");
   selection.path.translate(graphics.settings.lmargin, 0);
 
-  selection.handler = graphics.editor.paper.circle(0,0,5);
-  selection.handlef = graphics.editor.paper.circle(0,0,5);
+  selection.handler = graphics.editor.paper.circle(0,0,4);
+  selection.handlef = graphics.editor.paper.circle(0,0,4);
+
+  selection.handler.drag(selection.handlemove, selection.handlestart, selection.handleend);
+  selection.handlef.drag(selection.handlemove, selection.handlestart, selection.handleend);
 
   selection.animateout = Raphael.animation({opacity:0}, 250, "<>");
   selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
@@ -146,10 +147,13 @@ selection.drawhandles = function(killoldhandles)
     selection.handlef.animate(selection.animateout);
     selection.handler.animate(selection.animateout);
 
-    selection.handler = graphics.editor.paper.circle(0,0,5);
+    selection.handler = graphics.editor.paper.circle(0,0,3);
     selection.handler.attr("opacity", 0);
-    selection.handlef = graphics.editor.paper.circle(0,0,5);
+    selection.handlef = graphics.editor.paper.circle(0,0,3);
     selection.handlef.attr("opacity", 0);
+
+    selection.handler.drag(selection.handlemove, selection.handlestart, selection.handleend);
+    selection.handlef.drag(selection.handlemove, selection.handlestart, selection.handleend);
   };
 
   var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
@@ -233,6 +237,38 @@ selection.trapclip = function()
   temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
   _sel_actual.addRange(temprange);
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+// selection handle drag/drop directives
+
+selection.handlestart = function (){ $("." + this.attr("class")).css("cursor","col-resize"); };
+selection.handlemove = function (dx, dy, x, y, e){ 
+  var location = graphics.getlocation(e);
+  this.attr({cx:location.svgx, cy:location.svgy});
+  var line = graphics.getline(location.svgy);
+  var linepos = graphics.getpos(location.svgx);
+  var pos = line * graphics.settings.zoomlevel + linepos;
+
+  if ((this == selection.handler) && (pos <= selection.range.end))
+  {
+    selection.range.start = pos;
+  }
+  if ((this == selection.handlef) && (pos >= selection.range.start))
+  {
+    selection.range.end = pos;
+  }
+
+  selection.drawoutline();
+};
+
+selection.handleend = function()
+{ 
+  $("." + this.attr("class")).css("cursor","pointer");
+  this.animate(selection.animateout);
+  selection.drawhandles();
+};
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 // GLOBAL HELPER FUNCTIONS

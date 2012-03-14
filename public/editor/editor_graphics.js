@@ -308,8 +308,11 @@ var graphics =
   getlocation: function(event, target)
   {
     var location = {};
-    location.internalx = event.clientX - target.getBoundingClientRect().left;
-    location.internaly = event.clientY - target.getBoundingClientRect().top;
+    if (target)
+    {
+      location.internalx = event.clientX - target.getBoundingClientRect().left;
+      location.internaly = event.clientY - target.getBoundingClientRect().top;
+    }
     location.svgx = event.clientX - graphics.editor.dom.getBoundingClientRect().left;
     location.svgy = event.clientY - graphics.editor.dom.getBoundingClientRect().top + graphics.editor.dom.scrollTop;
     

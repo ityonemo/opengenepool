@@ -11,9 +11,11 @@
 .forward_handle{
   fill: rgba(200,200,200,1);
   stroke: rgba(0,128,0,1);
+  cursor: pointer;
 }
 
 .reverse_handle{
   fill: rgba(200,200,200,1);
   stroke: rgba(255,0,0,1);
+  cursor: pointer;
 }
