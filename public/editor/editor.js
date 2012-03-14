@@ -57,6 +57,11 @@ var editor =
         //function, since graphics initialization requires asynchronous events.
         graphics.initialize();
 
+        //initialize dialog box
+        dialog.initialize();
+
+        //initialize files stuff.
+        files.initialize();
       }
     }
 

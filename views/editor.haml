@@ -2,7 +2,7 @@
   #infobox
     #innerbox
     -if(session[:user])
-      %button#fork(type="button" onclick="files.forkall()")
+      %button#forkbutton(type="button")
         fork
   #information
   #graphics.toolitem
@@ -23,5 +23,4 @@
       %details(open)
         %summary workspace
 #editor
-#popupmenu
 #contextmenu

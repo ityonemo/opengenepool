@@ -1,12 +1,16 @@
 var files = {
+
   initialize: function()
   {
-    
+    document.getElementById("forkbutton").onclick = files.forkall;
   },
 
   forkall: function()
   {
-    files.fork("test");
+    dialog.show("new construct name: <input id='newtitle'/>", function()
+    {
+      files.fork(document.getElementById("newtitle").value)
+    });
   },
 
   fork: function(newname, range)

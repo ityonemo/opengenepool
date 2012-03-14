@@ -6,6 +6,7 @@
 
     %script(src="/jquery.js" type="text/javascript" charset="utf-8")
     %script(src="/ogp.js" type="text/javascript" charset="utf-8")
+    %script(src="/dialog.js" type="text/javascript" charset="utf-8")
     -@scriptlist.each do |@j|
       %script(src=@j type="text/javascript" charset="utf-8")
 
@@ -40,3 +41,10 @@
           #{@logincontent}
     %section#content
       #{@content}
+    #dialog
+      #dialogcontent
+      #dialogbuttons
+        %button#dialogok(type="button")
+          ok
+        %button#dialogcancel(type="button")
+          cancel

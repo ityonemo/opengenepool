@@ -112,3 +112,14 @@ section#content{
   left: 0px;
   right: 0px;
 }
+
+#dialog{
+  display: none;
+  background-color: #999;
+  border: solid 1px #AAA;
+  position: absolute;
+  width:400px;
+  left:50%;
+  margin-left:-200px;
+  top: 50%;
+}

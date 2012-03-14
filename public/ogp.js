@@ -32,4 +32,3 @@ function loadcontent(element, contentfile)
   xmlhttp.send();
   var xmlresponse = xmlhttp.responseText;
 }
-

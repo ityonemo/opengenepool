@@ -44,7 +44,7 @@ post '/fork/:query' do |query|
       #modify the sources table.
 
       #modify the workspaces table.
-      res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES '#{session[:user]}', '#{@nid}'")
+      res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES ('#{session[:user]}', '#{@nid}')")
 
     dbh.close() if dbh
  
