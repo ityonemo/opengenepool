@@ -14,6 +14,7 @@ require 'userman' #user management
 require 'editor' #DNA editor
 require 'upload' #sequence data upload tool
 require 'fork' #DNA forking 
+require 'workspace' #workspace xml
 
 #enable sessions and user management
 enable :sessions
