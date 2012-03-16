@@ -42,20 +42,29 @@ this will allow you to initialize the databases and set up a superuser account
 4) upload them using the applet at http://localhost:4567/upload/
 
 
-VERSION 0.1
+VERSION 0.15
 
 features:
-  Database initialization and setup.
-  Superuser creation.
-  Upload of genbank files, light modification, and display.
-  Tweaking graphics settings.
+  Initialization pages.
+  Upload of genbank files.
+  fork() button.
+  workspace/filesystem manipulation.
+  full-featured sequence selection.
+  user-modified graphics settings.
+  modification of annotations.
 
-current, prioritized limitations:  Essentially single-user.  (mostly) Read-only.
+VERSION 0.16 (End of March) intended milestones
+  switch to gap sequences
+  proper parsing of genbank sequence styles
+  annotation and selection of multiple domains across join()s.
 
-VERSION 0.15 intended milestones:
+VERSION 0.17 (Mid-April) intended milestones
+  set user access and restrict functions in the interface.
+  find and highlight subsequences in both forward and RC directions.
+  find ORF function.
 
-clone button.
-workspace/filesystem manipulation.
-user-modified graphics settings.
-modification of annotations.
-sequence selection gimmickry.
+VERSION 0.2-alpha (End of April) intended milestones
+  capability to edit sequences with appropriate cloning tools.
+  ability to make custom graphics settings.
+  release on a public website
+  

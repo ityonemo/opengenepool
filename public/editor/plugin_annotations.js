@@ -305,7 +305,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
     };
   };
 
-  thisarrow.attr("class", "annotation " + ref.type);
+  thisarrow.attr("class", ref.cssclass());
   thisfragment.push(thisarrow);
 
   thisfragment.mousedown(
@@ -349,7 +349,11 @@ Annotation = function(_caption, _type, _range, _id){
     //outputs the css class for such an annotation
     cssclass: function()
     {
-      return ["annotation_reverse","annotation_undirected","annotation_forward"][this.range.orientation + 1];
+      return [
+        "annotation_reverse",
+        "annotation_undirected",
+        "annotation_forward "][this.range.orientation + 1]
+        + " ann_" + this.id + " annotation " + this.type;
     },
 
     to_s: function()
