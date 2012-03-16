@@ -11,9 +11,12 @@ var dialog = {
     dialog.cancelbutton = document.getElementById("dialogcancel");
   },
 
-  show: function(what, callback)
+  show: function(what, callback, onrender)
   {
     dialog.content.innerHTML = what;
+    if (onrender)
+      onrender();
+
     if (callback)
     {
       dialog.callback = callback;

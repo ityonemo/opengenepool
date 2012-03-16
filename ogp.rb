@@ -7,13 +7,14 @@ require 'haml'
 
 #code for utility pages
 require 'initialize' #initialization
-require 'seq' #sequence management
 require 'userman' #user management
+require 'fork' #DNA forking 
+require 'seq' #sequence management
+require 'annotations' #annotations management
 
 #code for UI pages
 require 'editor' #DNA editor
 require 'upload' #sequence data upload tool
-require 'fork' #DNA forking 
 require 'workspace' #workspace xml
 
 #enable sessions and user management

@@ -190,33 +190,66 @@ annotations.contextmenu = function(token)
 
 annotations.deletemenu = function()
 {
-  annotations.annotations.splice(annotations.todelete.index, 1);
-  //count down to avoid having to do stupid decrement tricks.
-  for (var i = annotations.fragments.length - 1; i >= 0; i--)
-  {
-    //check to see if we want to remove this.
-    if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == annotations.todelete))
-    {
-      //don't forget to invalidate this line.
-      graphics.invalidate(annotations.fragments[i].line)
-      annotations.fragments.splice(i,1);
+  //set up the http request, jQuery way.
+  $.ajax({
+    type: 'DELETE',
+    url: '/annotation/' + annotations.todelete.id,
+    success: function() {
+      annotations.annotations.splice(annotations.todelete.index, 1);
+      //count down to avoid having to do stupid decrement tricks.
+      for (var i = annotations.fragments.length - 1; i >= 0; i--)
+      {
+        //check to see if we want to remove this.
+        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == annotations.todelete))
+        {
+          //don't forget to invalidate this line.
+          graphics.invalidate(annotations.fragments[i].line)
+          annotations.fragments.splice(i,1);
+        }
+      };
+      //redraw.
+      graphics.render();
+    },
+    error: function(a, b, e) {
+      alert("delete failed; error: " + e);
     }
-  }
-  //redraw.
-  graphics.render();
+  });
 }
 
 annotations.createdialog = function(start, end, orientation)
 {
-  var newannotation = new Annotation(
-    "test", 
-    "testtype", 
-    (orientation == -1 ? "complement(" : "") + start + ".." + end +
-    (orientation == -1 ? ")" : ""));
+  dialog.show(annotations.dialogstring, 
+    function() {
+      var _orientation = document.getElementById("ann_d_orientation").value;
+      var newannotation = new Annotation(
+        document.getElementById("ann_d_caption").value, 
+        document.getElementById("ann_d_type").value, 
+        (_orientation == -1 ? "complement(" : "") + 
+        document.getElementById("ann_d_start").value + ".." +
+        document.getElementById("ann_d_end").value +
+        (_orientation == -1 ? ")" : ""));
 
-  annotations.generatefragments(newannotation.index);
-  //redraw this thing.
-  graphics.render();     
+      annotations.generatefragments(newannotation.index);
+      //redraw this thing.
+      graphics.render();
+    },
+    function() {
+      document.getElementById("ann_d_start").value = start;
+      document.getElementById("ann_d_end").value = end;
+      switch (orientation)
+      {
+        case -1:
+         document.getElementById("ann_d_rev").selected = true;
+        break;
+        case 0:
+         document.getElementById("ann_d_und").selected = true;
+        break;
+        case 1:
+         document.getElementById("ann_d_for").selected = true;
+        break;
+      }
+    }
+  )
 }
 
 
@@ -379,3 +412,14 @@ Annotation = function(_caption, _type, _range, _id){
 AnnoData = function (_data, _id){
   return { id:_id, data:$.trim(_data) } //use jQuery because we can.
 }
+
+////////////////////////////////////////////////////////////
+// STRING CONSTANT
+
+annotations.dialogstring = "caption: <input id='ann_d_caption'/><br/>" +
+                           "type: <input id='ann_d_type'/><br/>" +
+                           "range: <input id='ann_d_start'/>..<input id='ann_d_end'><br/>" +
+                           "orientation: <select id='ann_d_orientation'>" +
+                           "<option value='-1' id='ann_d_rev'>reverse</option>" +
+                           "<option value='0' id='ann_d_und'>undirected</option>" +
+                           "<option value='1' id='ann_d_for'>forward</option>";
