@@ -3,6 +3,13 @@ var files = {
   initialize: function()
   {
     document.getElementById("forkbutton").onclick = files.forkall;
+
+    //post the request to fork the construct the jQuery way.
+    $.get("/workspace/","", files.processworkspace, "xml");
+  },
+
+  processworkspace: function(data)
+  {
   },
 
   forkall: function()

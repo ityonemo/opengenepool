@@ -3,7 +3,7 @@ var editor =
   sequence_id: 0, 	//the sequence id number that is used.
   sequence_name: "",	//the name used to send the AJAX query
   queryresult: "",	//the raw output from the AJAX query
-  queriedxml: {},	//jQuery-processed AJAX query xml
+  $queriedxml: {},	//jQuery-processed AJAX query xml
   sequence: "",		//the actual sequence
 
   //DOM items
@@ -27,52 +27,45 @@ var editor =
       this.sequence = query;    
     }
 
-    //prepare HTTP request object.
-    var xmlhttp = new XMLHttpRequest();
+    //request the sequence data the jQuery way.
 
-    //set the AJAX wait response.
-    xmlhttp.onreadystatechange=
-    function()
-    {
-      if (xmlhttp.readyState == 4 && xmlhttp.status == 200)
-      {
-        editor.queryresult = xmlhttp.responseText;
-        //use jQuery to parse the XML of the query.
-        var xdoc = $.parseXML(editor.queryresult);
-        queriedxml = $(xdoc);
-          
-        //use the xml jQuery object to find the sequence tag and use it.
-        editor.sequence = queriedxml.find("sequence").text().trim();
-        editor.sequence_name = queriedxml.find("title").text().trim();
-        editor.sequence_id = parseInt(queriedxml.find("id").text().trim());
-
-        //submit this information to the infobox.
-        var innerbox = document.getElementById("innerbox");
-        innerbox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
-        
-        //assign relevant dom items
-        editor.infobox = document.getElementById("information");
-
-        //pass control to the graphics initialization routine.  This routine should return to the 'graphicsinitcallback'
-        //function, since graphics initialization requires asynchronous events.
-        graphics.initialize();
-
-        //initialize dialog box
-        dialog.initialize();
-
-        //initialize files stuff.
-        files.initialize();
-      }
-    }
-
-    //send the AJAX query.  here we are passing the 'id/name-detection' buck to the seq.rb file.
-    xmlhttp.open("GET","/seq/" + query,true);
-    xmlhttp.send();
+    $.get("/seq/" + query, "", editor.processsequence, "xml");
 
     //disable context menus.
     window.oncontextmenu = function () {return false;}
   },
 
+  //process the sequence.
+  processsequence:function(data)
+  {
+    $queriedxml = $(data);
+
+    //use the xml jQuery object to find the sequence tag and use it.
+    editor.sequence = $(data).find("sequence").text().trim();
+    editor.sequence_name = $(data).find("title").text().trim();
+    editor.sequence_id = parseInt($(data).find("id").text().trim());
+    
+    //submit this information to the infobox.
+    var innerbox = document.getElementById("innerbox");
+    innerbox.innerHTML = "<h2>" + editor.sequence_name + "</h2>" + editor.sequence.length + "bp";
+        
+    //assign relevant dom items
+    editor.infobox = document.getElementById("information");
+
+    editor.initializecomponents();
+  },
+
+  initializecomponents: function()
+  {
+    //pass control to the graphics initialization routine.
+    //nb there will be a further asynchronous call beyond this one.
+    graphics.initialize();
+    //initialize dialog box
+    dialog.initialize();
+    //initialize files stuff.
+    files.initialize();
+  },
+  
   //distributes tokens to the plugins.
   broadcasttoken:function(token)
   {
@@ -82,20 +75,10 @@ var editor =
     }
   },
 
-  //upon complete initialization of the graphics routine, then proceed to initialize the plugins.
-  //also tell all the components that there is a new sequence.
-  graphicsinitcallback: function()
-  {
-    graphics.setmetrics();
-    graphics.newsequence();
-    editor.broadcasttoken(new Token("initialize"));
-    editor.broadcasttoken(new Token("newsequence"));
-    graphics.render();
-  },
-
   //export the image as svg:
   getsvg: function()
   {
+    //TODO: check to see if raphael is in svg mode.
     mywindow = window.open("","svg output");
     mywindow.document.write("<code>");  //flank the output with code to make it look nice.
     mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));  //substitute &, <, and > for proper HTML characters

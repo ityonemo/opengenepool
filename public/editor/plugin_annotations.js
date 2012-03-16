@@ -31,13 +31,8 @@ var current_annotation = {};
 
 annotations.newsequence = function()
 {
-  //rebuild the annotation list: pull from XML.  For now just use the internal list.
-  //use jQuery to parse the XML of the query.
-  var xdoc = $.parseXML(editor.queryresult);
-  queriedxml = $(xdoc);
-          
   //use the xml jQuery object to find the sequence tag and use it.
-  queriedxml.find("annotation").each(
+  $queriedxml.find("annotation").each(
     function()
     {
       var myannotation = 

@@ -32,7 +32,22 @@ var graphics =
 
     //pull the settings data from the database.  This should be formatted as json.
     //then execute the callback function.
-    $.getJSON("/settings/graphics_settings.js",function(json){graphics.settings = json; editor.graphicsinitcallback();});
+    $.getJSON("/settings/graphics_settings.js", function(json)
+    {
+      graphics.settings = json;
+      graphics.initcallback();
+    });
+  },
+
+  //upon complete initialization of the graphics routine, then proceed to initialize the plugins.
+  //also tell all the components that there is a new sequence.
+  initcallback: function()
+  {
+    graphics.setmetrics();
+    graphics.newsequence();
+    editor.broadcasttoken(new Token("initialize"));
+    editor.broadcasttoken(new Token("newsequence"));
+    graphics.render();
   },
 
   zoomvalues: [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
