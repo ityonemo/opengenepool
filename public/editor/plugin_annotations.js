@@ -31,6 +31,9 @@ var current_annotation = {};
 
 annotations.newsequence = function()
 {
+  //re-initialize the annotation fragments list.
+  annotations.fragments = []; 
+
   //use the xml jQuery object to find the sequence tag and use it.
   $queriedxml.find("annotation").each(
     function()
@@ -49,14 +52,8 @@ annotations.newsequence = function()
           current_annotation.data[$(this).attr("type")] = new AnnoData($(this).text(), $(this).attr("id"));
         }
       );
-
-      //generate the structure and push it onto the annotations list.
-      annotations.annotations.push(myannotation)
     }
   );
-
-  //re-initialize the annotation fragments list.
-  annotations.fragments = []; 
 
   //parse over the annotations array and split into graphically digestible
   //elements which will go into the "annofragments" array.
@@ -76,25 +73,34 @@ annotations.generatefragments = function(i)
   if (span.start_s == span.end_s)
   {
     //then there's only one fragment.
-    annotations.fragments.push(new Fragment(span.start_s, span.start_p, span.end_p, orientation, annotations.annotations[i]));
+    annotations.fragments.push(new Fragment(
+      span.start_s, span.start_p, span.end_p, orientation, annotations.annotations[i]));
+    graphics.invalidate(span.start_s);
   }
   else
   {
     //set up start fragment.
     annotations.fragments.push(new Fragment(
-      span.start_s, span.start_p, graphics.settings.zoomlevel - 1, orientation, annotations.annotations[i]));
+      span.start_s, span.start_p, graphics.settings.zoomlevel - 1, 
+      orientation, annotations.annotations[i]));
+    
+    graphics.invalidate(span.start_s);
 
     //if it's reaaaly long, then you have fill in middle fragments.
     if (span.start_s < span.end_s - 1)
     {
       for(var j = span.start_s + 1; j < span.end_s; j++)
       {
-        annotations.fragments.push(new Fragment(j, 0, graphics.settings.zoomlevel -1, orientation, annotations.annotations[i]));
+        annotations.fragments.push(new Fragment(
+          j, 0, graphics.settings.zoomlevel -1, orientation, annotations.annotations[i]));
+        graphics.invalidate(j);
       }
     }
 
     //set up end fragment
-    annotations.fragments.push(new Fragment(span.end_s, 0, span.end_p, orientation, annotations.annotations[i]));
+    annotations.fragments.push(new Fragment(
+      span.end_s, 0, span.end_p, orientation, annotations.annotations[i]));
+    graphics.invalidate(span.end_s);
   }
 
   //return a structure reporting the start and end lines.
@@ -165,22 +171,52 @@ annotations.redraw = function(token)
   }
 };
 
+annotations.todelete = {};
+
 annotations.contextmenu = function(token)
 {
   switch (token.subtype)
   {
     case "annotations":
-      editor.addcontextmenuitem(new MenuItem("delete annotation", "alert('delete annotation: " + token.ref.caption + "');"));
+      annotations.todelete = token.ref;
+      editor.addcontextmenuitem(new MenuItem("delete annotation", "annotations.deletemenu();"));
     break;
     case "selection":
-      editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
+      editor.addcontextmenuitem(new MenuItem(
+        "create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
     break;
   }
 }
 
+annotations.deletemenu = function()
+{
+  annotations.annotations.splice(annotations.todelete.index, 1);
+  //count down to avoid having to do stupid decrement tricks.
+  for (var i = annotations.fragments.length - 1; i >= 0; i--)
+  {
+    //check to see if we want to remove this.
+    if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == annotations.todelete))
+    {
+      //don't forget to invalidate this line.
+      graphics.invalidate(annotations.fragments[i].line)
+      annotations.fragments.splice(i,1);
+    }
+  }
+  //redraw.
+  graphics.render();
+}
+
 annotations.createdialog = function(start, end, orientation)
 {
-  alert("range: " + start + ".." + end);
+  var newannotation = new Annotation(
+    "test", 
+    "testtype", 
+    (orientation == -1 ? "complement(" : "") + start + ".." + end +
+    (orientation == -1 ? ")" : ""));
+
+  annotations.generatefragments(newannotation.index);
+  //redraw this thing.
+  graphics.render();     
 }
 
 
@@ -302,7 +338,8 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 // HELPER OBJECTS
 
 Annotation = function(_caption, _type, _range, _id){
-  return {
+  var data = {
+    //data that should be put in at the beginning.
     caption:_caption,
     type: _type,
     range: new GenBankSeqRange(_range),
@@ -331,6 +368,8 @@ Annotation = function(_caption, _type, _range, _id){
       }
     }
   }
+  data.index = annotations.annotations.push(data) - 1;
+  return data;
 }
 
 AnnoData = function (_data, _id){

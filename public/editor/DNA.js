@@ -86,6 +86,11 @@ SeqRange = function(_start, _end, _orientation)
       return ((this.orientation == -1) ? "(" : "") + this.start + ".." + this.end + ((this.orientation == -1) ? ")" : "");
     },
 
+    toGenBank: function()
+    {
+      return ((this.orientation == -1) ? "complement" : "") + this.toString(); 
+    },
+
     datastring: function()
     {
       return this.start + ", " + this.end + ", " + this.orientation;
