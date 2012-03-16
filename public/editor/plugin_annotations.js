@@ -229,6 +229,15 @@ annotations.createdialog = function(start, end, orientation)
         document.getElementById("ann_d_end").value +
         (_orientation == -1 ? ")" : ""));
 
+      //send the new annotation the jquery way.
+      $.post("/annotation/",
+        {
+          seqid: editor.sequence_id,
+          caption: newannotation.caption,
+          type: newannotation.type,
+          seqrange: newannotation.range.toGenBank()
+        })
+
       annotations.generatefragments(newannotation.index);
       //redraw this thing.
       graphics.render();

@@ -3,13 +3,18 @@
 
 require 'mysql'
 
-post '/annotation/:query' do |query|
+post '/annotation/' do
   handleuser()
 
   if (session[:user])
     dbh=Mysql.real_connect("localhost","www-data","","ogp")
-      
-
+      #check to make sure the sequence we're trying to annotate exists.
+      res = dbh.query("SELECT * FROM sequences WHERE (id='" + params[:seqid] + "');")
+      if (res.num_rows() != 0)
+        res = dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
+        " VALUES ('#{params[:seqid]}', '#{params[:caption]}', '#{params[:type]}', '#{params[:seqrange]}', " +
+        " NOW(), '#{session[:user]}');")
+      end
     dbh.close if dbh
   else
     status 403.3
