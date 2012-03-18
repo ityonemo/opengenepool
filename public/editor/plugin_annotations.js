@@ -42,7 +42,7 @@ annotations.newsequence = function()
       var myannotation = 
         new Annotation($(this).attr("caption"),
                        $(this).attr("type"),
-                       $(this).attr("range"),
+                       $(this).attr("domain"),
                        $(this).attr("id"));
 
       current_annotation = myannotation;
@@ -74,45 +74,48 @@ annotations.generatefragments = function(i)
     i = annotations.annotations.indexOf(i);
   }
 
-  var span = annotations.annotations[i].range.span();
-  var orientation = annotations.annotations[i].range.orientation;
+  var annotation = annotations.annotations[i];
 
-  //check if it's really short.
-  if (span.start_s == span.end_s)
+  for (var j = 0; j < annotation.domain.ranges.length; j++)
   {
-    //then there's only one fragment.
-    annotations.fragments.push(new Fragment(
-      span.start_s, span.start_p, span.end_p, orientation, annotations.annotations[i]));
-    graphics.invalidate(span.start_s);
-  }
-  else
-  {
-    //set up start fragment.
-    annotations.fragments.push(new Fragment(
-      span.start_s, span.start_p, graphics.settings.zoomlevel - 1, 
-      orientation, annotations.annotations[i]));
-    
-    graphics.invalidate(span.start_s);
+    var currentrange = annotation.domain.ranges[j];
 
-    //if it's reaaaly long, then you have fill in middle fragments.
-    if (span.start_s < span.end_s - 1)
+    var span = currentrange.span();
+    var orientation = currentrange.orientation;
+
+    //check if it's really short.
+    if (span.start_s == span.end_s)
     {
-      for(var j = span.start_s + 1; j < span.end_s; j++)
-      {
-        annotations.fragments.push(new Fragment(
-          j, 0, graphics.settings.zoomlevel -1, orientation, annotations.annotations[i]));
-        graphics.invalidate(j);
-      }
+      //then there's only one fragment.
+      annotations.fragments.push(new Fragment(
+        span.start_s, span.start_p, span.end_p, orientation, annotation));
+      graphics.invalidate(span.start_s);
     }
+    else
+    {
+      //set up start fragment.
+      annotations.fragments.push(new Fragment(
+        span.start_s, span.start_p, graphics.settings.zoomlevel, orientation, annotation));
+    
+      graphics.invalidate(span.start_s);
 
-    //set up end fragment
-    annotations.fragments.push(new Fragment(
-      span.end_s, 0, span.end_p, orientation, annotations.annotations[i]));
-    graphics.invalidate(span.end_s);
+      //if it's reaaaly long, then you have fill in middle fragments.
+      if (span.start_s < span.end_s - 1)
+      {
+        for(var j = span.start_s + 1; j < span.end_s; j++)
+        {
+          annotations.fragments.push(new Fragment(
+            j, 0, graphics.settings.zoomlevel, orientation, annotation));
+            graphics.invalidate(j);
+        }
+      }
+  
+      //set up end fragment
+      annotations.fragments.push(new Fragment(
+        span.end_s, 0, span.end_p, orientation, annotation));
+      graphics.invalidate(span.end_s);
+    }
   }
-
-  //return a structure reporting the start and end lines.
-  return {start: span.start_s, end: span.end_s}
 };
 
 annotations.setzoom = function(token)
@@ -143,7 +146,7 @@ annotations.redraw = function(token)
     if (currentfragment.line == token.line)
     {
       var cleft = currentfragment.start*graphics.metrics.charwidth;
-      var cright = (currentfragment.end+1)*graphics.metrics.charwidth;
+      var cright = currentfragment.end*graphics.metrics.charwidth;
 
       var height = graphics.metrics.lineheight;
 
@@ -168,7 +171,7 @@ annotations.redraw = function(token)
       //set up the tooltip associated with the raphael object. 
       var descriptionstring = currentannotation.type + 
             '<span class="' + (currentannotation.cssclass()) + '"> ' + 
-            currentannotation.to_s() +
+            currentannotation.toString() +
             " </span><br/>" + finalstring;
 
       annotations.addTip(graphicselement.content, currentannotation.caption, descriptionstring);
@@ -438,39 +441,28 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 ////////////////////////////////////////////////////////////////////////
 // HELPER OBJECTS
 
-Annotation = function(_caption, _type, _range, _id){
+Annotation = function(_caption, _type, _domain, _id){
   var data = {
     //data that should be put in at the beginning.
     caption:_caption,
     type: _type,
-    range: new GenBankSeqRange(_range),
+    domain: new Domain(_domain),
     id: _id,
     data: {},
 
     //outputs the css class for such an annotation
-    cssclass: function()
+    cssclass: function(i)
     {
       return [
         "annotation_reverse",
         "annotation_undirected",
-        "annotation_forward "][this.range.orientation + 1]
+        "annotation_forward "][this.domain.orientation + 1]
         + " ann_" + this.id + " annotation " + this.type;
     },
 
-    to_s: function()
+    toString: function()
     {
-      switch (this.range.orientation)
-      {
-        case 1:
-          return this.range.start + ".." + this.range.end;
-        break;
-        case 0:
-          return "[" + this.range.start + ".." + this.range.end + "]";
-        break;
-        case -1:
-          return "(" + this.range.start + ".." + this.range.end + ")";
-        break;
-      }
+      return this.domain.toString();
     },
 
     deleteme: function()

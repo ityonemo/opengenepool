@@ -5,7 +5,7 @@ var selection = new Plugin("selection");
 
 selection.clipboard = {};
 
-selection.range = new SeqRange();
+selection.range = new Range();
 
 selection.clipboardstylesheet = {};
 

@@ -5,40 +5,109 @@ Sequence = function(string)
   //a sequence object stores the forward and the reverse complement
   return {
     fwd: new String(string),
-    rc: new String(reversecomplement(string)),
     _5poh: 0,
     _3poh: 0,
   }
 };
 
-GenBankSeqRange = function(rangetext)
+Domain = function(init)
 {
-  //set default orientation to forward.
-  var orientation = 1;
-  var originaltext = new String(rangetext);
-
-  //for now, just check for the presence of a "complement"
-  if (rangetext.substring(0,11) == "complement(")
+  var temp =
   {
-    //trim that shit off the front.
-    rangetext = rangetext.substring(11);
-    orientation = -1;
+    ranges: [],
+
+    populate: function(string)
+    {
+      if (string)
+      {
+        var rangetexts = string.split("+");
+        for (var i = 0; i < rangetexts.length; i++)
+        {
+          this.ranges.push(new OGPRange(rangetexts[i]))
+        }
+      }
+    },
+
+    orientation: function()
+    {
+      var total = 0;
+      for (var i = 0; i < thisranges.length; i++)
+      {
+        total += this.ranges[i].length() * this.ranges[i].orientation;
+      }
+      if (total > 0) return 1;
+      if (total < 0) return -1;
+      return 0;
+    },
+
+    addrange: function(range)
+    {
+      this.ranges.push(range);
+    },
+
+    toString: function()
+    {
+      result = this.ranges[0].toString();
+      if (this.ranges.length > 1)
+        for (var i = 1; i < this.ranges.length; i++)
+          result += this.ranges[i].toString();
+      return result;
+    }
   };
 
-  var starttext = rangetext.split("..")[0];
-  var endtext = rangetext.split("..")[1];
+  if (init) {temp.populate(init)}
 
-  if (!endtext) {endtext = starttext};
-
-  var start = parseInt(starttext);
-  var end = parseInt(endtext);
-
-  range = new SeqRange(start, end, orientation);
-  range.text = originaltext;  //associate the range text with our object.
-  return range;
+  return temp;
 }
 
-SeqRange = function(_start, _end, _orientation)
+trim = function(str)
+{
+  return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '')
+}
+
+//regexp objects.
+rgxp_complement = /^\(\<?\d+\.\.\>?\d+\)$/
+rgxp_undirected = /^\[\<?\d+\.\.\>?\d+\]$/
+rgxp_general = /^\d+\.\.\d+$/
+rgxp_position = /^\d+$/
+
+OGPRange = function(text)
+{
+  text = trim(text) 
+  
+  var start = 0;
+  var end = 0;
+  var orientation = 0;
+
+  if (rgxp_complement.test(text))
+  {
+    var arr = text.slice(1,-1).split("..");
+    start = parseInt(arr[0]);
+    end = parseInt(arr[1]);
+    orientation = -1;
+  }
+  else if (rgxp_undirected.test(text))
+  {
+    var arr = text.slice(1,-1).split("..");
+    start = parseInt(arr[0]);
+    end = parseInt(arr[1]);
+  }
+  else if (rgxp_general.test(text))
+  {
+    var arr = text.split("..");
+    start = parseInt(arr[0]);
+    end = parseInt(arr[1]);
+    orientation = 1;
+  }
+  else if (rgxp_position.test(text))
+  {
+    start = parseInt(text);
+    end = parseInt(text);
+  }
+  return Range(start, end, orientation)
+}
+
+Range = function(_start, _end, _orientation)
 {
   //preconditions:
   //_start < _end, unless _orientation == null;
@@ -68,10 +137,16 @@ SeqRange = function(_start, _end, _orientation)
     //  end_p - position within ending segment
     {
       //figure out which segment they're going to be in, and where in that segement.
-      var startsegment = Math.floor((this.start - 1)/graphics.settings.zoomlevel);
-      var endsegment = Math.floor((this.end - 1)/graphics.settings.zoomlevel);
-      var startpos = (this.start - 1)%graphics.settings.zoomlevel;
-      var endpos = (this.end - 1)%graphics.settings.zoomlevel;
+      var startsegment = Math.floor((this.start)/graphics.settings.zoomlevel);
+      var endsegment = Math.floor((this.end)/graphics.settings.zoomlevel);
+      var startpos = (this.start)%graphics.settings.zoomlevel;
+      var endpos = (this.end)%graphics.settings.zoomlevel;
+      //adjust it so that it's flush with the end of the line instead of the beginning.
+      if ((endpos == 0) && (this.start != this.end))
+      {
+        endsegment--;
+        endpos = graphics.settings.zoomlevel;
+      }
 
       return {
         start_s: startsegment,
@@ -83,7 +158,21 @@ SeqRange = function(_start, _end, _orientation)
 
     toString: function()
     {
-      return ((this.orientation == -1) ? "(" : "") + this.start + ".." + this.end + ((this.orientation == -1) ? ")" : "");
+      var content = this.start + ".." + this.end;
+      switch (this.orientation)
+      {
+        case -1:
+        return "(" + content + ")";
+        case 0:
+        return "[" + content + "]";
+        case 1:
+        return content;
+      }
+    },
+
+    length: function()
+    {
+      return end - start;
     },
 
     toGenBank: function()
@@ -97,8 +186,8 @@ SeqRange = function(_start, _end, _orientation)
     },
   };
 
-  //refactor the orientation if we have supplied it with a zero value.
-  if (_orientation == null)
+  //refactor the orientation if we have supplied it with a null value.
+  if (_orientation == undefined)
   {
     if (_start > _end)
     {

@@ -42,7 +42,7 @@ end
 $join = /\Ajoin\((.*)\)\Z/
 $complement = /\Acomplement\((.*)\)\Z/
 $order = /\Aorder\((.*)\)\)\Z/
-$range = /\A(\<?)(\d+)..(\>?)(\d+)\Z/
+$range = /\A(\<?)(\d+)\.\.(\>?)(\d+)\Z/
 $carat = /\A(\d+)\^(\d+)\Z/
 $base = /\A(\d+)\Z/
 
