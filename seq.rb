@@ -3,12 +3,12 @@
 require 'mysql'
 
 class AnnoML
-  attr_accessor :caption, :type, :range, :id, :dataarray
+  attr_accessor :caption, :type, :domain, :id, :dataarray
 
-  def initialize (caption, type, range, id)
+  def initialize (caption, type, domain, id)
     @caption = caption
     @type = type
-    @range = range
+    @domain = domain
     @id = id
 
     @dataarray = Array.new()
@@ -42,14 +42,15 @@ get '/seq/:query' do |query|
       #in the future, eliminations based on user and such will occur here.
       #pivot against annotations which have been superceded.
       #NB there may be a faster way to deal with this code.
-      tres = dbh.query("CREATE TEMPORARY TABLE tann2 (SELECT * FROM tann WHERE id NOT IN (SELECT supercedes FROM tann))")
-      tres = dbh.query("DELETE FROM tann2 WHERE status='deleted'");
+      tres = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT (supercedes) FROM tann WHERE (supercedes != NULL);")
+      tres = dbh.query("DELETE FROM tann WHERE id IN (SELECT * FROM tann2);")
+      tres = dbh.query("DELETE FROM tann WHERE status='deleted';");
 
-      res2=dbh.query("SELECT * FROM tann2;")
+      res2=dbh.query("SELECT * FROM tann;")
       (1..res2.num_rows).each do
         @annoresult = res2.fetch_hash()
  
-        curranno = AnnoML.new(@annoresult["caption"],@annoresult["type"],@annoresult["seqrange"],@annoresult["id"])
+        curranno = AnnoML.new(@annoresult["caption"],@annoresult["type"],@annoresult["domain"],@annoresult["id"])
       
         #query the annotations-dependent subdata database.
         res3=dbh.query("SELECT * FROM annotationdata WHERE (annotation='#{@annoresult['id']}');")

@@ -11,7 +11,7 @@
   %sequence #{@result['sequence']}
 
   -$annotations.each do |@i|
-    %annotation(id="#{@i.id}" type="#{@i.type}" caption="#{@i.caption}" range="#{@i.range}")
+    %annotation(id="#{@i.id}" type="#{@i.type}" caption="#{@i.caption}" domain="#{@i.domain}")
       -@i.dataarray.each do |@data|
         %data(id="#{@data[0]}" type="#{@data[1]}")
           #{@data[2]}

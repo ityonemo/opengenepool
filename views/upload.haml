@@ -23,8 +23,8 @@
       %input(type="text" name="annotation#{@j.index}_caption" class="annotation_caption" value="#{@j.caption}")
       TYPE
       %input(type="text" name="annotation#{@j.index}_type" class="annotation_type" value="#{@j.type}")
-      RANGE
-      %input(type="text" name="annotation#{@j.index}_range" class="annotation_range" value="#{@j.range}")
+      DOMAIN
+      %input(type="text" name="annotation#{@j.index}_domain" class="annotation_domain" value="#{@j.domain}")
       %br
       -@j.datahash.each do |@key, @value|
         #{@key}

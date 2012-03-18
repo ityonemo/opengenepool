@@ -36,6 +36,61 @@ post '/upload' do
   haml :ogp
 end
 
+#genbank domain conversion to opengenepool domain spec
+
+#various regexps that are useful for this conversion.
+$join = /\Ajoin\((.*)\)\Z/
+$complement = /\Acomplement\((.*)\)\Z/
+$order = /\Aorder\((.*)\)\)\Z/
+$range = /\A(\<?)(\d+)..(\>?)(\d+)\Z/
+$carat = /\A(\d+)\^(\d+)\Z/
+$base = /\A(\d+)\Z/
+
+def rangeparse(string, seg_array, orientation)
+  @of = (orientation == -1) ? "(" : ""
+  @or = (orientation == -1) ? ")" : ""
+
+  if (string =~ $complement)
+    orientation = -orientation
+    rangeparse($complement.match(string)[1].strip, seg_array, orientation)
+  elsif (string =~ $range)
+    @match = $range.match(string)
+    if (Integer(@match[2]) < Integer(@match[4]))
+      seg_array.push(@of + (@match[1] == "<" ? "<" : "") + 
+                     (Integer(@match[2]) - 1).to_s + ".." + (@match[3] == ">" ? ">": "") + @match[4] + @or)
+    end
+  elsif (string =~ $carat)
+    @match = $carat.match(string)
+    if (Integer(@match[1]) == Integer(@match[2]) - 1)
+      seg_array.push(String.new(@match[1]))
+    end
+  elsif (string =~ $base)
+    seg_array.push(@of + (Integer(@match[1]) - 1).to_s + ".." + @match[1] + @or)
+  end
+end
+
+def assemble(string, seg_array, orientation)
+  componentsarray=string.split(/,/)
+  componentsarray.each do |part|
+    rangeparse(part.strip, seg_array, orientation)
+  end
+end
+
+def domainparse(string, seg_array, orientation)
+  if (string =~ $join)
+    assemble($join.match(string.strip)[1], seg_array, orientation) 
+  elsif (string =~ $order)
+    assemble($order.match(string.strip)[1], seg_array, orientation)
+  elsif (string =~ $complement)
+    orientation = -orientation
+    domainparse($complement.match(string)[1].strip, seg_array, orientation)
+  else
+    rangeparse(string.strip, seg_array, orientation)
+  end
+  return seg_array
+end
+
+
 #data in the haml file that can be filled in.
 $keywordhash = Hash.new()
 $keywordarray = ["LOCUS", "DEFINITION", "ACCESSION", "VERSION", "KEYWORDS", "SOURCE", "ORGANISM"]
@@ -52,7 +107,7 @@ def simpletransfer(string)
 end
 
 class Annotation
-  attr_accessor :type, :caption, :range, :data, :index, :datahash
+  attr_accessor :type, :caption, :domain, :data, :index, :datahash
   
   def initialize
     @datahash = Hash.new()
@@ -67,7 +122,7 @@ class Annotation
   end
 
   def to_s
-    "'" + @caption + "', '" + @type + "', '" + @range + "'" 
+    "'" + @caption + "', '" + @type + "', '" + @domain + "'" 
   end
 end
 
@@ -94,7 +149,7 @@ def process()
       $current_annotation = Annotation.new()
       myline = line.strip().split(/\s+/)
       $current_annotation.type = String.new(myline[0])
-      $current_annotation.range = String.new(myline[1])
+      $current_annotation.domain = domainparse(myline[1].strip, Array.new(), 1).join('+')
       $current_annotation.index = $annotations.length()
       $current_annotation.data = "";
     else
@@ -176,8 +231,8 @@ post '/uploadseq' do
             $annotations[trimmedkey].caption = params[key]
           when "type"
             $annotations[trimmedkey].type = params[key]
-          when "range"
-            $annotations[trimmedkey].range = params[key]
+          when "domain"
+            $annotations[trimmedkey].domain = params[key]
           when "data"
             $annotations[trimmedkey].datahash[keyarray[2]] = params[key]
         end
@@ -195,7 +250,7 @@ post '/uploadseq' do
       #generate the commands for creating the annotations
       $annotations.each() do |key,value|
         #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
-        dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
+        dbh.query("INSERT INTO annotations (sequence, caption, type, domain, created, owner)" +
           " VALUES ('#{$sequence_id_string}', #{value}, NOW(), '#{session[:user]}');")
 
         annotation_id_string = dbh.insert_id().to_s
