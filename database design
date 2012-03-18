@@ -1,14 +1,13 @@
 Database notes
 
-
 sequences
 
 id
 owner		int		id from owner table
-group		int		id from group table
-created         date
+created         timestamp
 supercedes      int		id from within sequence table
-replacement     int		id from within sequence table
+status		vc64		virtual, finalized, verified, deleted etc
+visibility	vc64		public, private, groupname(s)
 
 locus		vc64
 title		vc64
@@ -19,26 +18,24 @@ source		vc64
 organism	vc64	
 sequence	text
 
-status		vc64		virtual, finalized, verified, etc
 type		vc64		linear, circular, etc		
 class		vc64		plasmid, chromosome, primer, etc
-length		int		
 
 
 annotations
 
 id		
-sequence	int		id of linked sequence
 owner		int		id from owner table
-group		int		id from group table
-created		date
+created		timestamp
 supercedes	int		id from within annotations table
-replacement	int		id from within annotations table
+status		vc64		can indicate deleted.
+visibility	vc64		public, private, groupname(s)
+sequence	int		id of linked sequence
 
 caption		vc64
 type		vc64		orf/CDS, mRNA, promoter, etc.
-range		vc64
-data		text		default null, may be useful for
+domain		vc64		NB cannot use 'range' b/c that is a MySQL reserved word
+data		text		default null, useful for storing extra data
 
 
 sources
@@ -46,13 +43,8 @@ sources
 id
 parent		int		id of parent sequence
 child		int		id of child sequence
-pstart		int		start of parent sequence
-pend		int		end of parent sequence
-porientation	vc64		orientation of parent sequence
-cstart		int		start of child sequence
-cend		int		end of child sequence
-corientation    vc64 		orientation of child sequence
-
+pdomain		vc64		parent domain
+cdomain		vc64		child domain
 
 workspaces
 
@@ -67,11 +59,13 @@ name		vc256
 login		vc64
 email		vc64
 hash		vc64
-level		int		level 0 is superuser.  Other values are reserved.
+level		int		level 0 is owner.
+                                level 1 is a 'wheel' user.
 
 
-groups
+group membership
 
 id
 name		vc64
-owner		int
+member		int		from the user list
+owner		bool		is it the owner?

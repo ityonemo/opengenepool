@@ -37,14 +37,22 @@ get '/seq/:query' do |query|
 
     unless (@error)  #because don't bother, is why.
       #query the sequence-dependent annotations database for the annotations.
-      res2=dbh.query("SELECT * FROM annotations WHERE (sequence='#{@result['id']}')")
+
+      tres = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE (sequence='#{@result['id']}');")
+      #in the future, eliminations based on user and such will occur here.
+      #pivot against annotations which have been superceded.
+      #NB there may be a faster way to deal with this code.
+      tres = dbh.query("CREATE TEMPORARY TABLE tann2 (SELECT * FROM tann WHERE id NOT IN (SELECT supercedes FROM tann))")
+      tres = dbh.query("DELETE FROM tann2 WHERE status='deleted'");
+
+      res2=dbh.query("SELECT * FROM tann2;")
       (1..res2.num_rows).each do
         @annoresult = res2.fetch_hash()
  
         curranno = AnnoML.new(@annoresult["caption"],@annoresult["type"],@annoresult["seqrange"],@annoresult["id"])
       
         #query the annotations-dependent subdata database.
-        res3=dbh.query("SELECT * FROM annotationdata WHERE (annotation='#{@annoresult['id']}')")
+        res3=dbh.query("SELECT * FROM annotationdata WHERE (annotation='#{@annoresult['id']}');")
         (1..res3.num_rows).each do
           @annodata = res3.fetch_hash()
           curranno.dataarray.push([@annodata["id"], @annodata["infokey"], @annodata["value"]])

@@ -88,8 +88,7 @@ delete '/annotation/:query' do |query|
       elsif (res.fetch_hash()["owner"] != session[:user])
         error = 403.3
       else
-        #passed
-        res = dbh.query("DELETE FROM annotations WHERE (id='" + query + "');")
+        res = dbh.query("UPDATE annotations SET status='deleted' WHERE (id='" + query + "')")
       end
     dbh.close if dbh
 

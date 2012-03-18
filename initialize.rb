@@ -15,33 +15,31 @@ post '/initialize' do
         "login varchar(16), name varchar(256), email varchar(64), level int(64), hash varchar(64), " +
         "UNIQUE INDEX (login), INDEX(name, email, level));")
 
-      #add the superuser to the users table
+      #add the owner to the users table
       res=dbh.query("INSERT INTO users (login, name, email, hash, level) VALUES " +
         "('#{params[:login]}','#{params[:name]}','#{params[:email]}',SHA('#{params[:password]}'),0);")
 
       #create the sequences table
       res=dbh.query("CREATE TABLE sequences (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "owner varchar(16), locus varchar(64), title varchar(64), accession varchar(64), definition text, " +
+        "owner varchar(16), created timestamp, supercedes int(64), status varchar(64), visibility varchar(64), " + #ogp housekeeping
+        "locus varchar(64), title varchar(64), accession varchar(64), definition text, " +                       #genbank params
         "version varchar(64), keywords text, source varchar(64), organism varchar(64), sequence text, " +
-        "status varchar(64), type varchar(64), class varchar(64), " +
-        "created timestamp, supercedes int(64), " +
-        "INDEX (owner, locus, title, accession), " +
+        "type varchar(64), class varchar(64), " +                                                                #ogp params
         "FOREIGN KEY (owner) REFERENCES users(login));")
 
       #create the self-referential foreign keys
       res=dbh.query("ALTER TABLE sequences ADD FOREIGN KEY (supercedes) REFERENCES sequences(id);")
-      res=dbh.query("ALTER TABLE sequences ADD FOREIGN KEY (replacement) REFERENCES sequences(id);")
 
       #create the annotations table
       res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "owner varchar(16), sequence int(64), caption varchar(64), type varchar(64), seqrange varchar(64), " +
-        "created timestamp, supercedes int(64), " +
+        "owner varchar(16), sequence int(64), created timestamp, supercedes int(64), status varchar(64), " +
+        "visibility varchar(64), " + #ogp housekeeping
+        "caption varchar(64), type varchar(64), domain varchar(64), " +
         "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
         "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
 
       #create the self-referential foreign keys
       res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (supercedes) REFERENCES annotations(id);")
-      res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (replacement) REFERENCES annotations(id);")
 
       #create the annotations data table
       res=dbh.query("CREATE TABLE annotationdata (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
@@ -50,8 +48,7 @@ post '/initialize' do
 
       #create the sources data table
       res=dbh.query("CREATE TABLE sources (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "parent int(64), child int(64), pstart int(64), pend int(64), porientation int(64), " +
-        "cstart int(64), cend int(64), corientation int(64), " +
+        "parent int(64), child int(64), pdomain varchar(64), cdomain varchar(64), " +
         "INDEX (parent, child), FOREIGN KEY (parent) REFERENCES sequences(id) ON DELETE CASCADE, " +
         "FOREIGN KEY (child) REFERENCES sequences(id) ON DELETE CASCADE);")
 
