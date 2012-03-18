@@ -103,27 +103,32 @@ var editor =
 
   showcontextmenu: function(x, y)
   {
-    //populate the context menu array.
-    var contextmenu = document.getElementById("contextmenu");
-    //clear the context menu.
-    contextmenu.innerHTML = "";
-    for (i = 0; i < editor.context_menu_array.length; i++)
+    //make sure that there actually context menu items to show.
+    if (editor.context_menu_array.length > 0)
     {
-      var menuitem = editor.context_menu_array[i];
-      childdiv = document.createElement("div");
-      childdiv.innerHTML = menuitem.html;
-      childdiv.onclick = new Function(menuitem.callback + "editor.hidecontextmenu();");  //set up the correct onclick.
-      childdiv.setAttribute("class","menuitem");
-      contextmenu.appendChild(childdiv);
-    };
+      //create the context menu.
+      //get the context menu DOM object.
+      var contextmenu = document.getElementById("contextmenu");
+      //clear the context menu.
+      contextmenu.innerHTML = "";
+      for (i = 0; i < editor.context_menu_array.length; i++)
+      {
+        var menuitem = editor.context_menu_array[i];
+        childdiv = document.createElement("div");
+        childdiv.innerHTML = menuitem.html;
+        childdiv.onclick = new Function(menuitem.callback + "editor.hidecontextmenu();");  //set up the correct onclick.
+        childdiv.setAttribute("class","menuitem");
+        contextmenu.appendChild(childdiv);
+      };
 
-    //actually show the context menu:
-    $("#contextmenu")
-      .css("left",(x - 5).toString() + "px")
-      .css("top",(y - 5).toString() + "px")
-      .css("display","block");
-    //set the context menu visibility flag
-    editor.context_menu_visible = true;
+      //actually show the context menu:
+      $("#contextmenu")
+        .css("left",(x - 5).toString() + "px")
+        .css("top",(y - 5).toString() + "px")
+        .css("display","block");
+      //set the context menu visibility flag
+      editor.context_menu_visible = true;
+    }
   },
 
   hidecontextmenu: function()

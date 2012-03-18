@@ -25,7 +25,7 @@ post '/fork/:query' do |query|
       #use elegant way to resolve id issue.
       res = dbh.query("CREATE TEMPORARY TABLE tseq SELECT * FROM sequences WHERE id='#{params[:sourceid]}';")
       res = dbh.query("UPDATE tseq SET owner='#{session[:user]}', title='#{query}', status='virtual', created=NOW();")
-      res = dbh.query("ALTER TABLE tseq DROP id")
+      res = dbh.query("ALTER TABLE tseq DROP id;")
       #grab the column names
       @c1 = columnsfrom(dbh, "sequences")
 
@@ -35,16 +35,16 @@ post '/fork/:query' do |query|
       #now use the same technique to transfer the annotations.
       res = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE sequence='#{params[:sourceid]}';")
       res = dbh.query("UPDATE tann SET owner='#{session[:user]}', sequence='#{@nid}', created=NOW();")
-      res = dbh.query("ALTER TABLE tann DROP id")
+      res = dbh.query("ALTER TABLE tann DROP id;")
       @c2 = columnsfrom(dbh, "annotations")
 
       #add all of these columns back in.
-      res = dbh.query("INSERT INTO annotations #{@c2} SELECT * FROM tann")
+      res = dbh.query("INSERT INTO annotations #{@c2} SELECT * FROM tann;")
 
       #modify the sources table.
 
       #modify the workspaces table.
-      res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES ('#{session[:user]}', '#{@nid}')")
+      res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES ('#{session[:user]}', '#{@nid}');")
 
     dbh.close() if dbh
  

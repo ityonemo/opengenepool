@@ -7,6 +7,8 @@ post '/annotation/' do
   handleuser()
 
   if (session[:user])
+    error = false
+
     dbh=Mysql.real_connect("localhost","www-data","","ogp")
       #check to make sure the sequence we're trying to annotate exists.
       res = dbh.query("SELECT * FROM sequences WHERE (id='" + params[:seqid] + "');")
@@ -14,8 +16,60 @@ post '/annotation/' do
         res = dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
         " VALUES ('#{params[:seqid]}', '#{params[:caption]}', '#{params[:type]}', '#{params[:seqrange]}', " +
         " NOW(), '#{session[:user]}');")
+
+        $annotation_id_string = dbh.insert_id().to_s
+      else
+        error = 404
       end
     dbh.close if dbh
+
+    #do an error check
+    if (error)
+      error
+    else
+      $annotation_id_string
+    end
+
+  else
+    status 403.3
+  end
+end
+
+patch '/annotation/:query' do |query|
+  handleuser()
+  if (session[:user])
+    error = false
+    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+      #check to make sure if the annotation exists.
+      res = dbh.query("SELECT * FROM annotations WHERE (id='" + query + "');")
+      if (res.num_rows() < 1)
+        error = 404
+      else
+        #we're not actually going to change the old annotation.  Instead, we are actually going to:
+        #copy the annotation to a temporary table.  
+        res = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE id='#{query}';")
+        #strip the contents of the id.
+        res = dbh.query("ALTER TABLE tann DROP id")
+        #replace contents, creating the critical 'supercedes' parameter.
+
+        res = dbh.query("UPDATE tann SET owner='#{session[:user]}', " +
+          "caption='#{params[:caption]}', type='#{params[:type]}', seqrange='#{params[:seqrange]}', " +
+          "supercedes='#{query}', created=NOW();")
+
+        @cols = columnsfrom(dbh, "annotations")
+        #put the temporary table into place
+        res = dbh.query("INSERT INTO annotations #{@cols} SELECT * FROM tann")
+
+        $annotation_id_string = dbh.insert_id().to_s
+      end
+    dbh.close if dbh
+
+    #do an error check.
+    if (error)
+      error
+    else
+      $annotation_id_string
+    end
   else
     status 403.3
   end

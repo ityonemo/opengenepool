@@ -1,5 +1,6 @@
 var annotations = new Plugin("annotations");
 
+
 ////////////////////////////////////////////////////////////////////////
 // MEMBER VARIABLES
 
@@ -66,6 +67,13 @@ annotations.newsequence = function()
 annotations.generatefragments = function(i)
 //generate annotation fragments for annotation of index i.
 {
+  //if we're trying to pass an object instead of an index
+  if (isNaN(i))
+  {
+    //reassign it to its index.
+    i = annotations.annotations.indexOf(i);
+  }
+
   var span = annotations.annotations[i].range.span();
   var orientation = annotations.annotations[i].range.orientation;
 
@@ -180,6 +188,8 @@ annotations.contextmenu = function(token)
     case "annotations":
       annotations.todelete = token.ref;
       editor.addcontextmenuitem(new MenuItem("delete annotation", "annotations.deletemenu();"));
+      editor.addcontextmenuitem(new MenuItem("edit annotation", "annotations.editdialog(" + 
+        annotations.annotations.indexOf(token.ref) + ");"));
     break;
     case "selection":
       editor.addcontextmenuitem(new MenuItem(
@@ -188,6 +198,9 @@ annotations.contextmenu = function(token)
   }
 }
 
+/////////////////////////////////////////////////////////////////
+// DIALOGS and such
+
 annotations.deletemenu = function()
 {
   //set up the http request, jQuery way.
@@ -195,19 +208,9 @@ annotations.deletemenu = function()
     type: 'DELETE',
     url: '/annotation/' + annotations.todelete.id,
     success: function() {
-      annotations.annotations.splice(annotations.todelete.index, 1);
-      //count down to avoid having to do stupid decrement tricks.
-      for (var i = annotations.fragments.length - 1; i >= 0; i--)
-      {
-        //check to see if we want to remove this.
-        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == annotations.todelete))
-        {
-          //don't forget to invalidate this line.
-          graphics.invalidate(annotations.fragments[i].line)
-          annotations.fragments.splice(i,1);
-        }
-      };
-      //redraw.
+      //delete it!
+      annotations.todelete.deleteme();
+      //then, redraw.
       graphics.render();
     },
     error: function(a, b, e) {
@@ -216,18 +219,52 @@ annotations.deletemenu = function()
   });
 }
 
+annotations.editdialog = function(index)
+{
+  var oldannotation = annotations.annotations[index];
+
+  dialog.show(annotations.dialogstring,
+    function(){
+      var newannotation = annotations.retrievenewfromdialog();
+      //set up the http request, jQuery way.
+      $.ajax({
+        type: 'PATCH',
+        url: '/annotation/' + oldannotation.id,
+        data:
+        {
+          caption: newannotation.caption,
+          type: newannotation.type,
+          seqrange: newannotation.range.toGenBank(),
+        },
+        success: function(data) {
+          //GET RID OF THE OLD ANNOTATION.
+          oldannotation.deleteme();
+
+          //INSTALL THE NEW ANNOTATION.
+          newannotation.id = parseInt(data);
+
+          annotations.generatefragments(newannotation);
+
+          //REDRAW.
+          graphics.render();
+        },
+        error: function(a, b, e) {alert("edit failed; error: " + e);}
+    });
+    },  
+    new Function("annotations.filldialog('" + oldannotation.range.start + "','" +
+      oldannotation.range.end + "','" +
+      oldannotation.range.orientation + "','" +
+      oldannotation.caption + "','" +
+      oldannotation.type + "');")
+  );
+}
+
 annotations.createdialog = function(start, end, orientation)
 {
   dialog.show(annotations.dialogstring, 
-    function() {
+    function() { //extract data from the annotations dialog box.
       var _orientation = document.getElementById("ann_d_orientation").value;
-      var newannotation = new Annotation(
-        document.getElementById("ann_d_caption").value, 
-        document.getElementById("ann_d_type").value, 
-        (_orientation == -1 ? "complement(" : "") + 
-        document.getElementById("ann_d_start").value + ".." +
-        document.getElementById("ann_d_end").value +
-        (_orientation == -1 ? ")" : ""));
+      var newannotation = annotations.retrievenewfromdialog();
 
       //send the new annotation the jquery way.
       $.post("/annotation/",
@@ -236,31 +273,53 @@ annotations.createdialog = function(start, end, orientation)
           caption: newannotation.caption,
           type: newannotation.type,
           seqrange: newannotation.range.toGenBank()
-        })
+        },function(data){newannotation.id=parseInt(data);})
 
-      annotations.generatefragments(newannotation.index);
+      annotations.generatefragments(newannotation);
       //redraw this thing.
       graphics.render();
     },
-    function() {
-      document.getElementById("ann_d_start").value = start;
-      document.getElementById("ann_d_end").value = end;
-      switch (orientation)
-      {
-        case -1:
-         document.getElementById("ann_d_rev").selected = true;
-        break;
-        case 0:
-         document.getElementById("ann_d_und").selected = true;
-        break;
-        case 1:
-         document.getElementById("ann_d_for").selected = true;
-        break;
-      }
-    }
+    new Function("annotations.filldialog('" + start + "','" + end + "','" + orientation + "')")
   )
 }
 
+annotations.retrievenewfromdialog = function()
+{
+  var orientation = document.getElementById("ann_d_orientation").value;
+  var newannotation = new Annotation(
+        document.getElementById("ann_d_caption").value, 
+        document.getElementById("ann_d_type").value, 
+        (orientation == -1 ? "complement(" : "") + 
+        document.getElementById("ann_d_start").value + ".." +
+        document.getElementById("ann_d_end").value +
+        (orientation == -1 ? ")" : ""));
+  return newannotation;
+}
+
+annotations.filldialog = function(start, end, orientation, caption, type)
+{
+  //caption and type DOM elements
+  if (caption)
+  {document.getElementById("ann_d_caption").value = caption;}
+  if (type)
+  {document.getElementById("ann_d_type").value = type;}
+  
+  //start and end DOM elements
+  document.getElementById("ann_d_start").value = start;
+  document.getElementById("ann_d_end").value = end;
+  switch (parseInt(orientation))
+  {
+    case -1:
+      document.getElementById("ann_d_rev").selected = true;
+    break;
+    case 0:
+      document.getElementById("ann_d_und").selected = true;
+    break;
+    case 1:
+      document.getElementById("ann_d_for").selected = true;
+    break;
+  }
+}
 
 //////////////////////////////////////////////////////////////////////
 // GENERAL MEMBER FUNCTIONS
@@ -412,9 +471,27 @@ Annotation = function(_caption, _type, _range, _id){
           return "(" + this.range.start + ".." + this.range.end + ")";
         break;
       }
+    },
+
+    deleteme: function()
+    {
+      //excise me from the annotations array.
+      annotations.annotations.splice(annotations.annotations.indexOf(this), 1);
+      //remove all my fragments from the fragments array.
+      //NB count down to avoid having to do stupid decrement tricks.
+      for (var i = annotations.fragments.length - 1; i >= 0; i--)
+      {
+        //check to see if we want to remove this.
+        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == this))
+        {
+          //don't forget to invalidate this line.
+          graphics.invalidate(annotations.fragments[i].line)
+          annotations.fragments.splice(i,1);
+        }
+      };
     }
   }
-  data.index = annotations.annotations.push(data) - 1;
+  annotations.annotations.push(data);
   return data;
 }
 

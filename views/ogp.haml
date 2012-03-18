@@ -17,6 +17,11 @@
     -@csslist.each do |@i|
       %link(href=@i rel="stylesheet" type="text/css")
 
+    -#save userstate in javascript.
+    -if(session[:user])
+      %script(id="userident_js" type="text/javascript" charset="utf-8")
+        username = '#{session[:user]}';
+
   %body
     %header
       %h1 OpenGenePool

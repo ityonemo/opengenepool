@@ -1,25 +1,21 @@
 ogp ToDo list (in no particular order of importance):
 
-Things broken by global update that need to be fixed:
-
-"command line" console
-annotations plugin
-
 Quickies
 Make the user management suite check to see if you're logged in as superuser.
-Create a general "fragment generator".
 
 Global projects
 
 rebuild the DNA data system to track annotations using gap sequencing
+unify the javascript objects to seamlessly interface with $.ajax RESTful queries
+
 
 rebuild the DNA data manipulation to use objects created in DNA.js
 clean up to check for mysql injection hacks.
 allow all changes to sequences, etc. to be marked by user
 create groups system.
 
+command line console.
 DNA->Protein ORF translation plugin
-Clone Button
 Export to gb file
 Other types of sequence (primers, etc)
 Create Sequence Tool
@@ -32,4 +28,3 @@ Accession codes
 Local projects
 
 Change selection tool to allow for modification of the selected entry.
-Fix the layout engine to put a small space between the text line and the annotations
