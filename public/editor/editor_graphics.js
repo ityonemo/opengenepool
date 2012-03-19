@@ -336,7 +336,8 @@ var graphics =
 
   getpos: function(xpos)
   {
-    var value = Math.ceil((xpos - graphics.settings.lmargin) / graphics.metrics.charwidth)
+    //to get the position, divide the x position by charwidth
+    var value = Math.floor(((xpos - graphics.settings.lmargin) / graphics.metrics.charwidth) + 0.5)
     return ((value < 0) || (value > graphics.settings.zoomlevel)) ? undefined : value;
   },
 

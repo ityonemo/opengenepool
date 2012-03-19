@@ -8,8 +8,6 @@ selection.clipboard = {};
 selection.domain = {};
 selection.ranges = [];
 
-selection.clipboardstylesheet = {};
-
 selection.selected = false;
 
 selection.animateout = {};
@@ -88,39 +86,44 @@ selection.redraw = function(token)
 ////////////////////////////////////////////////////////////////////////
 // DRAG and DROP TOKEN handling.
 
-//selection.selectionstart = 0;
+selection.selectionstart = 0;
+selection.currentrange = 0;
 
-//selection.startselect = function(token)
-//{
-//  selection.range = new Range(token.pos, token.pos);
-//  selection.selectionstart = token.pos;
-//  selection.selected = true;
-//  graphics.registerdrag(selection);
+selection.startselect = function(token)
+{
+  selection.unselect();
+  selection.domain = new Domain(token.pos.toString());
+  selection.selectionstart = token.pos;
+  selection.selected = true;
+  selection.createranges();
+  selection.currentrange = 0;
 
-//  selection.handlef.animate(selection.animateout);
-//  selection.handler.animate(selection.animateout);
-//};
+  graphics.registerdrag(selection);
 
-//selection.drag = function(token)
-//{
-//  if (token.pos < selection.selectionstart)
-//  {
+  //selection.handlef.animate(selection.animateout);
+  //selection.handler.animate(selection.animateout);
+};
+
+selection.drag = function(token)
+{
+  var currentrange = selection.ranges[selection.currentrange];
+
+  if (token.pos < selection.selectionstart)
+  {
     //first set up the correct color for the selection.
-//    selection.clipboardstylesheet.innerHTML = selection._reverseselectcss;
-//    selection.range.start = token.pos;
-//    selection.range.end = selection.selectionstart;
-//    selection.range.orientation = -1;
-//  }
-//  else
-//  {
-//    selection.clipboardstylesheet.innerHTML = selection._forwardselectcss;
-//    selection.range.start = selection.selectionstart;
-//    selection.range.end = token.pos;
-//    selection.range.orientation = 1;
-//  }
+    currentrange.start = token.pos;
+    currentrange.end = selection.selectionstart;
+    currentrange.orientation = -1;
+  }
+  else
+  {
+    currentrange.start = selection.selectionstart;
+    currentrange.end = token.pos;
+    currentrange.orientation = 1;
+  }
 
-//  selection.drawoutline();
-//};
+  currentrange.draw();
+};
 
 //selection.drop = function(token)
 //{
@@ -355,6 +358,11 @@ SelectionRange = function (start, end, orientation)
     //handler: new SelectionHandle(new Function("selection.handle('reverse');"),'reverse'),
     range: new Range(start, end, orientation),
 
+    draw: function()
+    {
+      selection.drawrange(this.path, this.range)
+    },
+
     deleteme: function()
     {
       //remove the path from the paper.
@@ -385,7 +393,7 @@ SelectionRange = function (start, end, orientation)
     }
   })
 
-  selection.drawrange(segment.path, segment.range);
+  segment.draw();
   //brand the path.
   segment.path.attr("class", segment.cssclass());
 

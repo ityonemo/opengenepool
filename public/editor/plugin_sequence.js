@@ -95,7 +95,7 @@ sequence.redraw = function(token)
     //retrieve the position within the sequence object that we are at.
     //nb:  0 is on the very left side, and y coordinates go from -lineheight to 0.
     ref.line = graphics.getline(point.svgy); 
-    ref.linepos = Math.ceil(point.internalx / graphics.metrics.charwidth);
+    ref.linepos = Math.floor((point.internalx / graphics.metrics.charwidth) + 0.5);
     ref.pos = ref.line * graphics.settings.zoomlevel + ref.linepos;
 
     if (rightclick)

@@ -3,13 +3,16 @@ ogp ToDo list (in no particular order of importance):
 Quickies
 Make the user management suite check to see if you're logged in as superuser.
 
+Important Fixes:
+
+
+Important Tasks:
+Implement Workspace management.
+Allow user to toggle between genbank output and OGP output.
+
 Global projects
 
-rebuild the DNA data system to track annotations using gap sequencing
 unify the javascript objects to seamlessly interface with $.ajax RESTful queries
-
-
-rebuild the DNA data manipulation to use objects created in DNA.js
 clean up to check for mysql injection hacks.
 allow all changes to sequences, etc. to be marked by user
 create groups system.
