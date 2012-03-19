@@ -56,6 +56,7 @@ features:
 VERSION 0.16 (End of March) intended milestones
   global switch to gap sequences
   proper parsing of genbank sequence styles
+  output to genbank.
   annotation and selection of multiple domains across join()s.
   add support for additional data in annotations.
 

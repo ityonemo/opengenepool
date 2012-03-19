@@ -86,12 +86,18 @@ var editor =
   },
 
   //retrieve a subsequence.
-  subsequence: function(range)
+  subsequence: function(domain)
   {
-    if (range.orientation == 1)
-    { return editor.sequence.substring(range.start - 1, range.end); }
-    else
-    { return reversecomplement(editor.sequence.substring(range.start - 1, range.end)); }
+    var output = "";
+    for (var i = 0; i < domain.ranges.length; i++)
+    {
+      var range = domain.ranges[i];
+      if (range.orientation == 1)
+      { output += editor.sequence.substring(range.start, range.end); }
+      else
+      { output += reversecomplement(editor.sequence.substring(range.start, range.end)); }
+    }
+    return output;
   },
 
   //////////////////////////////////////////////////////////////////////

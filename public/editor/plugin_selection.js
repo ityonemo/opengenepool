@@ -104,32 +104,54 @@ selection.startselect = function(token)
   //selection.handler.animate(selection.animateout);
 };
 
+woot = 0;
+
 selection.drag = function(token)
 {
   var currentrange = selection.ranges[selection.currentrange];
+  
+  var oldorientation = currentrange.range.orientation;
 
   if (token.pos < selection.selectionstart)
   {
     //first set up the correct color for the selection.
-    currentrange.start = token.pos;
-    currentrange.end = selection.selectionstart;
-    currentrange.orientation = -1;
+    currentrange.range.start = token.pos;
+    currentrange.range.end = selection.selectionstart;
+    if (oldorientation != -1)
+    {
+      currentrange.range.orientation = -1;
+      currentrange.path.attr("class",currentrange.cssclass());
+    }
   }
   else
   {
-    currentrange.start = selection.selectionstart;
-    currentrange.end = token.pos;
-    currentrange.orientation = 1;
+    currentrange.range.start = selection.selectionstart;
+    currentrange.range.end = token.pos;
+    if (oldorientation != 1)
+    {
+      currentrange.range.orientation = 1;
+      currentrange.path.attr("class", currentrange.cssclass());
+    }
   }
 
   currentrange.draw();
 };
 
-//selection.drop = function(token)
-//{
-//  selection.drawoutline();
-//  selection.drawhandles();
-//};
+selection.drop = function(token)
+{
+  var src = selection.ranges[selection.currentrange].range;
+  var dest = selection.domain.ranges[selection.currentrange];
+
+  //synchronize the selected region with that in the domain object.
+  dest.start = src.start;
+  dest.end = src.end;
+  dest.orientation = src.orientation;
+
+  //unregister the region.
+  graphics.unregisterdrag();
+
+  //selection.drawhandles();
+};
 
 //////////////////////////////////////////////////////////////////////////
 // GRAPHICS FUNCTIONS
@@ -177,45 +199,6 @@ selection.drag = function(token)
 //  selection.handler.animate(selection.animatein);
 //}
 
-//selection.drawoutline = function()
-//{
-//  selection.path.attr("class", (selection.range.orientation == -1) ? "reverse" : "forward");
-//  var sel_span = selection.range.span();
-//  if (sel_span.start_s == sel_span.end_s)
-//  {
-//    var xpos = sel_span.start_p * graphics.metrics.charwidth;
-//    var height = graphics.lines[sel_span.start_s].content.getBBox().height; 
-//    selection.path.attr("d",
-//    "M " + xpos + "," + (graphics.lines[sel_span.start_s].translatey - height) +
-//    " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
-//    " v " + height  +
-//    " H " + xpos +
-//    " Z" //NB there is a bug here because the graphics.lines[].translatey is incorrect AFTER
-//    );   //a setzoom() call because it hasn't been subjected to a layout yet.  Need to run a callback that
-//  }      //redraws just selections after the redraw event.
-//  else
-//  {
-//    var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
-//    var xpos2 = sel_span.end_p * graphics.metrics.charwidth;
-//    var ypos1 = graphics.lines[sel_span.start_s].translatey;
-//    var ypos2 = graphics.lines[sel_span.end_s].translatey;
-//    var height1 = graphics.lines[sel_span.start_s].content.getBBox().height; 
-//    var height2 = graphics.lines[sel_span.end_s].content.getBBox().height;
-
-//    selection.path.attr("d",
-//    "M " + xpos1 + "," + (ypos1 - height1) +
-//    " H " + graphics.metrics.linewidth +
-//    " V " + (ypos2 - height2) +
-//    " H " + (sel_span.end_p + 1) * graphics.metrics.charwidth +
-//    " v " + height2  +
-//    " H " + 0 +
-//    " V " + ypos1 +
-//    " H " + xpos1 +
-//    " Z"
-//    );
-//  }
-//};
-
 //////////////////////////////////////////////////////////////////////////
 // GENERAL FUNCTIONS
 
@@ -232,8 +215,6 @@ selection.createranges = function()
 
 selection.drawrange = function(path, range)
 {
-  path.attr("class", (range.orientation == -1) ? "reverse" : "forward");
-
   var sel_span = range.span();
   if (sel_span.start_s == sel_span.end_s)
   {
@@ -291,7 +272,7 @@ selection.trapclip = function()
   _sel_actual.removeAllRanges();                 //clear whatever we think is selected.
 
   selection.clipboard.innerHTML = 
-    editor.subsequence(selection.range);
+    editor.subsequence(selection.domain);
 
   var temprange = document.createRange();                  //create a new range          
   temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
