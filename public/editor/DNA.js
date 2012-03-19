@@ -12,6 +12,9 @@ Sequence = function(string)
 
 Domain = function(init)
 {
+  //A domain is a group of ranges.  It's in fact the most important location-identifying construct
+  //all annotations and selections are denoted as domains.
+
   var temp =
   {
     ranges: [],
@@ -31,7 +34,7 @@ Domain = function(init)
     orientation: function()
     {
       var total = 0;
-      for (var i = 0; i < thisranges.length; i++)
+      for (var i = 0; i < this.ranges.length; i++)
       {
         total += this.ranges[i].length() * this.ranges[i].orientation;
       }
@@ -40,7 +43,7 @@ Domain = function(init)
       return 0;
     },
 
-    addrange: function(range)
+    push: function(range)
     {
       this.ranges.push(range);
     },
@@ -52,9 +55,22 @@ Domain = function(init)
         for (var i = 1; i < this.ranges.length; i++)
           result += this.ranges[i].toString();
       return result;
+    },
+
+    bounds: function()
+    {
+      var extremestart = this.ranges[0].start, extremeend = this.ranges[0].end;
+      if (this.ranges.length > 1)
+        for (var i = 1; i < this.ranges.length; i++)
+        {
+          extremestart = (this.ranges[i].start < extremestart) ? this.ranges[i].start : extremestart;
+          extremeend = (this.ranges[i].end > extremeend) ? this.ranges[i].end : extremeend;
+        }
+      return new Range(extremestart, extremeend, this.orientation()) 
     }
   };
 
+  //initialize this domain.
   if (init) {temp.populate(init)}
 
   return temp;
@@ -172,7 +188,7 @@ Range = function(_start, _end, _orientation)
 
     length: function()
     {
-      return end - start;
+      return this.end - this.start;
     },
 
     toGenBank: function()

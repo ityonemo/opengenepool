@@ -1,11 +1,21 @@
-#selection.forward{
+.selection{
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.selection.forward{
   fill: rgba(0,255,0,0.5);
   stroke: rgba(0,128,0,1);
 }
 
-#selection.reverse{
+.selection.reverse{
   fill: rgba(255,0,0,0.5);
   stroke: rgba(255,0,0,1);
+}
+
+.selection.undirected{
+  fill: rgba(192,192,192,0.5);
+  stroke: rgba(0,0,0,1);
 }
 
 .forward_handle{

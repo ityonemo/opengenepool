@@ -429,7 +429,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
       else //normal click triggers selection of underlying sequence
       {
         var token = new Token("select");
-        token.range = ref.range;
+        token.domain = ref.domain;
         editor.broadcasttoken(token);
       }
     })
@@ -451,12 +451,12 @@ Annotation = function(_caption, _type, _domain, _id){
     data: {},
 
     //outputs the css class for such an annotation
-    cssclass: function(i)
+    cssclass: function()
     {
       return [
         "annotation_reverse",
         "annotation_undirected",
-        "annotation_forward "][this.domain.orientation + 1]
+        "annotation_forward "][this.domain.orientation() + 1]
         + " ann_" + this.id + " annotation " + this.type;
     },
 
