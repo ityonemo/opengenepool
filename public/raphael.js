@@ -313,7 +313,7 @@
             "arrow-start": "none",
             blur: 0,
             "clip-rect": "0 0 1e9 1e9",
-            cursor: "default",
+            cursor: "",
             cx: 0,
             cy: 0,
             fill: "#fff",

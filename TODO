@@ -1,10 +1,12 @@
 ogp ToDo list (in no particular order of importance):
 
-Quickies
+Quickies:
 Make the user management suite check to see if you're logged in as superuser.
 
 Important Fixes:
 
+Fix the "edit annotation" dialog so that it doesn't freak out.
+Restore the ability to use handles on the sequence selector
 
 Important Tasks:
 Implement Workspace management.

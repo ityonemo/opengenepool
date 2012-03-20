@@ -99,12 +99,7 @@ selection.startselect = function(token)
   selection.currentrange = 0;
 
   graphics.registerdrag(selection);
-
-  //selection.handlef.animate(selection.animateout);
-  //selection.handler.animate(selection.animateout);
 };
-
-woot = 0;
 
 selection.drag = function(token)
 {
@@ -139,68 +134,29 @@ selection.drag = function(token)
 
 selection.drop = function(token)
 {
+  //copy data from the selected range object to the selection domain object.
+  selection.synchronize();
+
+  //unregister the region from recieving drag/drop notifications.
+  graphics.unregisterdrag();
+
+  //show the handles.
+  selection.ranges[selection.currentrange].showhandles();
+};
+
+//////////////////////////////////////////////////////////////////////////
+// GENERAL FUNCTIONS
+
+selection.synchronize = function()
+{
+  //prepare to copy data from the selected range to the domain.
   var src = selection.ranges[selection.currentrange].range;
   var dest = selection.domain.ranges[selection.currentrange];
-
   //synchronize the selected region with that in the domain object.
   dest.start = src.start;
   dest.end = src.end;
   dest.orientation = src.orientation;
-
-  //unregister the region.
-  graphics.unregisterdrag();
-
-  //selection.drawhandles();
-};
-
-//////////////////////////////////////////////////////////////////////////
-// GRAPHICS FUNCTIONS
-
-
-
-
-//selection.drawhandles = function(killoldhandles)
-//{
-//  var sel_span = selection.range.span();
-//  var linef = graphics.lines[sel_span.end_s];
-//  var liner = graphics.lines[sel_span.start_s];
-
-//  if (killoldhandles)
-//  {
-//    _oldf = selection.handlef;
-//    _oldr = selection.handler;
-//    selection.animateout.callback = new Function("_olf.remove(); _oldr.remove(); selection.animateout.callback = null;");
-
-//    selection.handlef.animate(selection.animateout);
-//    selection.handler.animate(selection.animateout);
-
-//    selection.handler = graphics.editor.paper.circle(0,0,4);
-//    selection.handler.attr("opacity", 0);
-//    selection.handlef = graphics.editor.paper.circle(0,0,4);
-//    selection.handlef.attr("opacity", 0);
-
-//    selection.handler.drag(selection.handlemove, selection.handlestart, selection.handleend);
-//    selection.handlef.drag(selection.handlemove, selection.handlestart, selection.handleend);
-//  };
-
-//  var classtext = (selection.range.orientation == -1) ? "reverse_handle" : "forward_handle";
-//  selection.handlef.attr("class", classtext);
-//  selection.handler.attr("class", classtext);
-
-//  selection.handlef.attr("cx", graphics.settings.lmargin + (sel_span.end_p + 1) * graphics.metrics.charwidth);
-//  selection.handlef.attr("cy", linef.translatey - linef.content.getBBox().height/2);
-//  selection.handler.attr("cx", graphics.settings.lmargin + sel_span.start_p * graphics.metrics.charwidth);
-//  selection.handler.attr("cy", liner.translatey - liner.content.getBBox().height/2);
-
-//  selection.handlef.toFront();
-//  selection.handler.toFront();
-
-//  selection.handlef.animate(selection.animatein);
-//  selection.handler.animate(selection.animatein);
-//}
-
-//////////////////////////////////////////////////////////////////////////
-// GENERAL FUNCTIONS
+}
 
 selection.createranges = function()
   //create the selection ranges from the domain
@@ -282,61 +238,95 @@ selection.trapclip = function()
 ///////////////////////////////////////////////////////////////////////////////////
 // selection handle drag/drop directives
 
-//selection.handlestart = function (){ $("." + this.attr("class")).css("cursor","col-resize"); };
-//selection.handlemove = function (dx, dy, x, y, e){ 
-//  var location = graphics.getlocation(e);
-//  this.attr({cx:location.svgx, cy:location.svgy});
-//  var line = graphics.getline(location.svgy);
-//  var linepos = graphics.getpos(location.svgx);
-//  var pos = line * graphics.settings.zoomlevel + linepos;
-
-//  if ((this == selection.handler) && (pos <= selection.range.end))
-//  {
-//    selection.range.start = pos;
-//  }
-//  if ((this == selection.handlef) && (pos >= selection.range.start))
-//  {
-//    selection.range.end = pos;
-//  }
-
-//  selection.drawoutline();
-//};
-
-//selection.handleend = function()
-//{ 
-//  $("." + this.attr("class")).css("cursor","pointer");
-//  this.animate(selection.animateout);
-//  selection.drawhandles();
-//};
-
-selection.handle = function()
+selection.handle_sstart = function ()
 {
-  //this graphics element can be overridden.
-  //in the case that it's overridden, it will be passed a string:
-  //"forward" or "reverse" to allow for different styles of handle.
-  //in order to properly reflect the mouse position, the handle should be centered around (0,0).
-  return graphics.editor.paper.circle(0,0,4);
+  this.movedhandle="start";
+  selection.handlestart(this);
+};
+
+selection.handle_estart = function ()
+{
+  this.movedhandle="end";
+  selection.handlestart(this);
+};
+
+selection.handlestart = function(who)
+{
+  who.ambiguoushandle = (who.range.start == who.range.end);
+  who.ambiguousinit = who.range.start;  //could actually be either
+  who.handle_e.attr("cursor","col-resize");
+
+  //now, figure out who got clicked.
+  selection.currentrange = selection.ranges.indexOf(who);
 }
+
+selection.handlemove = function (dx, dy, x, y, e)
+{ 
+  var location = graphics.getlocation(e);
+  (this.movedhandle == "start" ? this.handle_s : this.handle_e).transform(
+        "T"+ location.svgx + "," + location.svgy);
+  var line = graphics.getline(location.svgy);
+  var linepos = graphics.getpos(location.svgx);
+  var pos = line * graphics.settings.zoomlevel + linepos;
+
+  //calculate the correct position created by the handle. 
+  if (this.ambiguoushandle)
+  {
+    if (pos <= this.ambiguousinit)
+    {
+      this.range.start = pos;
+      this.range.end = this.ambiguousinit;
+    } else
+    {
+      this.range.end = pos;
+      this.range.start = this.ambiguousinit;
+    }
+  }
+  else
+  {
+    //if we have a normal, non-contracted range.
+    if ((this.movedhandle == "start") && (pos <= this.range.end))
+    {
+      this.range.start = pos;
+    }
+    if ((this.movedhandle == "end") && (pos >= this.range.start))
+    {
+      this.range.end = pos;
+    }
+  }
+
+  //redraw the selection border.
+  this.draw();
+};
+
+
+selection.handleend = function()
+{
+  //reset the handle position.
+  this.hidehandles();
+  this.showhandles();
+
+  selection.synchronize();
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 // CLASS FUNCTIONS
 
-SelectionHandle = function (generator, position)
+selection.handle = function (position)
 {
-  var handle =
-  {
-  };
+  return graphics.editor.paper.circle(0,0,4);
+};
 
-  return handle;
-}
+_sel_todelete = {};
 
 SelectionRange = function (start, end, orientation)
 {
   var segment =
   {
     path: graphics.editor.paper.path(""),
-    //handlef: new SelectionHandle(new Function("selection.handle('forward');"),'forward'),
-    //handler: new SelectionHandle(new Function("selection.handle('reverse');"),'reverse'),
+    handle_s: selection.handle('start'),
+    handle_e: selection.handle('end'),
     range: new Range(start, end, orientation),
 
     draw: function()
@@ -349,6 +339,53 @@ SelectionRange = function (start, end, orientation)
       //remove the path from the paper.
       this.path.remove();
       //then take care of the handles
+      this.handle_s.animate(selection.animateout);
+      this.handle_e.animate(selection.animateout);
+      _sel_todelete = this;
+      window.setTimeout(function(){ _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove();}, 250);
+    },
+
+    showhandles: function()
+    {
+      var sel_span = this.range.span();
+
+      this.handle_s.transform(
+        "T"+(sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
+        ","+(graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height/2)
+      );
+      this.handle_e.transform(
+        "T"+(sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
+        ","+(graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height/2)
+      );
+
+      this.handle_s.attr("class", this.hcssclass());
+      this.handle_e.attr("class", this.hcssclass());
+
+      this.handle_s.toFront();
+      this.handle_e.toFront();
+
+      this.handle_s.animate(selection.animatein);
+      this.handle_e.animate(selection.animatein);
+    },
+
+    hidehandles: function()
+    {
+      this.handle_s.animate(selection.animateout);
+      this.handle_e.animate(selection.animateout);
+    },
+
+    //which handle has been moved last.
+    movedhandle: "",
+    //are we unsure because we started with a collapsed handle?
+    ambiguoushandle: false,
+    ambiguousinitial: 0,
+
+    hcssclass: function()
+    {
+      return [
+        "sel_handle reverse",
+        "sel_handle undirected",
+        "sel_handle forward"][this.range.orientation + 1];
     },
 
     //outputs the css class for such an annotation
@@ -358,7 +395,7 @@ SelectionRange = function (start, end, orientation)
         "selection reverse",
         "selection undirected",
         "selection forward"][this.range.orientation + 1];
-    }
+    },
   }
 
   segment.path.translate(graphics.settings.lmargin, 0);
@@ -378,8 +415,12 @@ SelectionRange = function (start, end, orientation)
   //brand the path.
   segment.path.attr("class", segment.cssclass());
 
-  //selection.handler.drag(selection.handlemove, selection.handlestart, selection.handleend);
-  //selection.handlef.drag(selection.handlemove, selection.handlestart, selection.handleend);
+  //disappear the handles.
+  segment.handle_s.attr("opacity","0");
+  segment.handle_e.attr("opacity","0");
+
+  segment.handle_s.drag(selection.handlemove, selection.handle_sstart, selection.handleend, segment);
+  segment.handle_e.drag(selection.handlemove, selection.handle_estart, selection.handleend, segment);
 
   return segment;
 }
