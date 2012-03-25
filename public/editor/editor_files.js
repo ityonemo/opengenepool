@@ -2,7 +2,10 @@ var files = {
 
   initialize: function()
   {
-    document.getElementById("forkbutton").onclick = files.forkall;
+    if (username)
+    { 
+      document.getElementById("forkbutton").onclick = files.forkall;
+    }
 
     //post the request to fork the construct the jQuery way.
     $.get("/workspace/","", files.processworkspace, "xml");

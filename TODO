@@ -2,11 +2,14 @@ ogp ToDo list (in no particular order of importance):
 
 Quickies:
 Make the user management suite check to see if you're logged in as superuser.
+Scroll back to the beginning of the selection after you have made a selection.
 
 Important Fixes:
 
 Fix the "edit annotation" dialog so that it doesn't freak out.
-Restore the ability to use handles on the sequence selector
+Implement (if username) checks on all editing functions.
+Implement annotation data editing in the dialog.
+Implement copyover of data on fork().
 
 Important Tasks:
 Implement Workspace management.
@@ -14,6 +17,7 @@ Allow user to toggle between genbank output and OGP output.
 
 Global projects
 
+make everything refer to "plus" or "minus" strands.
 unify the javascript objects to seamlessly interface with $.ajax RESTful queries
 clean up to check for mysql injection hacks.
 allow all changes to sequences, etc. to be marked by user

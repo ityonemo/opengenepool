@@ -1,6 +1,5 @@
 var annotations = new Plugin("annotations");
 
-
 ////////////////////////////////////////////////////////////////////////
 // MEMBER VARIABLES
 
@@ -195,8 +194,8 @@ annotations.contextmenu = function(token)
         annotations.annotations.indexOf(token.ref) + ");"));
     break;
     case "selection":
-      editor.addcontextmenuitem(new MenuItem(
-        "create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
+//      editor.addcontextmenuitem(new MenuItem(
+//        "create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
     break;
   }
 }
@@ -226,7 +225,7 @@ annotations.editdialog = function(index)
 {
   var oldannotation = annotations.annotations[index];
 
-  dialog.show(annotations.dialogstring,
+  dialog.show(annotations.dialogstring(oldannotation)),
     function(){
       var newannotation = annotations.retrievenewfromdialog();
       //set up the http request, jQuery way.
@@ -240,50 +239,44 @@ annotations.editdialog = function(index)
           seqrange: newannotation.range.toGenBank(),
         },
         success: function(data) {
+
           //GET RID OF THE OLD ANNOTATION.
           oldannotation.deleteme();
 
           //INSTALL THE NEW ANNOTATION.
           newannotation.id = parseInt(data);
 
-          annotations.generatefragments(newannotation);
+          annotations.parsedialog(newannotation);
 
           //REDRAW.
           graphics.render();
         },
         error: function(a, b, e) {alert("edit failed; error: " + e);}
+      });
     });
-    },  
-    new Function("annotations.filldialog('" + oldannotation.range.start + "','" +
-      oldannotation.range.end + "','" +
-      oldannotation.range.orientation + "','" +
-      oldannotation.caption + "','" +
-      oldannotation.type + "');")
-  );
 }
 
-annotations.createdialog = function(start, end, orientation)
+annotations.createdialog = function(domain)
 {
-  dialog.show(annotations.dialogstring, 
-    function() { //extract data from the annotations dialog box.
-      var _orientation = document.getElementById("ann_d_orientation").value;
-      var newannotation = annotations.retrievenewfromdialog();
+  dialog.show(annotations.dialogstring())//, 
+//    function() { //extract data from the annotations dialog box.
+//      var _orientation = document.getElementById("ann_d_orientation").value;
+//      var newannotation = annotations.retrievenewfromdialog();
 
       //send the new annotation the jquery way.
-      $.post("/annotation/",
-        {
-          seqid: editor.sequence_id,
-          caption: newannotation.caption,
-          type: newannotation.type,
-          seqrange: newannotation.range.toGenBank()
-        },function(data){newannotation.id=parseInt(data);})
+//      $.post("/annotation/",
+//        {
+//          seqid: editor.sequence_id,
+//          caption: newannotation.caption,
+//          type: newannotation.type,
+//          seqrange: newannotation.range.toGenBank()
+//        },function(data){newannotation.id=parseInt(data);})
 
-      annotations.generatefragments(newannotation);
+//      annotations.generatefragments(newannotation);
       //redraw this thing.
-      graphics.render();
-    },
-    new Function("annotations.filldialog('" + start + "','" + end + "','" + orientation + "')")
-  )
+//      graphics.render();
+//    }, null
+//  )
 }
 
 annotations.retrievenewfromdialog = function()
@@ -492,12 +485,80 @@ AnnoData = function (_data, _id){
 }
 
 ////////////////////////////////////////////////////////////
-// STRING CONSTANT
+// DIALOG GENERATION
 
-annotations.dialogstring = "caption: <input id='ann_d_caption'/><br/>" +
-                           "type: <input id='ann_d_type'/><br/>" +
-                           "range: <input id='ann_d_start'/>..<input id='ann_d_end'><br/>" +
-                           "orientation: <select id='ann_d_orientation'>" +
-                           "<option value='-1' id='ann_d_rev'>reverse</option>" +
-                           "<option value='0' id='ann_d_und'>undirected</option>" +
-                           "<option value='1' id='ann_d_for'>forward</option>";
+annotations.dialogstring = function(annotation)
+{
+  //this is common to all annotation dialog boxes.
+  var output = 
+  "caption: <input id='ann_d_caption' value='" + (annotation ? annotation.caption : "") + "'><br>" +
+  "type: <input id='ann_d_type' value='" + (annotation ? annotation.type : "") + "'><br>";
+  
+  //calculate how many ranges we'll have to account for.
+  var dialogranges = (annotation ? annotation.domain.ranges.length : 1);
+
+  output += "<input id='ann_d_ranges' type='hidden' value='" + dialogranges + "'>";
+
+  output += "<details open='open'><summary>ranges:</summary>";
+
+  output += "<div id='ann_d_rangelist'>"
+  //set up the ranges
+  for (var i = 0; i < dialogranges; i++)
+  {
+    output += annotations.rangeblock(i, annotation);
+  }
+
+  output += "</div>";
+
+  //set up the range increment button
+  output += "<button type='button' onclick='annotations.addrange();'> add a range </button>";
+  output += "</details>";
+
+  //next set up the further information.
+  output += "<details><summary>data:</summary>"
+  if (annotation) for (data in annotation.data)
+  {
+    output += "<input value='" + data + "'> : <input value='" + annotation.data[data].data + "'>";
+    output += "<button type='button'>delete</button>";
+  }
+  output += "<button type='button'>add data</button>";
+  output += "</details>";
+
+  //spit out our accumulated string.
+  return output;
+};
+
+annotations.addrange = function()
+{
+  var enclosing = document.getElementById("ann_d_rangelist");
+  var counter = document.getElementById("ann_d_ranges");
+  var index = parseInt(counter.value);
+  counter.value = index + 1;
+  enclosing.innerHTML += "<hr>" + annotations.rangeblock(index);
+}
+
+annotations.rangeblock = function(i, annotation)
+{
+  //delivers a block of HTML range based on an index number.
+  return "<div id='ann_d_range" + i + "'>" + 
+  "location: <input id='ann_d_start" + i + "' value='" + (annotation ? annotation.domain.ranges[i].start : "") + "'>" +
+  " .. <input id='ann_d_end" + i + "' value='" + (annotation ? annotation.domain.ranges[i].end : "") + "'>" +
+  "orientation: <select id='ann_d_orientation" + i + "'>" +
+  (annotation ?
+  "<option value='-1' id='ann_d_rev" + i + "'"+ ((annotation.domain.ranges[i].orientation === -1) ? "selected" : "") + ">reverse</option>" +
+  "<option value='0' id='ann_d_und" + i + "'"+ ((annotation.domain.ranges[i].orientation === 0) ? "selected" : "") + ">undirected</option>" +
+  "<option value='1' id='ann_d_for" + i + "'"+ ((annotation.domain.ranges[i].orientation === 1) ? "selected" : "") + ">forward</option>"
+  :
+  "<option value='-1' id='ann_d_rev" + i + "'>reverse</option>" +
+  "<option value='0' id='ann_d_und" + i + "'>undirected</option>" +
+  "<option value='1' id='ann_d_for" + i + "' selected>forward</option>"
+  ) + 
+  "</select>" +
+  ((i == 0) ? "" : "<button type='button' onclick='annotations.killrange(" + i + ");'> delete </button>") +
+  "</div>";
+}
+
+annotations.parsedialog(annotation)
+{
+}
+

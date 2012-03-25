@@ -38,15 +38,29 @@ selection.contextmenu = function(token)
 {
   switch (token.subtype)
   {
-//    case "sequence":
-//      if ((token.ref.pos >= selection.range.start) && (token.ref.pos <= selection.range.end))
+    case "sequence":
+      for (var i = 0; i < selection.domain.ranges.length; i++)
+      {
+        if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
+        {
+          selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], true);
+        }
+      }
+      editor.addcontextmenuitem(new MenuItem("select none", ""));
+    break;
+    case "selection":
+//      switch (token.ref.orientation)
 //      {
-//        selection.sendcontextmenu(token.x, token.y, selection.range, true);
-//      }
-//    break;
-//    case "selection":
-//      editor.addcontextmenuitem(new MenuItem("flip selection", "selection.flip();"));
-//    break;
+ //       case -1, 1:
+//          editor.addcontextmenuitem(new MenuItem("switch selection strand", ""));
+//          editor.addcontextmenuitem(new MenuItem("make selection undirected", ""));
+ //       break;
+ //       case 0:
+ //         editor.addcontextmenuitem(new MenuItem("set selection to plus strand", ""));
+ //         editor.addcontextmenuitem(new MenuItem("set selection to minus strand", ""));
+  //      break;
+    //  }
+    break;
   }
 }
 
@@ -72,6 +86,10 @@ selection.select = function(token)
   //create a copy of the domain object.  You may pass either a string definition or a domain object itself.
   selection.selected = true;
   selection.createranges();
+  for (var i = 0; i < selection.ranges.length; i++)
+  {
+    selection.ranges[i].showhandles();
+  }
 };
 
 selection.redraw = function(token)
