@@ -16,6 +16,27 @@
         delete
       %br
 
+  SEQUENCE STATUS:
+  %select(name="status")
+    %option(value="temporary")
+      temporary
+    %option(value="virtual")
+      virtual
+    %option(value="finalized")
+      finalized
+    %option(value="provisional")
+      provisional
+    %option(value="verified")
+      verified
+    %option(value="functional")
+      functional
+    %option(value="commercial")
+      commercial
+    %option(value="canonical")
+      canonical
+  %a(href="")
+    ?
+
   %h2 sequence annotations
   -$annotations.each do |@j|
     .upload_annotation(id="annotation#{@j.index}")

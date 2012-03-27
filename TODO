@@ -9,7 +9,7 @@ Important Fixes:
 Fix the "edit annotation" dialog so that it doesn't freak out.
 Implement (if username) checks on all editing functions.
 Implement annotation data editing in the dialog.
-Implement copyover of data on fork().
+Give the upload form an
 
 Important Tasks:
 Implement Workspace management.

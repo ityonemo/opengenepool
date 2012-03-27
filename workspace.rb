@@ -1,3 +1,5 @@
+require 'json'
+
 get '/workspace/' do
   if (session[:user])
     dbh=Mysql.real_connect("localhost","www-data","","ogp")
@@ -13,7 +15,8 @@ get '/workspace/' do
 
     dbh.close() if dbh
 
-    haml :workspace
+    content_type :json
+    @hashes.to_json
   else
     403.3
   end

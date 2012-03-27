@@ -2,13 +2,31 @@
 
 require 'mysql'
 
-#TODO: fix it so that we aren't using the SQL password utility.
-# it's very likely that using it can cause serious problems due
-# to hacking, etc.
+def amisuperuser()
+  #make sure we have a session username
+  if (session[:user] == nil)
+    return false
+  end
 
+  dbh = Mysql.real_connect("localhost","www-data","","ogp")
+
+    #let's make sure there are tables (presumably, including a users table)
+    if (dbh.list_tables.length() == 0)
+      dbh.close if dbh
+      return false
+    end
+
+    res = dbh.query("SELECT * FROM users WHERE login = '" + session[:user] + "';")
+    row = res.fetch_hash()
+  dbh.close if dbh
+
+  return (Integer(row['level']) <= 1) #levels one and zero are wheel users.
+end
 
 #handle logins.  Will redirect to the "callback" parameter, if available;
 #the callback path is set if a non-user-dependent webpage is accessed.
+#TODO: handle returning the user to the path they logged in from.
+
 post '/login' do
   #access parameters.
   $login = params[:login]
@@ -19,7 +37,7 @@ post '/login' do
 
   #check to make sure that this user exists:
   dbh=Mysql.real_connect("localhost","www-data","","ogp")
-    res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "')")
+    res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "');")
 
     if (res.num_rows == 1)
       #set the session variable.

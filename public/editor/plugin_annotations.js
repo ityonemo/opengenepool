@@ -225,9 +225,9 @@ annotations.editdialog = function(index)
 {
   var oldannotation = annotations.annotations[index];
 
-  dialog.show(annotations.dialogstring(oldannotation)),
+  dialog.show(annotations.dialogstring(oldannotation),
     function(){
-      var newannotation = annotations.retrievenewfromdialog();
+      var newannotation = annotations.parsedialog();
       //set up the http request, jQuery way.
       $.ajax({
         type: 'PATCH',
@@ -236,7 +236,7 @@ annotations.editdialog = function(index)
         {
           caption: newannotation.caption,
           type: newannotation.type,
-          seqrange: newannotation.range.toGenBank(),
+          seqrange: newannotation.range,
         },
         success: function(data) {
 
@@ -245,8 +245,6 @@ annotations.editdialog = function(index)
 
           //INSTALL THE NEW ANNOTATION.
           newannotation.id = parseInt(data);
-
-          annotations.parsedialog(newannotation);
 
           //REDRAW.
           graphics.render();
@@ -558,7 +556,25 @@ annotations.rangeblock = function(i, annotation)
   "</div>";
 }
 
-annotations.parsedialog(annotation)
+annotations.parsedialog = function()
 {
+  var caption = document.getElementById("ann_d_caption").value;
+  var type = document.getElementById("ann_d_type").value;
+  var rangecount = parseInt(document.getElementById("ann_d_ranges").value);
+  var domain = new Domain();
+
+  //fill out ranges
+  for (var i = 0; i < rangecount; i++)
+  {
+    var start = parseInt(document.getElementById("ann_d_start" + i).value);
+    var end = parseInt(document.getElementById("ann_d_end" + i).value);
+    var orientation = parseInt(document.getElementById("ann_d_orientation" + i).value);
+
+    domain.push(new Range(start, end, orientation));
+  }
+
+  //then do the additional data stuff.
+
+  return new Annotation(caption, type, domain);
 }
 

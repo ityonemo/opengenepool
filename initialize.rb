@@ -34,7 +34,7 @@ post '/initialize' do
       res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
         "owner varchar(16), sequence int(64), created timestamp, supercedes int(64), status varchar(64), " +
         "visibility varchar(64), " + #ogp housekeeping
-        "caption varchar(64), type varchar(64), domain varchar(64), " +
+        "caption varchar(64), type varchar(64), domain varchar(64), _id int(64), " +
         "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
         "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
 
@@ -62,4 +62,29 @@ post '/initialize' do
   dbh.close if dbh
 
   redirect '/'
+end
+
+get '/nuke' do
+  if (amisuperuser)
+    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+
+      #delete the users table
+      res=dbh.query("DROP TABLE users")
+      #delete the sequences table
+      res=dbh.query("DROP TABLE sequences")
+      #delete the annotations table
+      res=dbh.query("DROP TABLE annotations")
+      #delete the annotations data table
+      res=dbh.query("DROP TABLE annotationdata")
+      #delete the sources data table
+      res=dbh.query("DROP TABLE sources")
+      #delete the workspaces data table
+      res=dbh.query("DROP TABLE workspaces")
+
+    dbh.close if dbh
+
+    "the database has been nuked."
+  else
+    403
+  end
 end

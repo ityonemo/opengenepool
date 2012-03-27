@@ -198,7 +198,7 @@ def gbparse(file)
   process()
 end
 
-$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism","sequence"]
+$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism","sequence","status"]
 #helper function that evaluates a hash with an array
 def transcode(array, hash)
   @t_array = Array.new
@@ -215,6 +215,7 @@ post '/uploadseq' do
     #TODO: do some checking to make sure we aren't going to pull a bobby tables here.
     $keyjoin = $mysqlarray.join(", ")
     $valjoin = "'" + transcode($mysqlarray,params).join("', '") + "'"
+    #TODO: check to see if we're making this temporary.
 
     $annotations = Hash.new()
     #generate the hash storing the annotations, recollated

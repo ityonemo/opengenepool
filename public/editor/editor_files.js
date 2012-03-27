@@ -1,18 +1,38 @@
-var files = {
+var files =
+{
+  //member variables:
+  workspace:{
+    data: {},
+    dom: {},
+  },
 
   initialize: function()
   {
+    //let's make sure that we have a user, otherwise these functions don't make sense.
     if (username)
     { 
       document.getElementById("forkbutton").onclick = files.forkall;
-    }
+      files.workspace.dom = document.getElementById("workspace_content");
 
-    //post the request to fork the construct the jQuery way.
-    $.get("/workspace/","", files.processworkspace, "xml");
+      //post the request to fork the construct the jQuery way.
+      $.getJSON("/workspace/", function(data)
+      {
+        files.workspace.data = data;
+        files.populateworkspace();
+      });
+    };
   },
 
-  processworkspace: function(data)
+  populateworkspace: function()
   {
+    var htmlstring = "";
+    //takes the workspace element and populates it with the current workspace data.
+    for (var i = 0; i < files.workspace.data.length; i++)
+    {
+      htmlstring += "<a href='/editor/id=" + files.workspace.data[i].id + "' class='wksp_link'>" +
+        files.workspace.data[i].title + "</a><br>"
+    }
+    files.workspace.dom.innerHTML = htmlstring;
   },
 
   forkall: function()

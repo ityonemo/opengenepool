@@ -20,15 +20,12 @@ get '/editor/:query' do |query|
 
   #set up the script.  first the window onload.
   @otherscripts = 'window.onload = editor.load("' + query + '");' + "\n" +
-    'plugins = ['
-  @pluginlist.each do |@k|
-    @otherscripts += @k + ","
-  end
-  @otherscripts += '];'
+    'plugins = [' + @pluginlist.join(",") + '];'
+
   if (session[:user])
     @otherscripts += "\n user_loggedin = true;"
   end
-  
+
   #call the OGP template.
   haml :ogp
 end
