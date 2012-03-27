@@ -34,6 +34,8 @@ post '/fork/:query' do |query|
       #now use the same technique to transfer the annotations.
       res = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE sequence='#{params[:sourceid]}';")
       res = dbh.query("UPDATE tann SET owner='#{session[:user]}', sequence='#{@nid}', created=NOW();")
+      #create a temporary pivot value.
+      res = dbh.query("ALTER TABLE tann ADD COLUMN _id int(64)")
       res = dbh.query("UPDATE tann SET _id = id;") #pivot the id value to the old id.
       @c2 = columnsfrom(dbh, "annotations")
 
