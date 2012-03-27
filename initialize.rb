@@ -34,7 +34,7 @@ post '/initialize' do
       res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
         "owner varchar(16), sequence int(64), created timestamp, supercedes int(64), status varchar(64), " +
         "visibility varchar(64), " + #ogp housekeeping
-        "caption varchar(64), type varchar(64), domain varchar(64), _id int(64), " +
+        "caption varchar(64), type varchar(64), domain varchar(64), " +
         "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
         "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
 
