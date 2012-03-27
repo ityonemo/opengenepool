@@ -41,19 +41,15 @@ post '/fork/:query' do |query|
       res = dbh.query("INSERT INTO annotations (#{@c2}) SELECT #{@c2} FROM tann;")
 
       #modify the annotation data table.
-      #find the annotations that we have just altered by seeking nonnull pivots.
-      res = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT * FROM annotations WHERE _id > 0")
       #rename the "id" column to be the "annotation" column in the new, joined table.
-      res = dbh.query("ALTER TABLE tann2 CHANGE COLUMN id annotation int(64)")
+      res = dbh.query("ALTER TABLE tann CHANGE COLUMN id annotation int(64)")
 
       #grab any annotation data which we will need to duplicate.
-      res = dbh.query("CREATE TEMPORARY TABLE tanndata SELECT * FROM annotationdata WHERE annotation IN (SELECT _id FROM tann2);")
+      res = dbh.query("CREATE TEMPORARY TABLE tanndata SELECT * FROM annotationdata WHERE annotation IN (SELECT _id FROM tann);")
       res = dbh.query("ALTER TABLE tanndata CHANGE COLUMN annotation _id int(64)")
       @c3 = columnsfrom(dbh, "annotationdata")
       #pull the data from the joined tann2/tanndata table about the _id field.
-      res = dbh.query("INSERT INTO annotationdata (#{@c3}) SELECT #{@c3} FROM tanndata, tann2 WHERE tanndata._id = tann2._id;")
-      #since we don't need it anymore, clear out the old _id values from annotations.
-      res = dbh.query("UPDATE annotations SET _id = null;")
+      res = dbh.query("INSERT INTO annotationdata (#{@c3}) SELECT #{@c3} FROM tanndata, tann WHERE tanndata._id = tann._id;")
 
       #modify the workspaces table.
       res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES ('#{session[:user]}', '#{@nid}');")
