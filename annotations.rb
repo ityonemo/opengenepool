@@ -1,4 +1,4 @@
-#fork.rb - runs the appropriate procedures for forking DNA sequences.
+#annotations.rb - runs the appropriate procedures for handling DNA annotations.
 #the correct way to specify construct name is to 
 
 require 'mysql'

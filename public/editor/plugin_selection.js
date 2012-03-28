@@ -39,14 +39,18 @@ selection.contextmenu = function(token)
   switch (token.subtype)
   {
     case "sequence":
-      for (var i = 0; i < selection.domain.ranges.length; i++)
+      if (selection.selected)
       {
-        if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
+        for (var i = 0; i < selection.domain.ranges.length; i++)
         {
-          selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], true);
+          if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
+          {
+            selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], true);
+          }
         }
+        editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
       }
-      editor.addcontextmenuitem(new MenuItem("select none", ""));
+      editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"));
     break;
     case "selection":
 //      switch (token.ref.orientation)

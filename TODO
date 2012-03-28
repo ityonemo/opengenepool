@@ -6,11 +6,11 @@ Scroll back to the beginning of the selection after you have made a selection.
 
 Important Fixes:
 
-Fix the "edit annotation" dialog so that it doesn't freak out.
 Implement (if username) checks on all editing functions.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
 Manage visibility for other users.
+Implement multiple selection
 
 Important Tasks:
 Implement Workspace management.
