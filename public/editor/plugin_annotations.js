@@ -236,7 +236,7 @@ annotations.editdialog = function(index)
         {
           caption: newannotation.caption,
           type: newannotation.type,
-          seqrange: newannotation.range,
+          domain: newannotation.domain.toString(),
         },
         success: function(data) {
 
@@ -245,6 +245,7 @@ annotations.editdialog = function(index)
 
           //INSTALL THE NEW ANNOTATION.
           newannotation.id = parseInt(data);
+          annotations.generatefragments(newannotation);
 
           //REDRAW.
           graphics.render();
@@ -575,6 +576,6 @@ annotations.parsedialog = function()
 
   //then do the additional data stuff.
 
-  return new Annotation(caption, type, domain);
+  return new Annotation(caption, type, domain.toString());
 }
 

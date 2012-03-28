@@ -44,7 +44,7 @@ sequence	int(64)		id of linked sequence
 
 caption		vc64
 type		vc64		orf/CDS, mRNA, promoter, etc.
-domain		vc64		id pivot value
+domain		vc64		
 
 annotationdata 
 

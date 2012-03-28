@@ -9,7 +9,8 @@ Important Fixes:
 Fix the "edit annotation" dialog so that it doesn't freak out.
 Implement (if username) checks on all editing functions.
 Implement annotation data editing in the dialog.
-Give the upload form an
+Fork needs to have visibility set correctly.
+Manage visibility for other users.
 
 Important Tasks:
 Implement Workspace management.

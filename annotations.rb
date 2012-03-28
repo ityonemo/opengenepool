@@ -53,12 +53,12 @@ patch '/annotation/:query' do |query|
         #replace contents, creating the critical 'supercedes' parameter.
 
         res = dbh.query("UPDATE tann SET owner='#{session[:user]}', " +
-          "caption='#{params[:caption]}', type='#{params[:type]}', seqrange='#{params[:seqrange]}', " +
+          "caption='#{params[:caption]}', type='#{params[:type]}', domain='#{params[:domain]}', " +
           "supercedes='#{query}', created=NOW();")
 
         @cols = columnsfrom(dbh, "annotations")
         #put the temporary table into place
-        res = dbh.query("INSERT INTO annotations #{@cols} SELECT * FROM tann")
+        res = dbh.query("INSERT INTO annotations (#{@cols}) SELECT * FROM tann")
 
         $annotation_id_string = dbh.insert_id().to_s
       end

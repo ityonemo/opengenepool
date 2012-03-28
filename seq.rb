@@ -42,7 +42,7 @@ get '/seq/:query' do |query|
       #in the future, eliminations based on user and such will occur here.
       #pivot against annotations which have been superceded.
       #NB there may be a faster way to deal with this code.
-      tres = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT (supercedes) FROM tann WHERE (supercedes != NULL);")
+      tres = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT (supercedes) FROM tann WHERE (supercedes > 0);")
       tres = dbh.query("DELETE FROM tann WHERE id IN (SELECT * FROM tann2);")
       tres = dbh.query("DELETE FROM tann WHERE status='deleted';");
 
