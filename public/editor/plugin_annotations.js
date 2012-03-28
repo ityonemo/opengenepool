@@ -194,8 +194,7 @@ annotations.contextmenu = function(token)
         annotations.annotations.indexOf(token.ref) + ");"));
     break;
     case "selection":
-//      editor.addcontextmenuitem(new MenuItem(
-//        "create annotation", "annotations.createdialog(" + selection.range.datastring() + ");"))
+      editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog();"))
     break;
   }
 }
@@ -257,25 +256,39 @@ annotations.editdialog = function(index)
 
 annotations.createdialog = function(domain)
 {
-  dialog.show(annotations.dialogstring())//, 
-//    function() { //extract data from the annotations dialog box.
-//      var _orientation = document.getElementById("ann_d_orientation").value;
-//      var newannotation = annotations.retrievenewfromdialog();
+  dialog.show(annotations.dialogstring(),
+    function() { //extract data from the annotations dialog box.
+      var newannotation = annotations.parsedialog();
 
       //send the new annotation the jquery way.
-//      $.post("/annotation/",
-//        {
-//          seqid: editor.sequence_id,
-//          caption: newannotation.caption,
-//          type: newannotation.type,
-//          seqrange: newannotation.range.toGenBank()
-//        },function(data){newannotation.id=parseInt(data);})
-
-//      annotations.generatefragments(newannotation);
-      //redraw this thing.
-//      graphics.render();
-//    }, null
-//  )
+      $.post("/annotation/",
+        {
+          seqid: editor.sequence_id,
+          caption: newannotation.caption,
+          type: newannotation.type,
+          domain: newannotation.domain.toString(),
+        },
+        function(data){
+          newannotation.id=parseInt(data);
+          annotations.generatefragments(newannotation);
+          //redraw this thing.
+          graphics.render();
+        });
+    }, function() { //grab the selection data if applicable.
+      if (selection.selected)
+      {
+        var target = document.getElementById('ann_d_rangelist');
+        var dialogranges = selection.domain.ranges.length;
+        document.getElementById('ann_d_ranges').value = dialogranges;
+        target.innerHTML="";
+        //set up the ranges
+        for (var i = 0; i < dialogranges; i++)
+        {
+          target.innerHTML += annotations.rangeblock(i, selection);
+        }
+      }
+    }
+  )
 }
 
 annotations.retrievenewfromdialog = function()

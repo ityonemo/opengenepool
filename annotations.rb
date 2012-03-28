@@ -13,8 +13,8 @@ post '/annotation/' do
       #check to make sure the sequence we're trying to annotate exists.
       res = dbh.query("SELECT * FROM sequences WHERE (id='" + params[:seqid] + "');")
       if (res.num_rows() != 0)
-        res = dbh.query("INSERT INTO annotations (sequence, caption, type, seqrange, created, owner)" +
-        " VALUES ('#{params[:seqid]}', '#{params[:caption]}', '#{params[:type]}', '#{params[:seqrange]}', " +
+        res = dbh.query("INSERT INTO annotations (sequence, caption, type, domain, created, owner)" +
+        " VALUES ('#{params[:seqid]}', '#{params[:caption]}', '#{params[:type]}', '#{params[:domain]}', " +
         " NOW(), '#{session[:user]}');")
 
         $annotation_id_string = dbh.insert_id().to_s
