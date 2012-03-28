@@ -92,13 +92,18 @@ selection.select = function(token)
   }
 };
 
-selection.redraw = function(token)
+selection.redrawn = function(token)
 {
-//  if (selection.selected)
-//  {
-//    selection.drawoutline();
-//    selection.drawhandles(true);
-//  };
+  //selection may need to be redrawn.
+  if (selection.selected)
+  {
+    for (var i = 0; i < selection.ranges.length; i++)
+    {
+      selection.ranges[i].hidehandles();
+      selection.ranges[i].draw();
+      selection.ranges[i].showhandles();
+    };
+  };
 }
 
 ////////////////////////////////////////////////////////////////////////
