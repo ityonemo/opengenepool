@@ -284,6 +284,7 @@ annotations.createdialog = function(domain)
         //set up the ranges
         for (var i = 0; i < dialogranges; i++)
         {
+          //WHAT?? yes, this works because selection looks quite a bit like an annotation.
           target.innerHTML += annotations.rangeblock(i, selection);
         }
       }
@@ -426,6 +427,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
 
       if (rightclick)
       {
+        //var data = {ref.domain.}
         annotations.sendcontextmenu(e.clientX, e.clientY, ref)
 
         //for aesthetic purpsoses, hide the annotatation tooltip.

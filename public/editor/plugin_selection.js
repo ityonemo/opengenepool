@@ -36,6 +36,17 @@ selection.initialize = function()
 
 selection.contextmenu = function(token)
 {
+  if (token.subtype != "selection")
+  {
+    if (selection.selected)
+    {
+      editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
+      if (selection.domain.ranges.length == 1)
+        editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
+    }
+    editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"));
+  }
+
   switch (token.subtype)
   {
     case "sequence":
@@ -45,12 +56,10 @@ selection.contextmenu = function(token)
         {
           if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
           {
-            selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], true);
+            selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], null, true);
           }
         }
-        editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
       }
-      editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"));
     break;
     case "selection":
 //      switch (token.ref.orientation)
@@ -191,8 +200,11 @@ selection.createranges = function()
   selection.ranges = [];  // first clear all the ranges.
   for (var i = 0; i < selection.domain.ranges.length; i++)
   {
-    var currentrange = selection.domain.ranges[i]
-    selection.ranges.push(new SelectionRange(currentrange.start, currentrange.end, currentrange.orientation))
+    var currentrange = selection.domain.ranges[i];
+    var newrange = new SelectionRange(currentrange.start, currentrange.end, currentrange.orientation)
+    if (selection.domain.ranges.length > 1)
+      newrange.tag = selection.tag(i + 1);
+    selection.ranges.push(newrange);
   }
 };
 
@@ -345,6 +357,18 @@ selection.handle = function (position)
   return graphics.editor.paper.circle(0,0,4);
 };
 
+selection.tag = function (i)
+{
+  var tagtext = graphics.editor.paper.text(0,-2,i.toString());
+  var textbox = tagtext.getBBox();
+  var tagbox = graphics.editor.paper.rect(-(textbox.width/2), -(textbox.height/2)-2, textbox.width, textbox.height);
+  tagtext.attr("class","sel_tag text");
+  tagbox.attr("class","sel_tag box");
+  var tagset = graphics.editor.paper.set();
+  tagset.push(tagbox,tagtext);
+  return tagset;
+};
+
 _sel_todelete = {};
 
 SelectionRange = function (start, end, orientation)
@@ -354,6 +378,8 @@ SelectionRange = function (start, end, orientation)
     path: graphics.editor.paper.path(""),
     handle_s: selection.handle('start'),
     handle_e: selection.handle('end'),
+    tag: undefined,
+
     range: new Range(start, end, orientation),
 
     draw: function()
@@ -368,8 +394,12 @@ SelectionRange = function (start, end, orientation)
       //then take care of the handles
       this.handle_s.animate(selection.animateout);
       this.handle_e.animate(selection.animateout);
+      //take care of tag (if necessary)
+      if (this.tag)
+        this.tag.animate(selection.animateout);
       _sel_todelete = this;
-      window.setTimeout(function(){ _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove();}, 250);
+      window.setTimeout(function()
+        { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);
     },
 
     showhandles: function()
@@ -391,12 +421,28 @@ SelectionRange = function (start, end, orientation)
       this.handle_s.toFront();
       this.handle_e.toFront();
 
+      if (this.tag)
+      {
+        this.tag.transform(
+          "T"+(sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
+          ","+(graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height)
+        );
+        this.tag.toFront();
+        this.tag.animate(selection.animatein);
+      }
+
       this.handle_s.animate(selection.animatein);
       this.handle_e.animate(selection.animatein);
     },
 
     hidehandles: function()
     {
+      if (this.tag)
+      {
+        this.tag.toFront();
+        this.tag.animate(selection.animateout);
+      }
+
       this.handle_s.animate(selection.animateout);
       this.handle_e.animate(selection.animateout);
     },

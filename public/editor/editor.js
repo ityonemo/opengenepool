@@ -144,11 +144,6 @@ var editor =
     //reset the context menu visibility flag
     editor.context_menu_visible = false;
   },
-
-  fork: function()
-  {
-    alert("fork!");
-  }
 };
 
 document.onclick = function()
@@ -182,7 +177,7 @@ Plugin = function(_name)
       }
     },
 
-    sendcontextmenu: function(x, y, ref, savemenu)
+    sendcontextmenu: function(x, y, ref, data, savemenu)
     {
       if (!savemenu) {editor.context_menu_array = [];};
       //set up values for the token.
