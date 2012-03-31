@@ -36,16 +36,8 @@ selection.initialize = function()
 
 selection.contextmenu = function(token)
 {
-  if (token.subtype != "selection")
-  {
-    if (selection.isselected)
-    {
-      editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
-      if (selection.domain.ranges.length == 1)
-        editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
-    }
+  if (!selection.isselected)
     editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"));
-  }
 
   switch (token.subtype)
   {
@@ -62,6 +54,13 @@ selection.contextmenu = function(token)
       }
     break;
     case "selection":
+      if (selection.isselected)
+      {
+        editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
+        if (selection.domain.ranges.length == 1)
+          editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
+      }
+
 //      switch (token.ref.orientation)
 //      {
  //       case -1, 1:
@@ -127,6 +126,8 @@ selection.redrawn = function(token)
 
 selection.selectionstart = 0;
 selection.currentrange = 0;
+selection.draglowlimit = 0;
+selection.draghighlimit = 0;
 
 selection.startselect = function(token)
 {
@@ -136,6 +137,8 @@ selection.startselect = function(token)
   selection.isselected = true;
   selection.createranges();
   selection.currentrange = 0;
+  selection.draglowlimit = 0;
+  selection.draghighlimit = editor.sequence.length;
 
   graphics.registerdrag(selection);
 };
@@ -144,6 +147,8 @@ selection.addselect = function(token)
 {
   if (!selection.isselected)  //just in case we're being asked to 
     selection.domain = new Domain(token.pos.toString());
+  else if (selection.domain.contains(token.pos))
+    return; //empty handed.
   else
     selection.domain.ranges.push(new Range(token.pos, token.pos, 0));
 
@@ -153,13 +158,21 @@ selection.addselect = function(token)
   selection.currentrange = selection.domain.ranges.length - 1;
   
   for (var i = 0; i < selection.ranges.length; i++)
+  {
     selection.ranges[i].showhandles();
+
+    //deal with resetting the high and low limits
+    var thisrange = selection.domain.ranges[i]
+    selection.draglowlimit = (((thisrange.end < token.pos) && (thisrange.end > selection.draglowlimit)) ? thisrange.end : selection.draglowlimit)
+    selection.draghighlimit = (((thisrange.start > token.pos) && (thisrange.start < selection.draghighlimit)) ? thisrange.start : selection.draghighlimit)
+  }
 
   graphics.registerdrag(selection);
 }
 
 selection.drag = function(token)
 {
+  if ((token.pos > selection.draghighlimit) || (token.pos < selection.draglowlimit)) return;  //empty-handed.
   var currentrange = selection.ranges[selection.currentrange];
   
   var oldorientation = currentrange.range.orientation;

@@ -75,7 +75,7 @@ Domain = function(init)
     contains: function(what)
     {
       for (var i = 0; i < this.ranges.length; i++)
-        if ((i >= this.ranges[i].start) && (i <= this.ranges[i].end)) return true
+        if ((what >= this.ranges[i].start) && (what <= this.ranges[i].end)) return true
       return false;
     }
   };
