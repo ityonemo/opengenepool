@@ -17,8 +17,10 @@ Domain = function(init)
 
   var temp =
   {
+    //member variables:
     ranges: [],
 
+    //populates the domain using OGP string notation e.g. 10..20 + (30..40)
     populate: function(string)
     {
       if (string)
@@ -53,7 +55,7 @@ Domain = function(init)
       result = this.ranges[0].toString();
       if (this.ranges.length > 1)
         for (var i = 1; i < this.ranges.length; i++)
-          result += this.ranges[i].toString();
+          result += " + " + this.ranges[i].toString();
       return result;
     },
 
@@ -67,6 +69,14 @@ Domain = function(init)
           extremeend = (this.ranges[i].end > extremeend) ? this.ranges[i].end : extremeend;
         }
       return new Range(extremestart, extremeend, this.orientation()) 
+    },
+
+    //pass it a position; does this domain contain it?
+    contains: function(what)
+    {
+      for (var i = 0; i < this.ranges.length; i++)
+        if ((i >= this.ranges[i].start) && (i <= this.ranges[i].end)) return true
+      return false;
     }
   };
 

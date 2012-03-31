@@ -59,17 +59,18 @@ VERSION 0.16 (End of March) intended milestones
   output to genbank.
   annotation and selection of multiple domains across join()s.
   add support for additional data in annotations.
-  workspace.
-  cut-splice-stitch-gibson operations
+  workspaces.
   "nuke" button to reset databases
 
 VERSION 0.17 (Mid-April) intended milestones
   set user access and restrict functions in the interface.
   find and highlight subsequences in both forward and RC directions.
-  find ORF function.
+  restriction sites plugin
+  find ORF plugin.
+  primers plugin.
 
 VERSION 0.2-alpha (End of April) intended milestones
   capability to edit sequences with appropriate cloning tools.
-  ability to make custom graphics settings.
+  cut-splice-stitch-gibson operation demonstration
   release on a public website
   

@@ -104,7 +104,7 @@ sequence.redraw = function(token)
     }
     else //normal click
     {
-      var token = new Token("startselect");
+      var token = new Token(e.shiftKey ? "addselect" : "startselect");
       token.line = ref.line;
       token.linepos = ref.linepos;
       token.pos = ref.pos;

@@ -8,7 +8,7 @@ selection.clipboard = {};
 selection.domain = {};
 selection.ranges = [];
 
-selection.selected = false;
+selection.isselected = false;
 
 selection.animateout = {};
 selection.animatein = {};
@@ -38,7 +38,7 @@ selection.contextmenu = function(token)
 {
   if (token.subtype != "selection")
   {
-    if (selection.selected)
+    if (selection.isselected)
     {
       editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
       if (selection.domain.ranges.length == 1)
@@ -50,7 +50,7 @@ selection.contextmenu = function(token)
   switch (token.subtype)
   {
     case "sequence":
-      if (selection.selected)
+      if (selection.isselected)
       {
         for (var i = 0; i < selection.domain.ranges.length; i++)
         {
@@ -79,8 +79,9 @@ selection.contextmenu = function(token)
 
 selection.unselect = function()
 {
-  if (selection.selected)
+  if (selection.isselected)
   {
+    selection.isselected = false;
     //clear out the domain object.
     selection.domain = {};
     //go through and eliminate the range objects.
@@ -88,8 +89,8 @@ selection.unselect = function()
     {
       selection.ranges[i].deleteme();
     }
+    selection.ranges = [];
   }
-  selection.selected = false;
 }
 
 selection.select = function(token)
@@ -97,18 +98,20 @@ selection.select = function(token)
   selection.unselect();
   selection.domain = new Domain(token.domain.toString());
   //create a copy of the domain object.  You may pass either a string definition or a domain object itself.
-  selection.selected = true;
+  selection.isselected = true;
   selection.createranges();
   for (var i = 0; i < selection.ranges.length; i++)
   {
     selection.ranges[i].showhandles();
   }
+
+  editor.broadcasttoken(new Token("selected"));
 };
 
 selection.redrawn = function(token)
 {
   //selection may need to be redrawn.
-  if (selection.selected)
+  if (selection.isselected)
   {
     for (var i = 0; i < selection.ranges.length; i++)
     {
@@ -130,12 +133,30 @@ selection.startselect = function(token)
   selection.unselect();
   selection.domain = new Domain(token.pos.toString());
   selection.selectionstart = token.pos;
-  selection.selected = true;
+  selection.isselected = true;
   selection.createranges();
   selection.currentrange = 0;
 
   graphics.registerdrag(selection);
 };
+
+selection.addselect = function(token)
+{
+  if (!selection.isselected)  //just in case we're being asked to 
+    selection.domain = new Domain(token.pos.toString());
+  else
+    selection.domain.ranges.push(new Range(token.pos, token.pos, 0));
+
+  selection.selectionstart = token.pos;
+  selection.isselected = true;
+  selection.createranges();
+  selection.currentrange = selection.domain.ranges.length - 1;
+  
+  for (var i = 0; i < selection.ranges.length; i++)
+    selection.ranges[i].showhandles();
+
+  graphics.registerdrag(selection);
+}
 
 selection.drag = function(token)
 {
@@ -170,7 +191,7 @@ selection.drag = function(token)
 
 selection.drop = function(token)
 {
-  //copy data from the selected range object to the selection domain object.
+  //copy data from the isselected range object to the selection domain object.
   selection.synchronize();
 
   //unregister the region from recieving drag/drop notifications.
@@ -185,10 +206,10 @@ selection.drop = function(token)
 
 selection.synchronize = function()
 {
-  //prepare to copy data from the selected range to the domain.
+  //prepare to copy data from the isselected range to the domain.
   var src = selection.ranges[selection.currentrange].range;
   var dest = selection.domain.ranges[selection.currentrange];
-  //synchronize the selected region with that in the domain object.
+  //synchronize the isselected region with that in the domain object.
   dest.start = src.start;
   dest.end = src.end;
   dest.orientation = src.orientation;
@@ -197,7 +218,13 @@ selection.synchronize = function()
 selection.createranges = function()
   //create the selection ranges from the domain
 {
-  selection.ranges = [];  // first clear all the ranges.
+  // first clear all the ranges.
+  for (var i = 0; i < selection.ranges.length; i++)
+  {
+    selection.ranges[i].deleteme();
+  }
+  selection.ranges = [];
+
   for (var i = 0; i < selection.domain.ranges.length; i++)
   {
     var currentrange = selection.domain.ranges[i];
@@ -264,7 +291,7 @@ selection.trapclip = function()
   //we will almost certainly need to make changes to make this work with safari and IE.
 
   var _sel_actual = window.getSelection();       //named such to prevent confusion with the selection plugin object.
-  _sel_actual.removeAllRanges();                 //clear whatever we think is selected.
+  _sel_actual.removeAllRanges();                 //clear whatever we think is isselected.
 
   selection.clipboard.innerHTML = 
     editor.subsequence(selection.domain);
@@ -369,8 +396,6 @@ selection.tag = function (i)
   return tagset;
 };
 
-_sel_todelete = {};
-
 SelectionRange = function (start, end, orientation)
 {
   var segment =
@@ -397,7 +422,8 @@ SelectionRange = function (start, end, orientation)
       //take care of tag (if necessary)
       if (this.tag)
         this.tag.animate(selection.animateout);
-      _sel_todelete = this;
+
+      var _sel_todelete = this;
       window.setTimeout(function()
         { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);
     },
