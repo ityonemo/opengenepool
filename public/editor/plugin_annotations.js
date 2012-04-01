@@ -275,7 +275,7 @@ annotations.createdialog = function(domain)
           graphics.render();
         });
     }, function() { //grab the selection data if applicable.
-      if (selection.selected)
+      if (selection.isselected)
       {
         var target = document.getElementById('ann_d_rangelist');
         var dialogranges = selection.domain.ranges.length;
@@ -286,6 +286,7 @@ annotations.createdialog = function(domain)
         {
           //WHAT?? yes, this works because selection looks quite a bit like an annotation.
           target.innerHTML += annotations.rangeblock(i, selection);
+          alert("parsing range" + i);
         }
       }
     }
@@ -559,13 +560,13 @@ annotations.rangeblock = function(i, annotation)
   " .. <input id='ann_d_end" + i + "' value='" + (annotation ? annotation.domain.ranges[i].end : "") + "'>" +
   "orientation: <select id='ann_d_orientation" + i + "'>" +
   (annotation ?
-  "<option value='-1' id='ann_d_rev" + i + "'"+ ((annotation.domain.ranges[i].orientation === -1) ? "selected" : "") + ">reverse</option>" +
+  "<option value='-1' id='ann_d_rev" + i + "'"+ ((annotation.domain.ranges[i].orientation === -1) ? "selected" : "") + ">minus</option>" +
   "<option value='0' id='ann_d_und" + i + "'"+ ((annotation.domain.ranges[i].orientation === 0) ? "selected" : "") + ">undirected</option>" +
-  "<option value='1' id='ann_d_for" + i + "'"+ ((annotation.domain.ranges[i].orientation === 1) ? "selected" : "") + ">forward</option>"
+  "<option value='1' id='ann_d_for" + i + "'"+ ((annotation.domain.ranges[i].orientation === 1) ? "selected" : "") + ">plus</option>"
   :
-  "<option value='-1' id='ann_d_rev" + i + "'>reverse</option>" +
+  "<option value='-1' id='ann_d_rev" + i + "'>minus</option>" +
   "<option value='0' id='ann_d_und" + i + "'>undirected</option>" +
-  "<option value='1' id='ann_d_for" + i + "' selected>forward</option>"
+  "<option value='1' id='ann_d_for" + i + "' selected>plus</option>"
   ) + 
   "</select>" +
   ((i == 0) ? "" : "<button type='button' onclick='annotations.killrange(" + i + ");'> delete </button>") +

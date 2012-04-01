@@ -13,6 +13,9 @@ selection.isselected = false;
 selection.animateout = {};
 selection.animatein = {};
 
+//our little merge bubble UI.
+selection.mergebubble = {};
+
 ////////////////////////////////////////////////////////////////////////
 // OVERLOADING TOKEN FUNCTIONS
 
@@ -32,12 +35,18 @@ selection.initialize = function()
   //set up animation routines.
   selection.animateout = Raphael.animation({opacity:0}, 250, "<>");
   selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
+
+  //our little merge bubble UI.
+  selection.mergebubble = new MergeBubble();
+  selection.mergebubble.initialize();
 };
 
 selection.contextmenu = function(token)
 {
   if (!selection.isselected)
-    editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"));
+    editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"))
+  else if (token.subtype != "selection") // this prevents this menu item from being doubled because of how selection duplicates the token.
+    editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
 
   switch (token.subtype)
   {
@@ -47,16 +56,15 @@ selection.contextmenu = function(token)
         for (var i = 0; i < selection.domain.ranges.length; i++)
         {
           if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
-          {
             selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], null, true);
-          }
+          if (selection.domain.contains(token.ref.pos))
+            editor.addcontextmenuitem(new MenuItem("split selection range", "selection.splitdomain(" + token.ref.pos + ");"));
         }
       }
     break;
     case "selection":
       if (selection.isselected)
       {
-        editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
         if (selection.domain.ranges.length == 1)
           editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
       }
@@ -144,7 +152,17 @@ selection.startselect = function(token)
 };
 
 selection.addselect = function(token)
-{
+{  
+  for (var i = 0; i < selection.ranges.length; i++)
+  {
+    //deal with resetting the high and low limits
+    var thisrange = selection.domain.ranges[i]
+    selection.draglowlimit = (((thisrange.end <= token.pos) && (thisrange.end > selection.draglowlimit)) ?
+      thisrange.end : selection.draglowlimit)
+    selection.draghighlimit = (((thisrange.start >= token.pos) && (thisrange.start < selection.draghighlimit)) ?
+      thisrange.start : selection.draghighlimit)
+  }
+
   if (!selection.isselected)  //just in case we're being asked to 
     selection.domain = new Domain(token.pos.toString());
   else if (selection.domain.contains(token.pos))
@@ -156,15 +174,11 @@ selection.addselect = function(token)
   selection.isselected = true;
   selection.createranges();
   selection.currentrange = selection.domain.ranges.length - 1;
-  
+
   for (var i = 0; i < selection.ranges.length; i++)
   {
+    //this needs to be done for all the ranges.
     selection.ranges[i].showhandles();
-
-    //deal with resetting the high and low limits
-    var thisrange = selection.domain.ranges[i]
-    selection.draglowlimit = (((thisrange.end < token.pos) && (thisrange.end > selection.draglowlimit)) ? thisrange.end : selection.draglowlimit)
-    selection.draghighlimit = (((thisrange.start > token.pos) && (thisrange.start < selection.draghighlimit)) ? thisrange.start : selection.draghighlimit)
   }
 
   graphics.registerdrag(selection);
@@ -337,6 +351,26 @@ selection.handlestart = function(who)
 
   //now, figure out who got clicked.
   selection.currentrange = selection.ranges.indexOf(who);
+
+  //discover the high and low limits for the selection.
+  selection.draglowlimit = 0;
+  selection.draghighlimit = editor.sequence.length;
+  selection.handle_initpos = ((this.movedhandle=="start") ? who.range.start : who.range.end) //determine the current position.
+
+  //seek through the domain-ranges and ascertain the correct start
+  for (var i = 0; i < selection.domain.ranges.length; i++)
+  {
+    if (i != selection.currentrange)
+    {
+      var thisrange = selection.domain.ranges[i]
+      //do we need to reset the low limit.
+      selection.draglowlimit = (((thisrange.end > selection.draglowlimit) && (thisrange.end <= selection.handle_initpos)) ?
+        thisrange.end : selection.draglowlimit);
+      //do we need to reset the high limit?
+      selection.draghighlimit = (((thisrange.start < selection.draghighlimit) && (thisrange.start >= selection.handle_initpos)) ?
+        thisrange.start : selection.draghighlimit);
+    }
+  }
 }
 
 selection.handlemove = function (dx, dy, x, y, e)
@@ -351,24 +385,27 @@ selection.handlemove = function (dx, dy, x, y, e)
   //calculate the correct position created by the handle. 
   if (this.ambiguoushandle)
   {
-    if (pos <= this.ambiguousinit)
+    if ((pos >= selection.draglowlimit) && (pos <= selection.draghighlimit))
     {
-      this.range.start = pos;
-      this.range.end = this.ambiguousinit;
-    } else
-    {
-      this.range.end = pos;
-      this.range.start = this.ambiguousinit;
+      if (pos <= this.ambiguousinit)
+      {
+        this.range.start = pos;
+        this.range.end = this.ambiguousinit;
+      } else
+      {
+        this.range.end = pos;
+        this.range.start = this.ambiguousinit;
+      }
     }
   }
   else
   {
     //if we have a normal, non-contracted range.
-    if ((this.movedhandle == "start") && (pos <= this.range.end))
+    if ((this.movedhandle == "start") && (pos <= this.range.end) && (pos >= selection.draglowlimit))
     {
       this.range.start = pos;
     }
-    if ((this.movedhandle == "end") && (pos >= this.range.start))
+    if ((this.movedhandle == "end") && (pos >= this.range.start) && (pos <= selection.draghighlimit))
     {
       this.range.end = pos;
     }
@@ -385,6 +422,48 @@ selection.handleend = function()
   this.hidehandles();
   this.showhandles();
 
+  //find and store the index of the handle's range
+  var thisrange = selection.ranges.indexOf(this)
+
+  //run a check to see if we're going to have an overlapping handle problem.  First the start handle
+  if ((this.movedhandle == "start") || ((this.ambiguoushandle) && (this.range.end == this.ambiguousinit)))
+    if (this.range.start == selection.draglowlimit)
+    {
+      for (var i = 0; i < selection.domain.ranges.length; i++) //now run through the ranges and look for the range that shares the overlap.
+        if (selection.domain.ranges[i].end == this.range.start)
+        {
+          this.overlapstart = i;
+          selection.ranges[i].overlapend = thisrange;
+        }
+    } else
+    {
+      //make sure we clear the overlapstart/overlapend variables
+      if (this.overlapstart >= 0)
+      {
+        selection.ranges[this.overlapstart].overlapend = -1;
+        this.overlapstart = -1;
+      }
+    }
+
+  //now the end handle
+  if ((this.movedhandle == "end") || ((this.ambiguoushandle) && (this.range.start == this.ambiguousinit)))
+    if (this.range.end == selection.draghighlimit)
+    {
+      for (var i = 0; i < selection.domain.ranges.length; i++) //now run through the ranges and look for the range that shares the overlap.
+        if (selection.domain.ranges[i].start == this.range.end)
+        {
+          this.overlapend = i;
+          selection.ranges[i].overlapstart = thisrange;
+        }
+    } else
+    {
+      if (this.overlapend >= 0)
+      {
+        selection.ranges[this.overlapend].overlapstart = -1
+        this.overlapend = -1;
+      }
+    }
+
   selection.synchronize();
 };
 
@@ -400,14 +479,66 @@ selection.handle = function (position)
 selection.tag = function (i)
 {
   var tagtext = graphics.editor.paper.text(0,-2,i.toString());
-  var textbox = tagtext.getBBox();
-  var tagbox = graphics.editor.paper.rect(-(textbox.width/2), -(textbox.height/2)-2, textbox.width, textbox.height);
   tagtext.attr("class","sel_tag text");
+  var textbox = tagtext.getBBox();
+  var tagbox = graphics.editor.paper.rect(-(textbox.width/2) - 1, -(textbox.height/2), textbox.width + 2, textbox.height + 1);
   tagbox.attr("class","sel_tag box");
   var tagset = graphics.editor.paper.set();
   tagset.push(tagbox,tagtext);
   return tagset;
 };
+
+selection.splitdomain = function(pos)
+{
+  for (var i = 0; i < selection.domain.ranges.length; i++)
+  {
+    var thisrange = selection.domain.ranges[i];
+    if ((pos > thisrange.start) && (pos < thisrange.end))
+    {
+      var lowerrange = new Range(thisrange.start, pos, thisrange.orientation);
+      var higherrange = new Range(pos, thisrange.end, thisrange.orientation);
+      selection.domain.ranges.splice(i,1,lowerrange, higherrange);
+
+      //redraw the whole thing.
+      selection.createranges();
+      //inform the pieces that they are overlapping.
+      selection.ranges[i].overlapend = i + 1;
+      selection.ranges[i + 1].overlapstart = i;      
+
+      for (var j = 0; j < selection.ranges.length; j++)
+      {
+        selection.ranges[j].showhandles();
+      }
+      return;
+    }
+  }
+}
+
+selection.merge = function()
+{
+  //merge the two selection segments that are defined by the array selection.mergebubble.targets
+  var targets = selection.mergebubble.targets;
+  var lowerindex = Math.min(targets[0], targets[1]);
+  var higherindex = Math.max(targets[0], targets[1]);
+  var lower = selection.domain.ranges[lowerindex];
+  var higher = selection.domain.ranges[higherindex];
+  var newRange = new Range(Math.min(lower.start,higher.start), Math.max(lower.end, higher.end),
+    (lower.length() > higher.length()) ? lower.orientation : higher.orientation); // the longer piece dominates.
+
+  //splice the new segment into the lower place.
+  selection.domain.ranges.splice(lowerindex, 1, newRange);
+  selection.domain.ranges.splice(higherindex, 1);
+
+  //redraw the whole thing.
+  selection.createranges();
+  for (var i = 0; i < selection.ranges.length; i++)
+  {
+    selection.ranges[i].showhandles();
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// IMPLEMENTED CLASSES
 
 SelectionRange = function (start, end, orientation)
 {
@@ -445,14 +576,63 @@ SelectionRange = function (start, end, orientation)
     {
       var sel_span = this.range.span();
 
+      var handlestartx = sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin;
+      var handlestarty = graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height/2;
+      var handleendx = sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin;
+      var handleendy = graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height/2;
+
       this.handle_s.transform(
-        "T"+(sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
-        ","+(graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height/2)
+        "T"+ handlestartx +
+        ","+ handlestarty
       );
       this.handle_e.transform(
-        "T"+(sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
-        ","+(graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height/2)
+        "T"+ handleendx +
+        ","+ handleendy
       );
+
+      if (this.overlapstart >= 0)
+      {
+        var t1 = this.overlapstart;
+        var t2 = selection.ranges.indexOf(this);
+        this.handle_s.mousedown(
+          function(e)
+          {
+            if (!e) var e = window.event;
+            if (e.which) rightclick = (e.which == 3);
+            else if (e.button) rightclick = (e.button == 2);
+
+            if (rightclick)
+            {
+              //create a merge bubble option.
+              selection.mergebubble.targets = [t1, t2];
+              selection.mergebubble.hide();
+              selection.mergebubble.show(handlestartx, 
+                graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height);
+            }
+          })
+      }
+
+      if (this.overlapend >= 0)
+      {
+        var t1 = this.overlapend;
+        var t2 = selection.ranges.indexOf(this);
+        this.handle_e.mousedown(
+          function(e)
+          {
+            if (!e) var e = window.event;
+            if (e.which) rightclick = (e.which == 3);
+            else if (e.button) rightclick = (e.button == 2);
+
+            if (rightclick)
+            {
+              //create a merge bubble option.
+              selection.mergebubble.targets = [t1, t2];
+              selection.mergebubble.hide();
+              selection.mergebubble.show(handleendx, 
+                graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height);
+            }
+          })
+      }
 
       this.handle_s.attr("class", this.hcssclass());
       this.handle_e.attr("class", this.hcssclass());
@@ -490,7 +670,10 @@ SelectionRange = function (start, end, orientation)
     movedhandle: "",
     //are we unsure because we started with a collapsed handle?
     ambiguoushandle: false,
-    ambiguousinitial: 0,
+    ambiguousinit: 0, //initial position of the collapsed handle.
+    //have we created a situation where we have overlapping handles?
+    overlapstart: -1,
+    overlapend: -1,
 
     hcssclass: function()
     {
@@ -535,6 +718,59 @@ SelectionRange = function (start, end, orientation)
   segment.handle_e.drag(selection.handlemove, selection.handle_estart, selection.handleend, segment);
 
   return segment;
+}
+
+MergeBubble = function()
+{
+  return {
+    //member variable - this is the image.
+    image: {},
+    targets: [],
+    fired: false,
+
+    initialize: function()
+    {
+      //draw the graphics object associated with the Merge Bubble.
+      var tagtext = graphics.editor.paper.text(0,-2,"merge?");
+      tagtext.attr("class","merge_tag text");
+      var textbox = tagtext.getBBox();
+      var tagbox = graphics.editor.paper.rect(-(textbox.width/2)-1, -(textbox.height/2), textbox.width + 2, textbox.height + 1,2);
+      tagbox.attr("class","merge_tag box");
+
+      var tagset = graphics.editor.paper.set();
+      tagset.push(tagbox,tagtext);
+
+      this.image = tagset;
+      this.hide();
+    },
+
+    show: function (x, y)
+    {
+      this.image.transform("T" + x + "," + y );
+      this.image.toFront();
+      this.image.animate(selection.animatein);
+      this.image.mousedown(selection.mergebubble.clickhandler)
+      this.fired = false;
+    },
+
+    clickhandler: function(e)
+    {
+      if (!e) var e = window.event;
+      if (e.which) rightclick = (e.which == 3);
+      else if (e.button) rightclick = (e.button == 2);
+      if (!rightclick && !selection.mergebubble.fired)
+      {
+        selection.mergebubble.fired = true;
+        selection.merge();
+        selection.mergebubble.hide();
+      }
+    },
+ 
+    hide: function()
+    {
+      this.image.animate(selection.animateout);
+    }
+  }
 }
 
 /////////////////////////////////////////////////////////////////////
