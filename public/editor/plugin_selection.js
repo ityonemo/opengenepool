@@ -56,30 +56,30 @@ selection.contextmenu = function(token)
         for (var i = 0; i < selection.domain.ranges.length; i++)
         {
           if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
-            selection.sendcontextmenu(token.x, token.y, selection.domain.ranges[i], null, true);
+            selection.sendcontextmenu(token.x, token.y, selection.ranges[i], null, true);
           if (selection.domain.contains(token.ref.pos))
             editor.addcontextmenuitem(new MenuItem("split selection range", "selection.splitdomain(" + token.ref.pos + ");"));
         }
       }
     break;
     case "selection":
-      if (selection.isselected)
-      {
-        if (selection.domain.ranges.length == 1)
-          editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
-      }
+      if (selection.domain.ranges.length == 1)
+        editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
 
-//      switch (token.ref.orientation)
-//      {
- //       case -1, 1:
-//          editor.addcontextmenuitem(new MenuItem("switch selection strand", ""));
-//          editor.addcontextmenuitem(new MenuItem("make selection undirected", ""));
- //       break;
- //       case 0:
- //         editor.addcontextmenuitem(new MenuItem("set selection to plus strand", ""));
- //         editor.addcontextmenuitem(new MenuItem("set selection to minus strand", ""));
-  //      break;
-    //  }
+      var refindex = selection.ranges.indexOf(token.ref);
+
+      switch (token.ref.range.orientation)
+      {
+        case -1:
+        case 1:
+          editor.addcontextmenuitem(new MenuItem("flip selection strand", "selection.flip(" + refindex + ");"));
+          editor.addcontextmenuitem(new MenuItem("make selection undirected", "selection.undirect(" + refindex + ");"));
+        break;
+        case 0:
+          editor.addcontextmenuitem(new MenuItem("set selection to plus strand", "selection.toplus(" + refindex + ");"));
+          editor.addcontextmenuitem(new MenuItem("set selection to minus strand", "selection.tominus(" + refindex + ");"));
+        break;
+      }
     break;
   }
 }
@@ -107,10 +107,6 @@ selection.select = function(token)
   //create a copy of the domain object.  You may pass either a string definition or a domain object itself.
   selection.isselected = true;
   selection.createranges();
-  for (var i = 0; i < selection.ranges.length; i++)
-  {
-    selection.ranges[i].showhandles();
-  }
 
   editor.broadcasttoken(new Token("selected"));
 };
@@ -174,12 +170,6 @@ selection.addselect = function(token)
   selection.isselected = true;
   selection.createranges();
   selection.currentrange = selection.domain.ranges.length - 1;
-
-  for (var i = 0; i < selection.ranges.length; i++)
-  {
-    //this needs to be done for all the ranges.
-    selection.ranges[i].showhandles();
-  }
 
   graphics.registerdrag(selection);
 }
@@ -259,6 +249,7 @@ selection.createranges = function()
     if (selection.domain.ranges.length > 1)
       newrange.tag = selection.tag(i + 1);
     selection.ranges.push(newrange);
+    selection.ranges[i].showhandles();
   }
 };
 
@@ -301,12 +292,28 @@ selection.drawrange = function(path, range)
   path.toBack();
 }
 
-//selection.flip = function()
-//{
-//  selection.range.orientation *= -1;
-//  selection.drawoutline();
-//  selection.drawhandles();
-//}
+//selection range manipulation functions.
+
+selection.flip = function(index)
+{
+  selection.domain.ranges[index].orientation *= -1;
+  selection.createranges();
+}
+selection.undirect = function(index)
+{
+  selection.domain.ranges[index].orientation = 0;
+  selection.createranges();
+}
+selection.toplus = function(index)
+{
+  selection.domain.ranges[index].orientation = 1;
+  selection.createranges();
+}
+selection.tominus = function(index)
+{
+  selection.domain.ranges[index].orientation = -1;
+  selection.createranges();
+}
 
 selection._temp_selection = {};
 selection.trapclip = function()
@@ -503,12 +510,7 @@ selection.splitdomain = function(pos)
       selection.createranges();
       //inform the pieces that they are overlapping.
       selection.ranges[i].overlapend = i + 1;
-      selection.ranges[i + 1].overlapstart = i;      
-
-      for (var j = 0; j < selection.ranges.length; j++)
-      {
-        selection.ranges[j].showhandles();
-      }
+      selection.ranges[i + 1].overlapstart = i;
       return;
     }
   }
@@ -531,10 +533,6 @@ selection.merge = function()
 
   //redraw the whole thing.
   selection.createranges();
-  for (var i = 0; i < selection.ranges.length; i++)
-  {
-    selection.ranges[i].showhandles();
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -702,7 +700,7 @@ SelectionRange = function (start, end, orientation)
 
     if (rightclick)
     {
-      selection.sendcontextmenu(e.clientX, e.clientY, selection.range);
+      selection.sendcontextmenu(e.clientX, e.clientY, segment);
     }
   })
 
