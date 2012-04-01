@@ -43,24 +43,18 @@ this will allow you to initialize the databases and set up a superuser account
 4) upload them using the applet at http://localhost:4567/upload/
 
 
-VERSION 0.15
+VERSION 0.16
 
 features:
   Initialization pages.
   Upload of genbank files.
   fork() button.
-  full-featured sequence selection.
+  full-featured sequence selection, including unusual join()s.
   user-modified graphics settings.
   modification of annotations.
-
-VERSION 0.16 (End of March) intended milestones
-  global switch to gap sequences
-  proper parsing of genbank sequence styles
-  output to genbank.
-  annotation and selection of multiple domains across join()s.
-  add support for additional data in annotations.
-  workspaces.
-  "nuke" button to reset databases
+  zero, indexed gap sequence annotation.
+  some workspace support.
+  "nuke" button for admin reset databases.
 
 VERSION 0.17 (Mid-April) intended milestones
   set user access and restrict functions in the interface.
@@ -68,6 +62,7 @@ VERSION 0.17 (Mid-April) intended milestones
   restriction sites plugin
   find ORF plugin.
   primers plugin.
+  output to genbank.
 
 VERSION 0.2-alpha (End of April) intended milestones
   capability to edit sequences with appropriate cloning tools.

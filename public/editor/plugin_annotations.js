@@ -101,10 +101,10 @@ annotations.generatefragments = function(i)
       //if it's reaaaly long, then you have fill in middle fragments.
       if (span.start_s < span.end_s - 1)
       {
-        for(var j = span.start_s + 1; j < span.end_s; j++)
+        for(var k = span.start_s + 1; k < span.end_s; k++)
         {
           annotations.fragments.push(new Fragment(
-            j, 0, graphics.settings.zoomlevel, orientation, annotation));
+            k, 0, graphics.settings.zoomlevel, orientation, annotation));
             graphics.invalidate(j);
         }
       }
