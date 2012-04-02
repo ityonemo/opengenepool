@@ -81,6 +81,34 @@ selection.contextmenu = function(token)
         break;
       }
     break;
+    case "annotations":
+      if (selection.isselected)
+        if (selection.ranges.length == 1)
+        {
+          var tgtdomain = token.ref.domain;
+
+          //assign the bounds of the annotation domain..
+          var start = editor.sequence.length;
+          var end = 0;
+          for (var j = 0; j < tgtdomain.ranges.length; j++)
+          {
+            start = Math.min(tgtdomain.ranges[j].start, start);
+            end = Math.max(tgtdomain.ranges[j].end, end);
+          }
+
+          var ourrange = selection.domain.ranges[0];
+          //for encompassing, check that we aren't already ecompassing the annotation.
+          if (!((start >= ourrange.start) && (end <= ourrange.end)))
+            editor.addcontextmenuitem(new MenuItem("encompass this annotation", "selection.encompass(" + start + "," + end + ");"));
+
+          //for select-up-to, check that we aren't already partially overlapping the selection.
+          if ((start > ourrange.end) || (end < ourrange.start))
+            editor.addcontextmenuitem(new MenuItem("select up to annotation", "selection.selupto(" + start + "," + end + ");"));
+          else //for subtraction, additionally check to make sure we aren't encompassed in it.
+            if (!((ourrange.start >= start) && (ourrange.end <= end)))
+              editor.addcontextmenuitem(new MenuItem("subtract this annotation", "selection.subtract(" + start + "," + end + ");"));
+        }
+    break;
   }
 }
 
@@ -110,6 +138,31 @@ selection.select = function(token)
 
   editor.broadcasttoken(new Token("selected"));
 };
+
+selection.appendselect = function(token)
+{
+  for (var i = 0; i < token.domain.ranges.length; i++)
+  {
+    var myrange = token.domain.ranges[i];
+    var pushrange = new Range(myrange.start, myrange.end, myrange.orientation);
+    for (var j = selection.domain.ranges.length - 1; j >= 0; j--)
+    {
+      var selrange = selection.domain.ranges[j];
+      if (pushrange.overlaps(selrange))
+      {
+        //combine the two ranges, giving the pre-selected orientation priority
+        //NB for certain range selections, this may be buggy, but those are not real use cases.
+        pushrange.start = Math.min(pushrange.start, selrange.start);
+        pushrange.end = Math.max(pushrange.end, selrange.end);
+        pushrange.orientation = selrange.orientation;
+        //slice out the selection range from the selection.
+        selection.domain.ranges.splice(j,1);
+      }
+    }
+    selection.domain.ranges.push(pushrange);
+  }
+  selection.createranges();
+}
 
 selection.redrawn = function(token)
 {
@@ -314,6 +367,62 @@ selection.tominus = function(index)
   selection.domain.ranges[index].orientation = -1;
   selection.createranges();
 }
+
+///////////////////////////////////////////////////////////////////////////////////
+// annotations gymnastics
+
+selection.encompass = function(start, end) 
+{
+  selection.domain.ranges[0].start = Math.min(selection.domain.ranges[0].start, start);
+  selection.domain.ranges[0].end = Math.max(selection.domain.ranges[0].end, end);
+
+  selection.createranges();
+}
+
+selection.subtract = function(start, end) 
+{
+  var selstart = selection.domain.ranges[0].start;
+  var selend = selection.domain.ranges[0].end;
+
+  if ((start > selstart) && (end < selend))
+  {
+    var orientation = selection.domain.ranges[0].orientation;
+    //gonna have to split it into two!
+    if (orientation >= 0)
+    {
+      selection.domain.ranges.push(new Range(end, selend, orientation));
+      selection.domain.ranges[0].end = start;
+    } else
+    {
+      selection.domain.ranges.push(new Range(selstart, start, orientation));
+      selection.domain.ranges[0].start = end;
+    }
+  } else
+  {
+    //contract as appropriate.
+    if (selend > end)
+      selection.domain.ranges[0].start = end;
+    else //(selstart < start)
+      selection.domain.ranges[0].end = start;
+  }
+  selection.createranges();
+}
+
+selection.selupto = function(start, end) 
+{
+  var selstart = selection.domain.ranges[0].start;
+  var selend = selection.domain.ranges[0].end;
+  
+  if (selstart > end)
+    selection.domain.ranges[0].start = end;
+  else // selend < start
+    selection.domain.ranges[0].end = start;
+
+  selection.createranges();
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+// clipboard trapping functions.
 
 selection._temp_selection = {};
 selection.trapclip = function()

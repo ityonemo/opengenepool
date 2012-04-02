@@ -189,12 +189,16 @@ annotations.contextmenu = function(token)
   {
     case "annotations":
       annotations.todelete = token.ref;
-      editor.addcontextmenuitem(new MenuItem("delete annotation", "annotations.deletemenu();"));
-      editor.addcontextmenuitem(new MenuItem("edit annotation", "annotations.editdialog(" + 
-        annotations.annotations.indexOf(token.ref) + ");"));
+      if (user_loggedin)
+      {
+        editor.addcontextmenuitem(new MenuItem("delete annotation", "annotations.deletemenu();"));
+        editor.addcontextmenuitem(new MenuItem("edit annotation", "annotations.editdialog(" + 
+          annotations.annotations.indexOf(token.ref) + ");"));
+      }
     break;
     case "selection":
-      editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog();"))
+      if (user_loggedin)
+        editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog();"))
     break;
   }
 }
@@ -436,7 +440,7 @@ annotations.createfragmentgraphic = function (left, right, type, ref)
       }
       else //normal click triggers selection of underlying sequence
       {
-        var token = new Token("select");
+        var token = new Token(e.shiftKey ? "appendselect" : "select");
         token.domain = ref.domain;
         editor.broadcasttoken(token);
       }

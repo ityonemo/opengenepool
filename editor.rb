@@ -24,6 +24,8 @@ get '/editor/:query' do |query|
 
   if (session[:user])
     @otherscripts += "\n user_loggedin = true;"
+  else
+    @otherscripts += "\n user_loggedin = false;"
   end
 
   #call the OGP template.

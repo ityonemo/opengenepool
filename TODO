@@ -24,9 +24,7 @@ Create a click-dismiss queue.
 Global projects
 
 make everything refer to "plus" or "minus" strands.
-unify the javascript objects to seamlessly interface with $.ajax RESTful queries
 clean up to check for mysql injection hacks.
-allow all changes to sequences, etc. to be marked by user
 create groups system.
 
 command line console.

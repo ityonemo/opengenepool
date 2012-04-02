@@ -210,6 +210,21 @@ Range = function(_start, _end, _orientation)
     {
       return this.start + ", " + this.end + ", " + this.orientation;
     },
+
+    contains: function(p)
+    {
+      return ((p >= this.start) && (p <= this.end))
+    },
+
+    overlaps: function(r)
+    {
+      return !((r.start > this.end) || (r.end < this.start))
+    },
+   
+    encompasses: function(r)
+    {
+      return ((r.start >= this.start) && (r.end <= this.end))
+    }
   };
 
   //refactor the orientation if we have supplied it with a null value.

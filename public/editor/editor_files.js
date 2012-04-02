@@ -9,7 +9,7 @@ var files =
   initialize: function()
   {
     //let's make sure that we have a user, otherwise these functions don't make sense.
-    if (username)
+    if (user_loggedin)
     { 
       document.getElementById("forkbutton").onclick = files.forkall;
       files.workspace.dom = document.getElementById("workspace_content");
