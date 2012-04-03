@@ -1,28 +1,34 @@
 OpenGenePool README
+===================
 
 Requires:
+---------
 
 Ruby
 MySql
 
 Following Rubygems:
+-------------------
 
 sinatra
 haml
 json
 mysql
 
-Recommended for development:
+Recommended for developers:
+---------------------------
 
 shotgun
 
 Usage:
+------
 
-run from the command prompt:  ogp.rb
+~>  ogp.rb
 
 With shotgun:
+-------------
 
-shotgun -p4567 ogp.rb
+~> shotgun -p4567 ogp.rb
 
 This works quite well in linux.  If you are using macOS, it should work similarly.  If you use
 windows, god help you.
@@ -31,6 +37,7 @@ To test https, I suggest setting up an https-capable web forwarding server/daemo
 and have it point to http://localhost:4567/, ogp is then served from https://localhost/
 
 Getting started:
+----------------
 
 1) point your web browser to http://localhost:4567/initialize/
 
@@ -44,6 +51,7 @@ this will allow you to initialize the databases and set up a superuser account
 
 
 VERSION 0.16
+============
 
 features:
   Initialization pages.
