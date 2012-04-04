@@ -20,6 +20,13 @@ Recommended for developers:
 
 shotgun
 
+
+Database setup:
+---------------
+
+create a database on your mysql server called 'ogp'.  GRANT ALL privileges to 'www-data'@localhost
+
+
 Usage:
 ------
 
