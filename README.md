@@ -54,26 +54,26 @@ VERSION 0.16
 ============
 
 features:
-* Initialization pages.
-* Upload of genbank files.
-* fork() button.
-* full-featured sequence selection, including unusual join()s.
-* user-modified graphics settings.
-* modification of annotations.
-* zero, indexed gap sequence annotation.
-* some workspace support.
-* "nuke" button for admin reset databases.
+*	Initialization pages.
+*	Upload of genbank files.
+*	fork() button.
+*	full-featured sequence selection, including unusual join()s.
+*	user-modified graphics settings.
+*	modification of annotations.
+*	zero, indexed gap sequence annotation.
+*	some workspace support.
+*	"nuke" button for admin reset databases.
 
 VERSION 0.17 (Mid-April) intended milestones
-* set user access and restrict functions in the interface.
-* find and highlight subsequences in both forward and RC directions.
-* restriction sites plugin
-* find ORF plugin.
-* primers plugin.
-* output to genbank.
+*	set user access and restrict functions in the interface.
+*	find and highlight subsequences in both forward and RC directions.
+*	restriction sites plugin
+*	find ORF plugin.
+*	primers plugin.
+*	output to genbank.
 
 VERSION 0.2-alpha (End of April) intended milestones
-* capability to edit sequences with appropriate cloning tools.
-* cut-splice-stitch-gibson operation demonstration
-* release on a public website
+*	capability to edit sequences with appropriate cloning tools.
+*	cut-splice-stitch-gibson operation demonstration
+*	release on a public website
   

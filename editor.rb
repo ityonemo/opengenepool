@@ -5,7 +5,7 @@ get '/editor/:query' do |query|
 
   #list of plugins this user is using.
   #TODO:  Make thes load from the database.
-  @pluginlist= ["sequence","annotations","selection"]
+  @pluginlist= ["sequence","annotations","selection", "find"]
 
   #assemble information necessary for the execution of the editor.
   @scriptlist = ["/raphael.js","editor.js","editor_graphics.js", "editor_files.js","DNA.js"]

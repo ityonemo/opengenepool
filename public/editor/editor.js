@@ -189,6 +189,25 @@ Plugin = function(_name)
       //tell the plugins about the context menu.
       editor.broadcasttoken(token);
       editor.showcontextmenu(x, y);
+    },
+
+    toolbardom: {},
+    maketool: function(open)
+    {
+      var container = document.getElementById("toolbar");
+      var outside = document.createElement("div");
+      outside.setAttribute("id", this.title + "_toolbar");
+      outside.setAttribute("class","toolitem");
+      var details = document.createElement("details");
+      if (open) details.setAttribute("open", "open");
+      var summary = document.createElement("summary");
+      summary.innerHTML = this.title;
+      
+      container.appendChild(outside);
+      outside.appendChild(details);
+      details.appendChild(summary);
+      
+      this.toolbardom = details;
     }
   }
 }
