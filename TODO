@@ -15,6 +15,7 @@ Fix modality on dialog boxes.
 Fix the selection object so that its domain naturally stores SelectionRange objects instead of in a separate array.
 Implement consistent z-stacking.
 fix some unpredictable merge() events for multi-merge.
+fix fork() so that only undeprecated annotations are passed on.
 
 Important Tasks:
 Implement Workspace management.

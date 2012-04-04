@@ -33,7 +33,11 @@ post '/fork/:query' do |query|
 
       #now use the same technique to transfer the annotations.
       res = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE sequence='#{params[:sourceid]}';")
-      res = dbh.query("UPDATE tann SET owner='#{session[:user]}', sequence='#{@nid}', created=NOW();")
+      #clear out annotations which have been superceded.
+      res = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT supercedes FROM tann WHERE supercedes > 0;")
+      res = dbh.query("DELETE FROM tann WHERE id IN (SELECT supercedes FROM tann2);")
+      #overwrite values that only pertain to the old set of data.
+      res = dbh.query("UPDATE tann SET owner='#{session[:user]}', sequence='#{@nid}', created=NOW(), supercedes='NULL';")
       #create a temporary pivot value.
       res = dbh.query("ALTER TABLE tann ADD COLUMN _id int(64)")
       res = dbh.query("UPDATE tann SET _id = id;") #pivot the id value to the old id.
