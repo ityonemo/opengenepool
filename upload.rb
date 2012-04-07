@@ -1,6 +1,10 @@
 get '/upload' do
   handleuser()
 
+  #fixes bug that makes it impossible to do this across multiple sessions.
+  $keywordhash = {};
+  $annotations = [];
+
   @scriptlist = (session[:user] == nil) ? ([]) : (["upload.js","jquery.js"])
   @csslist = ["upload.css"]
 
