@@ -6,8 +6,8 @@ var graphics =
   settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, textsequence: false},  
   linecount: 0,
 
-  //editor is a two-tuple of the DOM object itself and the raphael-generated paper object.
-  editor: {dom:{}, paper:{}},
+  //editor is the dali.js generated DOM object.
+  editor: {},
 
   //graphics in the editor are organized by sequence line.
   lines: [],

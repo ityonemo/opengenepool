@@ -7,7 +7,8 @@ Figure out how to center the dialog box.
 
 Important Fixes:
 
-Implement (if username) checks on all editing functions, or write user-function-disabled javascript.
+Figure out why rendering is so slow for really long (~40kb) sequences when redrawing.
+Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
 Manage visibility for other users.

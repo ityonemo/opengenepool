@@ -15,7 +15,7 @@ find.initialize = function()
   find.toolbardom.innerHTML += "<input type='text' id='findinput'></input>" +
   "<button>&lt;&lt;</button><button>&gt;&gt;</button>";
   document.getElementById("findinput").addEventListener("keyup", find.find);
-  //find.toolbardom.onclick = find.show();
+  find.toolbardom.onchange = find.click;
   find.domain = new Domain();
 }
 
@@ -29,10 +29,8 @@ find.find = function()
   var searchrc = reversecomplement(find.searchstring);
   var searchlength = find.searchstring.length;
   if (find.domain.ranges.length)
-  {
     find.clear();
-    find.domain.ranges = [];
-  }
+
   if (searchlength > 2)
   {
     var terminus = editor.sequence.length - searchlength;
@@ -54,6 +52,7 @@ find.clear = function()
   {
     find.domain.ranges[i].remove();
   }
+  find.domain.ranges = [];
 }
 
 find.paint = function()
@@ -102,6 +101,12 @@ find.drawrange = function(path, range)
   }
   path.transform("T" + graphics.settings.lmargin + ",0");
   path.toBack();
+}
+
+find.click = function()
+{
+  if ($(find.toolbardom).attr("open") == "open")
+    find.clear();
 }
 
 FindRange = function(start, end, orientation)

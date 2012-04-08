@@ -3,11 +3,12 @@
 Sequence = function(string)
 {
   //a sequence object stores the forward and the reverse complement
-  return {
+  $.extend(this,
+  {
     fwd: new String(string),
     _5poh: 0,
     _3poh: 0,
-  }
+  });
 };
 
 Domain = function(init)
@@ -15,7 +16,7 @@ Domain = function(init)
   //A domain is a group of ranges.  It's in fact the most important location-identifying construct
   //all annotations and selections are denoted as domains.
 
-  var temp =
+  $.extend(this,
   {
     //member variables:
     ranges: [],
@@ -78,12 +79,10 @@ Domain = function(init)
         if ((what >= this.ranges[i].start) && (what <= this.ranges[i].end)) return true
       return false;
     }
-  };
+  });
 
   //initialize this domain.
-  if (init) {temp.populate(init)}
-
-  return temp;
+  if (init) {this.populate(init)}
 }
 
 trim = function(str)
@@ -149,7 +148,8 @@ Range = function(_start, _end, _orientation)
   _start = (_start) ? (_start) : 0;
   _end = (_end) ? (_end) : 0;
 
-  var output = {
+  $.extend(this,
+  {
     start: _start,
     end: _end,
     orientation: _orientation,
@@ -225,21 +225,19 @@ Range = function(_start, _end, _orientation)
     {
       return ((r.start >= this.start) && (r.end <= this.end))
     }
-  };
+  });
 
   //refactor the orientation if we have supplied it with a null value.
   if (_orientation == undefined)
   {
     if (_start > _end)
     {
-      output.orientation = -1;
-      output.start = _end;
-      output.end = _start;
+      this.orientation = -1;
+      this.start = _end;
+      this.end = _start;
     }
-    else {output.orientation = 1;}
+    else {this.orientation = 1;}
   }
-
-  return output;
 }
 
 /////////////////////////////////////////////

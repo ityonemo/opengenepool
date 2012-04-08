@@ -290,7 +290,6 @@ annotations.createdialog = function(domain)
         {
           //WHAT?? yes, this works because selection looks quite a bit like an annotation.
           target.innerHTML += annotations.rangeblock(i, selection);
-          alert("parsing range" + i);
         }
       }
     }
