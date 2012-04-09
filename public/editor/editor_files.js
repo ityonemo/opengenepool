@@ -69,5 +69,5 @@ var files = new function Files()
     {
       alert("add to workspace!");
     }
-  }
+  });
 }

@@ -5,7 +5,7 @@ get '/editor/:query' do |query|
 
   #list of plugins this user is using.
   #TODO:  Make thes load from the database.
-  @pluginlist= ["sequence","annotations","selection", "find"]
+  @pluginlist= ["sequence"]#,"annotations","selection", "find"]
 
   #assemble information necessary for the execution of the editor.
   @scriptlist = ["/dali/dali.js","editor.js","editor_graphics.js", "editor_files.js","DNA.js"]
@@ -40,7 +40,7 @@ get '/settings/graphics_settings.js' do
   {
     :vmargin => 20,
     :lmargin => 80,
-    :rmargin => 20,
+    :rmargin => 80,
     :zoomlevel => 100,
     :linepadding => 2,
   }.to_json()

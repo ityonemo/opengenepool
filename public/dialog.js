@@ -56,5 +56,5 @@ var dialog = new function Dialog()
       //make it go away.
       $("#dialog").css("display","none");
     },
-  }
+  });
 }

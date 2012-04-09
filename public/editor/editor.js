@@ -69,7 +69,7 @@ var editor = new function Editor()
     },
   
     //distributes tokens to the plugins.
-    broadcasttoken:function(token)
+    broadcast: function(token)
     {
       for (var i = 0; i < plugins.length; i++)
       {
@@ -146,7 +146,7 @@ var editor = new function Editor()
       //reset the context menu visibility flag
       editor.context_menu_visible = false;
     },
-  };
+  });
 };
 
 document.onclick = function()
