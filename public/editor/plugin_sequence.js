@@ -1,6 +1,4 @@
-var sequence = new Plugin("sequence");
-
-$.extend(sequence,
+var sequence = new editor.Plugin("sequence",
 {
   ////////////////////////////////////////////////////////////////////////
   // OVERLOADING FUNCTIONS
@@ -8,18 +6,25 @@ $.extend(sequence,
   //short bits of strings which represent the textual content of each line
   chunks:[],
 
-  newsequence:function()
+  ready:function()
   {
-    var zoomlevel = graphics.settings.zoomlevel;
-    sequence.chunks = [];
-    for (var i = 0; i * zoomlevel < editor.sequence.length; i ++)
-    {
-      //assign the appropriate array index to the corresponding chunk.
-      sequence.chunks[i] = editor.sequence.slice(i*zoomlevel, (i + 1) * zoomlevel);
-    };
+    sequence.newsequence();
+    sequence.isready = true;
   },
 
-  setzoom : function()
+  newsequence:function(token)
+  {
+    if ((!token) || (!token.initial))
+    {
+      var zoomlevel = graphics.settings.zoomlevel;
+      sequence.chunks = [];
+      if (graphics.settings.textsequence)
+      for (var i = 0; i * zoomlevel < editor.sequence.length; i ++)  //assign the appropriate array index to the corresponding chunk.
+        sequence.chunks[i] = editor.sequence.slice(i*zoomlevel, (i + 1) * zoomlevel);
+    }
+  },
+
+  zoomed: function()
   {
     //these two functions should basically be identical.
     //NB in the future this might change.
@@ -58,14 +63,14 @@ $.extend(sequence,
 
   redraw: function(token)
   {
-    var sequenceelement = new GraphicsElement(graphics.lines[token.line].content, "sequence_" + token.line, true)
+    var sequencecontainer = graphics.newcontainer(token.line, "sequence_" + token.line, true)
     var sequenceobject = {};
 
     if (graphics.settings.textsequence)
     {
       //in the case that we are drawing a standard forward DNA strand, we will put the "baseline" underneath
       //the object.  Note that SVG positions text in a centered fashion with respect to height.
-      sequenceobject = sequenceelement.content.text(0,-graphics.metrics.lineheight/2, sequence.chunks[token.line]);
+      sequenceobject = sequencecontainer.text(0,-graphics.metrics.lineheight/2, sequence.chunks[token.line]);
       $(sequenceobject).attr("class","sequence");
     }
     else
@@ -73,17 +78,21 @@ $.extend(sequence,
       // otherwise, we should just draw a black bar.
 
       //adjust the width of the bar if it's the last line.
-      var barwidth = (token.line == sequence.chunks.length - 1) ? (sequence.chunks[token.line].length * graphics.metrics.charwidth) : graphics.metrics.linewidth;
+      var barwidth = ((token.line != graphics.linecount - 1) || (editor.sequence.length == graphics.settings.zoomlevel)) ? 
+                       graphics.metrics.linewidth :
+                       ((editor.sequence.length % graphics.settings.zoomlevel) * graphics.metrics.charwidth);
 
-      sequenceobject = sequenceelement.content.rect(0,-graphics.metrics.lineheight * (5/8), barwidth, graphics.metrics.lineheight/4);
+      sequenceobject = sequencecontainer.rect(0,-graphics.metrics.lineheight * (5/8), barwidth, graphics.metrics.lineheight/4);
 
       $(sequenceobject).attr("class","sequencebox");
 
-      sequenceelement.toppadding = graphics.metrics.lineheight * (3/8);
-      sequenceelement.bottompadding = graphics.metrics.lineheight * (3/8);
+      sequencecontainer.toppadding = graphics.metrics.lineheight * (3/8);
+      sequencecontainer.bottompadding = graphics.metrics.lineheight * (3/8);
     }
 
-    /*sequenceobject.mousedown(function(e)
+    //now set mousedown jQuery event.
+
+    /*$(sequenceobject).mousedown(function(e)
     {
       if (!e) var e = window.event;
       if (e.which) rightclick = (e.which == 3);
@@ -111,28 +120,19 @@ $.extend(sequence,
         editor.broadcasttoken(token);
       }
     });*/
-
-    sequenceelement.snapto();
-    graphics.lines[token.line].push(sequenceelement);
-  
-    /*positionelement = new GraphicsElement(true)
+    
+    positioncontainer = graphics.newcontainer(token.line, "position_" + token.line, true);
 
     //in the case that we are drawing a standard forward DNA strand, we will put the "baseline" underneath
     //the object.  Note that Raphael positions text in a centered fashion with respect to height.
-    var positionobject = graphics.editor.paper.text(-graphics.settings.rmargin, 0, (token.line * graphics.settings.zoomlevel + 1).toString());
-    positionobject.attr("class","position");
+    var positionobject = positioncontainer.text(-graphics.settings.rmargin/4, 0, (token.line * graphics.settings.zoomlevel + 1).toString());
+    $(positionobject).attr("class","position");
     ////////////////////
     // HACK ALERT
     //there is a hack here because object's bounding box doesn't align with the proper font line due to
-    //some glyphs extending below the font line. TODO: fix this!
-    hackvalue = 3;
+    //some glyphs descending below the baseline.  This may not have to be perfect.  TODO: figure out if this scales.
+    hackvalue = 4;
     ////END HACK
-    positionobject.translate(0, -positionobject.getBBox().height/2 - hackvalue);
-    positionelement.content.push(positionobject);
-    positionelement.snapto(); //to set the properties of the GraphicsElement.
-
-    //put it into the elements array.
-    graphics.lines[token.line].push(sequenceelement);
-    graphics.lines[token.line].push(positionelement);*/
+    positionobject.applytransform(new dali.Translate(0, -positionobject.height/2 - hackvalue));
   }
 });

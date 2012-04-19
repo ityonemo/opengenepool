@@ -1,45 +1,107 @@
-var selection = new Plugin("selection");
-
-////////////////////////////////////////////////////////////////////////
-// MEMBER VARIABLES
-
-selection.clipboard = {};
-
-selection.domain = {};
-selection.ranges = [];
-
-selection.isselected = false;
-
-selection.animateout = {};
-selection.animatein = {};
-
-//our little merge bubble UI.
-selection.mergebubble = {};
-
-////////////////////////////////////////////////////////////////////////
-// OVERLOADING TOKEN FUNCTIONS
-
-selection.initialize = function()
+var selection = new editor.Plugin("selection",
 {
-  //make a secret hidden div for buffering copy events.  This is necessary
-  //in order to do the injection hack for reverse complements.
+  ////////////////////////////////////////////////////////////////////////
+  // MEMBER VARIABLES
 
-  selection.clipboard = document.createElement('div');
-  selection.clipboard.setAttribute('display','none');
-  selection.clipboard.setAttribute('id','clipdiv');
-  document.body.appendChild(selection.clipboard);
+  clipboard: {},
+  domain: {},
 
-  //set up the injection hack.
-  document.oncopy = selection.trapclip;
+  //graphics object corresponding to our graphics layer and the floater layer.
+  layer: {},
+  floater: {},
 
-  //set up animation routines.
-  selection.animateout = Raphael.animation({opacity:0}, 250, "<>");
-  selection.animatein = Raphael.animation({opacity:1}, 250, "<>");
+  isselected: false,
+
+  animateout: {},
+  animatein: {},
 
   //our little merge bubble UI.
-  selection.mergebubble = new MergeBubble();
-  selection.mergebubble.initialize();
-};
+  mergebubble: {},
+
+  ////////////////////////////////////////////////////////////////////////
+  // OVERLOADING TOKEN FUNCTIONS
+  initialize: function()
+  {
+    //make a secret hidden div for buffering copy events.  This is necessary
+    //in order to do the injection hack for reverse complements.
+
+    selection.clipboard = document.createElement('div');
+    selection.clipboard.setAttribute('display','none');
+    selection.clipboard.setAttribute('id','clipdiv');
+    document.body.appendChild(selection.clipboard);
+
+    //create appropriate graphics layers:
+    if (!($("#selectionlayer").length))
+      selection.layer = graphics.editor.group("selectionlayer");
+    else
+      selection.layer = $("#selectionlayer")[0];
+    //order this layer to be at the bottom:
+    graphics.editor.insertBefore(selection.layer, graphics.mainlayer);
+    
+    if (!($("#floaterlayer").length))
+      selection.floater = graphics.editor.group("floaterlayer");
+    else
+      selection.floater = $("#floaterlayer")[0];
+    //put this at the top.
+    graphics.editor.appendChild(selection.floater);
+
+    //set up the injection hack.
+    document.oncopy = selection.trapclip;
+
+    //our little merge bubble UI.
+    //selection.mergebubble = new MergeBubble();
+    //selection.mergebubble.initialize();
+  },
+
+  /////////////////////////////////////////////////////////////////////////
+  // TOKENS PUBLISHED BY SELECTION
+  unselect: function()
+  {
+    if (selection.isselected)
+    {
+      //clear out the graphics elements.
+      for(var i = 0; i < selection.domain.ranges.length; i++)
+        selection.domain.ranges[i].deleteme();
+      //reset the selection flag.
+      selection.isselected = false;
+      //clear out the domain object.
+      selection.domain = {};	
+    }
+  },
+
+  select: function(token)
+  {
+    selection.unselect();
+
+    //create the new domain object.
+    selection.domain = new Domain(token.domain);
+    for (var i = 0; i < selection.domain.ranges.length; i++)
+    {
+      var range = selection.domain.ranges[i];
+      $.extend(range, new selection.RangeExtension(selection.domain.ranges[i]));
+      range.draw();
+      range.showhandles();
+    }
+
+    selection.isselected = true;
+
+    editor.broadcast("selected");
+  },
+
+  rendered: function(token)
+  {
+    //gets called after a render() event.  In this case, the selection may need to be redrawn.
+    if (selection.isselected)
+      for (var i = 0; i < selection.domain.ranges.length; i++)
+      {
+        var range = selection.domain.ranges[i];
+        range.hidehandles();
+        range.draw();
+        range.showhandles();
+      };
+  },
+});
+/*
 
 selection.contextmenu = function(token)
 {
@@ -112,32 +174,6 @@ selection.contextmenu = function(token)
   }
 }
 
-selection.unselect = function()
-{
-  if (selection.isselected)
-  {
-    selection.isselected = false;
-    //clear out the domain object.
-    selection.domain = {};
-    //go through and eliminate the range objects.
-    for(var i = 0; i < selection.ranges.length; i++)
-    {
-      selection.ranges[i].deleteme();
-    }
-    selection.ranges = [];
-  }
-}
-
-selection.select = function(token)
-{
-  selection.unselect();
-  selection.domain = new Domain(token.domain.toString());
-  //create a copy of the domain object.  You may pass either a string definition or a domain object itself.
-  selection.isselected = true;
-  selection.createranges();
-
-  editor.broadcasttoken(new Token("selected"));
-};
 
 selection.appendselect = function(token)
 {
@@ -164,19 +200,7 @@ selection.appendselect = function(token)
   selection.createranges();
 }
 
-selection.redrawn = function(token)
-{
-  //selection may need to be redrawn.
-  if (selection.isselected)
-  {
-    for (var i = 0; i < selection.ranges.length; i++)
-    {
-      selection.ranges[i].hidehandles();
-      selection.ranges[i].draw();
-      selection.ranges[i].showhandles();
-    };
-  };
-}
+
 
 ////////////////////////////////////////////////////////////////////////
 // DRAG and DROP TOKEN handling.
@@ -305,45 +329,6 @@ selection.createranges = function()
     selection.ranges[i].showhandles();
   }
 };
-
-selection.drawrange = function(path, range)
-{
-  var sel_span = range.span();
-  if (sel_span.start_s == sel_span.end_s)
-  {
-    var xpos = sel_span.start_p * graphics.metrics.charwidth;
-    var height = graphics.lines[sel_span.start_s].content.getBBox().height; 
-    path.attr("d",
-      "M " + xpos + "," + (graphics.lines[sel_span.start_s].translatey - height) +
-      " H " + (sel_span.end_p) * graphics.metrics.charwidth +
-      " v " + height  +
-      " H " + xpos +
-      " Z" //NB there is a bug here because the graphics.lines[].translatey is incorrect AFTER
-    );   //a setzoom() call because it hasn't been subjected to a layout yet.  Need to run a callback that
-  }      //redraws just selections after the redraw event.
-  else
-  {
-    var xpos1 = sel_span.start_p * graphics.metrics.charwidth;
-    var xpos2 = sel_span.end_p * graphics.metrics.charwidth;
-    var ypos1 = graphics.lines[sel_span.start_s].translatey;
-    var ypos2 = graphics.lines[sel_span.end_s].translatey;
-    var height1 = graphics.lines[sel_span.start_s].content.getBBox().height; 
-    var height2 = graphics.lines[sel_span.end_s].content.getBBox().height;
-
-    path.attr("d",
-    "M " + xpos1 + "," + (ypos1 - height1) +
-    " H " + graphics.metrics.linewidth +
-    " V " + (ypos2 - height2) +
-    " H " + (sel_span.end_p) * graphics.metrics.charwidth +
-    " v " + height2  +
-    " H " + 0 +
-    " V " + ypos1 +
-    " H " + xpos1 +
-    " Z"
-    );
-  }
-  path.toBack();
-}
 
 //selection range manipulation functions.
 
@@ -643,24 +628,55 @@ selection.merge = function()
   //redraw the whole thing.
   selection.createranges();
 }
+*/
 
 ///////////////////////////////////////////////////////////////////////////////////
 // IMPLEMENTED CLASSES
 
-SelectionRange = function (start, end, orientation)
-{
-  var segment =
-  {
-    path: graphics.editor.paper.path(""),
-    handle_s: selection.handle('start'),
-    handle_e: selection.handle('end'),
-    tag: undefined,
+//selection range is an broader version of the 'range' object found in the DNA.js package.
 
-    range: new Range(start, end, orientation),
+selection.RangeExtension = function()
+{
+  $.extend(this,
+  {
+    //graphics elements:
+    path: undefined,
+    handle_s: selection.handle(-1),
+    handle_e: selection.handle(1),
+    //?
+    tag: undefined,
 
     draw: function()
     {
-      selection.drawrange(this.path, this.range)
+      if (!this.path)
+        this.path = selection.layer.path();
+
+      //retrieve the data that will be used to generate the image.
+      var sel_span = new graphics.Span(this);
+      //set some convenience variables.
+      var line1 = graphics.line(sel_span.start_l);
+      var line2 = graphics.line(sel_span.end_l);
+      var xpos1 = sel_span.start_p * graphics.metrics.charwidth + graphics.settings.lmargin;
+      var xpos2 = sel_span.end_p * graphics.metrics.charwidth + graphics.settings.lmargin;
+      //check to see if it's on one line line, in which case it is a simple rectangle.
+      if (sel_span.start_l == sel_span.end_l)
+        this.path.d = "M " + xpos1 + "," + line1.top +
+                     " H " + xpos2 +
+                     " V " + line1.bottom  +
+                     " H " + xpos1 +
+                     " Z";
+      else
+        this.path.d = "M " + xpos1 + "," + line1.top +
+                     " H " + (graphics.metrics.linewidth + graphics.settings.lmargin) +
+                     " V " + line2.top +
+                     " H " + xpos2 +
+                     " V " + line2.bottom +
+                     " H " + graphics.settings.lmargin +
+                     " V " + line1.bottom +
+                     " H " + xpos1 +
+                     " Z";
+
+      $(this.path).attr("class", this.cssclass());
     },
 
     deleteme: function()
@@ -668,7 +684,7 @@ SelectionRange = function (start, end, orientation)
       //remove the path from the paper.
       this.path.remove();
       //then take care of the handles
-      this.handle_s.animate(selection.animateout);
+/*      this.handle_s.animate(selection.animateout);
       this.handle_e.animate(selection.animateout);
       //take care of tag (if necessary)
       if (this.tag)
@@ -676,28 +692,31 @@ SelectionRange = function (start, end, orientation)
 
       var _sel_todelete = this;
       window.setTimeout(function()
-        { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);
+        { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);*/
     },
 
     showhandles: function()
     {
-      var sel_span = this.range.span();
+      var sel_span = new graphics.Span(this);
 
       var handlestartx = sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin;
-      var handlestarty = graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height/2;
+      var handlestarty = graphics.line(sel_span.start_l).top + graphics.line(sel_span.start_l).height/2;
       var handleendx = sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin;
-      var handleendy = graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height/2;
+      var handleendy = graphics.line(sel_span.end_l).top + graphics.line(sel_span.end_l).height/2;
 
-      this.handle_s.transform(
-        "T"+ handlestartx +
-        ","+ handlestarty
-      );
-      this.handle_e.transform(
-        "T"+ handleendx +
-        ","+ handleendy
-      );
+      this.handle_s.applytransform(new dali.Translate(handlestartx, handlestarty, true));
+      this.handle_e.applytransform(new dali.Translate(handleendx, handleendy, true));
 
-      if (this.overlapstart >= 0)
+      //brand the handles with the identity of the range.
+      this.handle_s.ref = this;
+      this.handle_e.ref = this;
+
+      //set the css class of the handles.
+      $(this.handle_s).attr("class", this.hcssclass());
+      $(this.handle_e).attr("class", this.hcssclass());
+
+
+      /*if (this.overlapstart >= 0)
       {
         var t1 = this.overlapstart;
         var t2 = selection.ranges.indexOf(this);
@@ -755,23 +774,25 @@ SelectionRange = function (start, end, orientation)
         );
         this.tag.toFront();
         this.tag.animate(selection.animatein);
-      }
+      }*/
 
-      this.handle_s.animate(selection.animatein);
-      this.handle_e.animate(selection.animatein);
+      this.handle_s.show();
+      this.handle_e.show();
     },
 
     hidehandles: function()
     {
-      if (this.tag)
+      /*if (this.tag)
       {
         this.tag.toFront();
         this.tag.animate(selection.animateout);
-      }
+      }*/
 
-      this.handle_s.animate(selection.animateout);
-      this.handle_e.animate(selection.animateout);
+      this.handle_s.hide();
+      this.handle_e.hide();
     },
+
+   /*
 
     //which handle has been moved last.
     movedhandle: "",
@@ -781,25 +802,25 @@ SelectionRange = function (start, end, orientation)
     //have we created a situation where we have overlapping handles?
     overlapstart: -1,
     overlapend: -1,
+    */
 
     hcssclass: function()
     {
       return [
-        "sel_handle reverse",
+        "sel_handle minus",
         "sel_handle undirected",
-        "sel_handle forward"][this.range.orientation + 1];
+        "sel_handle plus"][this.orientation + 1];
     },
 
     //outputs the css class for such an annotation
     cssclass: function()
     {
       return [
-        "selection reverse",
+        "selection minus",
         "selection undirected",
-        "selection forward"][this.range.orientation + 1];
+        "selection plus"][this.orientation + 1];
     },
-  }
-
+/*
   segment.path.translate(graphics.settings.lmargin, 0);
   segment.path.mousedown(function(e)
   {
@@ -813,19 +834,42 @@ SelectionRange = function (start, end, orientation)
     }
   })
 
-  segment.draw();
-  //brand the path.
-  segment.path.attr("class", segment.cssclass());
+  */
+  });
 
-  //disappear the handles.
-  segment.handle_s.attr("opacity","0");
-  segment.handle_e.attr("opacity","0");
-
+  /*
   segment.handle_s.drag(selection.handlemove, selection.handle_sstart, selection.handleend, segment);
   segment.handle_e.drag(selection.handlemove, selection.handle_estart, selection.handleend, segment);
-
-  return segment;
+  */
 }
+
+selection.handlegraphic = function(position)
+  //position is a variable which refers to whether this is a start handle or an end handle.
+  // -1: start
+  // +1: end
+{
+  var graphic = selection.floater.circle(0,0,5);
+  return graphic;
+};
+
+selection.handle = function(position)
+{
+  var handle = selection.handlegraphic(position);
+
+  //two positions: start and end.
+  $.extend(handle,
+  {
+    ref: {}, //reference for handles.
+    position: position,
+    show: function () {$(handle).animate({opacity:1},250)},
+    hide: function () {$(handle).animate({opacity:1},250)},
+  });
+
+  $(handle).css("opacity","0");
+  return handle;
+};
+
+/*
 
 MergeBubble = function()
 {
@@ -879,14 +923,12 @@ MergeBubble = function()
     }
   }
 }
-
+*/
 /////////////////////////////////////////////////////////////////////
 // GLOBAL HELPER FUNCTION
 
 select = function(spec)
 {
-  var token = new Token("select");
-  token.domain = spec;
-  editor.broadcasttoken(token);
+  editor.broadcast("select",{domain: spec});
 }
 

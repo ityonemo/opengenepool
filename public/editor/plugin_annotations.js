@@ -1,186 +1,286 @@
-var annotations = new Plugin("annotations");
-
-////////////////////////////////////////////////////////////////////////
-// MEMBER VARIABLES
-
-//list of annotations
-annotations.annotations = [];
-annotations.annotip = {};
-
-////////////////////////////////////////////////////////////////////////
-// OVERLOADING TOKEN FUNCTIONS
-
-annotations.initialize = function()
+var annotations = new editor.Plugin("annotations",
 {
-  //in the initialize function we are going to set up the annotations tooltip.
-  annotations.annotip = document.createElement('div');
-  annotations.annotip.setAttribute('id','annotip');
-  document.body.appendChild(annotations.annotip);
+  ////////////////////////////////////////////////////////////////////////
+  // MEMBER VARIABLES
+
+  //list of annotations
+  annotations: [],
+  annotip: {},
+  fragments: [],
+
+  ////////////////////////////////////////////////////////////////////////
+  // OVERLOADING TOKEN FUNCTIONS
+
+  initialize: function()
+  {
+    //in the initialize function we are going to set up the annotations tooltip.
+    annotations.annotip = document.createElement('div');
+    annotations.annotip.setAttribute('id','annotip');
+    document.body.appendChild(annotations.annotip);
   
-  var annotip_title = document.createElement('span');
-  annotip_title.setAttribute('id','annotip_title');
-  annotations.annotip.appendChild(annotip_title);
+    var annotip_title = document.createElement('span');
+    annotip_title.setAttribute('id','annotip_title');
+    annotations.annotip.appendChild(annotip_title);
 
-  var annotip_text = document.createElement('span');
-  annotip_text.setAttribute('id','annotip_text');
-  annotations.annotip.appendChild(annotip_text);
-}
+    var annotip_text = document.createElement('span');
+    annotip_text.setAttribute('id','annotip_text');
+    annotations.annotip.appendChild(annotip_text);
+  },
 
-//temporary variable to store current annotation.
-var current_annotation = {};
+  //temporary variable to store current annotation.
+  newsequence: function(token)
+  {
+    //re-initialize the annotation fragments list.
+    annotations.fragments = []; 
 
-annotations.newsequence = function()
-{
-  //re-initialize the annotation fragments list.
-  annotations.fragments = []; 
+    //a temporary variable.
+    var current_annotation = {};
 
-  //use the xml jQuery object to find the sequence tag and use it.
-  $queriedxml.find("annotation").each(
-    function()
+    //use the xml jQuery object to find the sequence tag and use it.
+    $queriedxml.find("annotation").each(
+      function()
+      {
+        var myannotation = new annotations.Annotation($(this).attr("caption"),
+                                                      $(this).attr("type"),
+                                                      $(this).attr("domain"),
+                                                      $(this).attr("id"));
+
+        current_annotation = myannotation;
+
+        $(this).children().each(
+          function()
+          {
+            current_annotation.data[$(this).attr("type")] = new AnnoData($(this).text(), $(this).attr("id"));
+          }
+        );
+      });
+
+    //parse over the annotations array and split into graphically digestible
+    //elements which will go into the "annofragments" array.
+
+    if (!token.initial)  //we can't be guaranteed that the graphics have been initialized because this is asynchronous.
+      for (var i = 0; i < annotations.annotations.length; i++)
+        annotations.generatefragments(i);
+  },
+
+  ready: function()
+  {
+    for (var i = 0; i < annotations.annotations.length; i++)
+      annotations.generatefragments(i);
+    annotations.isready = true;
+  },
+
+  zoomed: function()
+  {
+    //re-initialize the annotation fragments list.
+    annotations.fragments = []; 
+
+    //parse over the annotations array and split into graphically digestible
+    //elements which will go into the "annofragments" array.
+    for (var i = 0; i < annotations.annotations.length; i++)
+      annotations.generatefragments(i);
+  },
+
+  redraw: function(token)
+  {
+    //this is a really kludgey array parsing function.  Possibly consider
+    //parsed into sub-arrays indexed by line, or sorted somehow.  OTOH
+    //this might not really be worth the effort.
+    
+    var graphicsarray = [];
+
+    for (var i = 0; i < annotations.fragments.length; i++)
     {
-      var myannotation = 
-        new Annotation($(this).attr("caption"),
-                       $(this).attr("type"),
-                       $(this).attr("domain"),
-                       $(this).attr("id"));
+      var fragment = annotations.fragments[i];
+      var annotation = annotations.fragments[i].ref;
 
-      current_annotation = myannotation;
+      if (fragment.line == token.line)
+      {
+        //set left, right and height of our annotation arrow.
+        var cleft = fragment.start*graphics.metrics.charwidth;
+        var cright = fragment.end*graphics.metrics.charwidth;
+        var height = graphics.metrics.lineheight;
 
-      $(this).children().each(
-        function()
-        {
-          current_annotation.data[$(this).attr("type")] = new AnnoData($(this).text(), $(this).attr("id"));
-        }
-      );
+        //create the graphics element.
+        var graphicscontainer = graphics.newcontainer(token.line, "annotationfragment_" + i);
+        annotations.createfragmentgraphic(graphicscontainer, cleft, cright, fragment.orientation, annotation);
+
+        graphicscontainer.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (fragment.orientation == 0)) ? 
+          graphics.metrics.lineheight / 5 : 0) + 1;
+        graphicscontainer.bottompadding = graphicscontainer.toppadding;
+
+        //generate a descriptive string for the tooltip.  Best to use either the 'note' or 'gene' attributes.
+        var description = (annotation.data["note"] ? annotation.data["note"].data :
+          (annotation.data["gene"] ? annotation.data["gene"].data + " gene" : ""));
+
+        //set up the tooltip associated with the raphael object. 
+        var tipstring = annotation.type + '<span class="' + (annotation.cssclass()) + '"> ' + 
+              annotation.toString() + " </span><br/>" + description;
+ 
+        annotations.addTip(graphicscontainer, annotation.caption, tipstring);
+      }
     }
-  );
+  },
 
-  //parse over the annotations array and split into graphically digestible
-  //elements which will go into the "annofragments" array.
-  for (var i = 0; i < annotations.annotations.length; i++)
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  // NONTOKEN HELPER FUNCTIONS
+
+  generatefragments: function(i)
   {
-    annotations.generatefragments(i);
-  }
-};
+    //set the reference variable.
+    var annotation;
+    if (i instanceof annotations.Annotation)
+      annotation = i; //we might be trying to pass an annotation variable directly.
+    else
+      annotation = annotations.annotations[i];  //find it in the array.
 
-annotations.generatefragments = function(i)
-//generate annotation fragments for annotation of index i.
-{
-  //if we're trying to pass an object instead of an index
-  if (isNaN(i))
-  {
-    //reassign it to its index.
-    i = annotations.annotations.indexOf(i);
-  }
-
-  var annotation = annotations.annotations[i];
-
-  for (var j = 0; j < annotation.domain.ranges.length; j++)
-  {
-    var currentrange = annotation.domain.ranges[j];
-
-    var span = currentrange.span();
-    var orientation = currentrange.orientation;
-
-    //check if it's really short.
-    if (span.start_s == span.end_s)
+    for (var j = 0; j < annotation.ranges.length; j++) // seek through the array
     {
-      //then there's only one fragment.
-      annotations.fragments.push(new Fragment(
-        span.start_s, span.start_p, span.end_p, orientation, annotation));
-      graphics.invalidate(span.start_s);
+      var range = annotation.ranges[j];
+      var span = new graphics.Span(range);
+      var orientation = range.orientation;
+
+      if (span.start_l == span.end_l)  //do we have a short fragment that only is one line?
+      {
+        annotations.fragments.push(
+          $.extend(new graphics.Fragment(span.start_l, span.start_p, span.end_p, orientation),
+            {ref: annotation}));
+        annotations.broadcast("invalidate",{line: span.start_l});  //invalidate this line.
+      }
+      else
+      {
+        //set up the fragment on the starting line.
+        //set up start fragment.
+        annotations.fragments.push(
+          $.extend(new graphics.Fragment(span.start_l, span.start_p, graphics.settings.zoomlevel, orientation),
+            {ref: annotation}));    
+        annotations.broadcast("invalidate",{line: span.start_l}); //invalidate this line.
+
+        //if it's reaaaly long, then you have fill in middle fragments.
+        if (span.start_l < span.end_l - 1)
+          for(var k = span.start_l + 1; k < span.end_l; k++)
+          {
+            annotations.fragments.push(
+              $.extend(new graphics.Fragment(k, 0, graphics.settings.zoomlevel, orientation),
+                {ref: annotation}));
+            annotations.broadcast("invalidate",{line: k});
+          }
+
+        //set up the fragment on the ending line
+        annotations.fragments.push(
+          $.extend(new graphics.Fragment(span.end_l, 0, span.end_p, orientation)
+            , {ref: annotation}));
+        annotations.broadcast("invalidate",{line: span.end_l});
+      }
+    }
+  },
+
+  createfragmentgraphic: function (container, left, right, type, ref)
+  //type matches orientation specs - note that the graphics options might result in
+  //arrow ends not reflecting orientation at line breaks.
+  {
+    var arrow = {};
+    var height = graphics.metrics.lineheight;
+    var arrowedge = graphics.metrics.lineheight / 5; //space between bottom and arrow body, arrow body and top.
+  
+    if (((right - left) < graphics.metrics.blockwidth) || (type == 0))
+    {
+      arrow = container.rect(left,-height + arrowedge,right-left,height - arrowedge * 2);
+      container.toppadding = arrowedge;
+      container.bottompadding = arrowedge;
     }
     else
-    {
-      //set up start fragment.
-      annotations.fragments.push(new Fragment(
-        span.start_s, span.start_p, graphics.settings.zoomlevel, orientation, annotation));
-    
-      graphics.invalidate(span.start_s);
-
-      //if it's reaaaly long, then you have fill in middle fragments.
-      if (span.start_s < span.end_s - 1)
+      switch (type)
       {
-        for(var k = span.start_s + 1; k < span.end_s; k++)
-        {
-          annotations.fragments.push(new Fragment(
-            k, 0, graphics.settings.zoomlevel, orientation, annotation));
-            graphics.invalidate(j);
-        }
+        case -1:
+          arrow = container.path(
+          "M " + left.toString() + " " + (-height / 2).toString() +
+          " L " + (left + graphics.metrics.blockwidth).toString() + " 0 " +
+          " V " + (-arrowedge).toString() +
+          " H " + right.toString() +
+          " V " + (-height + arrowedge).toString() +
+          " H " + (left + graphics.metrics.blockwidth).toString() +
+          " V " + (-height).toString() +
+          " Z");
+        break;
+        case 1:
+          arrow = container.path(
+            "M " + right.toString() + " " + (-height / 2).toString() +
+            " L " + (right - graphics.metrics.blockwidth).toString() + " 0 " +
+            " V " + -arrowedge.toString() +
+            " H " + left.toString() +
+            " V " + (-height + arrowedge).toString() +
+            " H " + (right - graphics.metrics.blockwidth).toString() +
+            " V " + (-height).toString() +
+            " Z");
+        break;
       }
+
+    arrow.ref = ref;
+    $(arrow).attr("class", ref.cssclass());
   
-      //set up end fragment
-      annotations.fragments.push(new Fragment(
-        span.end_s, 0, span.end_p, orientation, annotation));
-      graphics.invalidate(span.end_s);
-    }
-  }
-};
-
-annotations.setzoom = function(token)
-{
-  //re-initialize the annotation fragments list.
-  annotations.fragments = []; 
-
-  //parse over the annotations array and split into graphically digestible
-  //elements which will go into the "annofragments" array.
-  for (var i = 0; i < annotations.annotations.length; i++)
-  {
-    annotations.generatefragments(i);
-  }
-}
-
-annotations.redraw = function(token)
-{
-  //this is a really kludgey array parsing function.  In the future
-  //the array should be parsed into sub-arrays indexed by line, or sorted
-    
-  var graphicsarray = [];
-
-  for (var i = 0; i < annotations.fragments.length; i++)
-  {
-    var currentfragment = annotations.fragments[i];
-    var currentannotation = annotations.fragments[i].ref;
-
-    if (currentfragment.line == token.line)
+  /*thisfragment.mousedown(
+    function(e)
     {
-      var cleft = currentfragment.start*graphics.metrics.charwidth;
-      var cright = currentfragment.end*graphics.metrics.charwidth;
+      if (!e) var e = window.event;
+      if (e.which) rightclick = (e.which == 3);
+      else if (e.button) rightclick = (e.button == 2);
 
-      var height = graphics.metrics.lineheight;
+      if (rightclick)
+      {
+        //var data = {ref.domain.}
+        annotations.sendcontextmenu(e.clientX, e.clientY, ref)
 
-      var graphicselement = new GraphicsElement();
+        //for aesthetic purpsoses, hide the annotatation tooltip.
+        annotations.hideTip();
+      }
+      else //normal click triggers selection of underlying sequence
+      {
+        var token = new Token(e.shiftKey ? "appendselect" : "select");
+        token.domain = ref.domain;
+        editor.broadcasttoken(token);
+      }
+    })*/
+  },
 
-      //set up the content.  Note that the Y position is very likely to be altered
-      //by the internal layout engine.
-      graphicselement.content = annotations.createfragmentgraphic(cleft, cright, currentfragment.orientation,
-      currentannotation);
-      graphicselement.snapto();
+  ////////////////////////////////////////////////////////////////////////////////
+  // TOOLTIP BLUES
 
-      graphicselement.toppadding = ((((cright - cleft) < graphics.metrics.blockwidth) || (currentfragment.orientation == 0)) ? 
-        graphics.metrics.lineheight / 5 : 0) + 1;
-      graphicselement.bottompadding = graphicselement.toppadding;
+  tipover: false,
+  addTip: function(element, title, text)
+  {
+    //jQuery based craziness that associates callback functions with the
+    //selected annotation segment.  jQuery is necessary to deal with overlapping
+    //mouseover/mouseout insanity and resolve to simple functions.
+    $(element).mouseover(
+      function(){
+        document.getElementById("annotip_title").innerHTML=title;
+        document.getElementById("annotip_text").innerHTML="<br/>" + text;
+        $("#annotip").css("display","block");
+        annotations.tipover = true;
+      })
+    $(element).mouseout(
+      function()
+      {
+        annotations.hideTip()
+      });
+    $(element).mousemove(
+      function(e)
+      {
+        $("#annotip")
+          .css("left",(e.clientX+20).toString() + "px")
+          .css("top",(e.clientY+20).toString() + "px");
+      }); 
+  },
 
-      //find what to use as the description string.
-      var finalstring = (currentannotation.data["note"] ? 
-        currentannotation.data["note"].data :
-        (currentannotation.data["gene"] ?
-          currentannotation.data["gene"].data + " gene" : ""));
+  hideTip: function()
+  {
+    $("#annotip").css("display","none");
+    annotations.tipover = false;
+  },
+});
 
-      //set up the tooltip associated with the raphael object. 
-      var descriptionstring = currentannotation.type + 
-            '<span class="' + (currentannotation.cssclass()) + '"> ' + 
-            currentannotation.toString() +
-            " </span><br/>" + finalstring;
-
-      annotations.addTip(graphicselement.content, currentannotation.caption, descriptionstring);
-
-      //put it into the elements array.
-      graphics.lines[token.line].push(graphicselement);
-    }
-  }
-};
-
+/*
 annotations.todelete = {};
 
 annotations.contextmenu = function(token)
@@ -265,7 +365,7 @@ annotations.createdialog = function(domain)
       var newannotation = annotations.parsedialog();
 
       //send the new annotation the jquery way.
-      $.post("/annotation/",
+      $.post("/annotation/",(editor.sequence.length % graphics.settings.zoomlevel) * graphics.metrics.charwidth
         {
           seqid: editor.sequence_id,
           caption: newannotation.caption,
@@ -337,171 +437,48 @@ annotations.filldialog = function(start, end, orientation, caption, type)
 //////////////////////////////////////////////////////////////////////
 // GENERAL MEMBER FUNCTIONS
 
-var annotation_tipover = false;
-
-annotations.addTip = function(element, title, text)
-{
-  //jQuery based craziness that associates callback functions with the
-  //selected annotation segment.  jQuery is necessary to deal with overlapping
-  //mouseover/mouseout insanity and resolve to simple functions.
-  element.mouseover(
-    function(){
-      document.getElementById("annotip_title").innerHTML=title;
-      document.getElementById("annotip_text").innerHTML="<br/>" + text;
-      $("#annotip").css("display","block");
-      annotation_tipover = true;
-    })
-  element.mouseout(
-    function()
-    {
-      annotations.hideTip()
-    });
-  element.mousemove(
-    function(e)
-    {
-      $("#annotip")
-        .css("left",(e.clientX+20).toString() + "px")
-        .css("top",(e.clientY+20).toString() + "px");
-    }); 
-};
-
-annotations.hideTip = function()
-{
-  $("#annotip").css("display","none");
-  annotation_tipover = false;
-}
-
-annotations.createfragmentgraphic = function (left, right, type, ref)
-//create graphics element for an annotation.  
-//type: -1 - left ended arrow
-//type: 0 - no directionality.
-//type: +1 - right-ended arrow 
-{
-  //set the default value for the type element.
-  if (!type) var type = 0;
-
-  var thisfragment = graphics.editor.paper.set();
-  var thisarrow = {};
-  var height = graphics.metrics.lineheight;
-  var arrowedge = graphics.metrics.lineheight / 5;
-  
-  if (((right - left) < graphics.metrics.blockwidth) || (type == 0))
-  {
-    thisarrow = graphics.editor.paper.rect
-      (left,-height + arrowedge,right-left,height - arrowedge * 2);
-  }
-  else
-  {
-    switch (type)
-    {
-      case -1:
-        thisarrow = graphics.editor.paper.path(
-        "M " + left.toString() + " " + (-height / 2).toString() +
-        " L " + (left + graphics.metrics.blockwidth).toString() + " 0 " +
-        " V " + (-arrowedge).toString() +
-        " H " + right.toString() +
-        " V " + (-height + arrowedge).toString() +
-        " H " + (left + graphics.metrics.blockwidth).toString() +
-        " V " + (-height).toString() +
-        " Z");
-      break;
-      case 1:
-        thisarrow = graphics.editor.paper.path(
-          "M " + right.toString() + " " + (-height / 2).toString() +
-          " L " + (right - graphics.metrics.blockwidth).toString() + " 0 " +
-          " V " + -arrowedge.toString() +
-          " H " + left.toString() +
-          " V " + (-height + arrowedge).toString() +
-          " H " + (right - graphics.metrics.blockwidth).toString() +
-          " V " + (-height).toString() +
-          " Z");
-      break;
-    };
-  };
-
-  thisarrow.attr("class", ref.cssclass());
-  thisfragment.push(thisarrow);
-
-  thisfragment.mousedown(
-    function(e)
-    {
-      if (!e) var e = window.event;
-      if (e.which) rightclick = (e.which == 3);
-      else if (e.button) rightclick = (e.button == 2);
-
-      if (rightclick)
-      {
-        //var data = {ref.domain.}
-        annotations.sendcontextmenu(e.clientX, e.clientY, ref)
-
-        //for aesthetic purpsoses, hide the annotatation tooltip.
-        annotations.hideTip();
-      }
-      else //normal click triggers selection of underlying sequence
-      {
-        var token = new Token(e.shiftKey ? "appendselect" : "select");
-        token.domain = ref.domain;
-        editor.broadcasttoken(token);
-      }
-    })
-
-  return thisfragment;
-};
-
-
+*/
 ////////////////////////////////////////////////////////////////////////
 // HELPER OBJECTS
 
-Annotation = function(_caption, _type, _domain, _id){
-  var data = {
-    //data that should be put in at the beginning.
-    caption:_caption,
+annotations.Annotation = function(_caption, _type, _domain, _id)
+{
+  $.extend(this,new Domain(_domain));
+  $.extend(this,
+  {
+    //further information.
+    caption: _caption,
     type: _type,
-    domain: new Domain(_domain),
     id: _id,
     data: {},
 
-    //outputs the css class for such an annotation
     cssclass: function()
     {
-      return [
-        "annotation_reverse",
-        "annotation_undirected",
-        "annotation_forward "][this.domain.orientation() + 1]
-        + " ann_" + this.id + " annotation " + this.type;
-    },
-
-    toString: function()
-    {
-      return this.domain.toString();
+      return "annotation " + this.type + " " + "annotation_" + this.id;
     },
 
     deleteme: function()
     {
-      //excise me from the annotations array.
-      annotations.annotations.splice(annotations.annotations.indexOf(this), 1);
-      //remove all my fragments from the fragments array.
-      //NB count down to avoid having to do stupid decrement tricks.
+      //remove from the annotations array.
+      annotations.annotations.splice(annotation.annotations.indexOf(annotation),1);
+      //remove fragments from the fragments array
+      //count down to avoid stupid decrement tricks.
       for (var i = annotations.fragments.length - 1; i >= 0; i--)
-      {
-        //check to see if we want to remove this.
-        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == this))
+        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == this)) //check if it corresponds
         {
-          //don't forget to invalidate this line.
-          graphics.invalidate(annotations.fragments[i].line)
-          annotations.fragments.splice(i,1);
+          graphics.invalidate(annotations.fragments[i].line); //post the invalidation.
+          annotations.fragments.splice(i,1); //delete it!
         }
-      };
-    }
-  }
-  annotations.annotations.push(data);
-  return data;
+    },
+  });
+
+  annotations.annotations.push(this);  //push on construction.
 }
 
 AnnoData = function (_data, _id){
   return { id:_id, data:$.trim(_data) } //use jQuery because we can.
 }
-
+/*
 ////////////////////////////////////////////////////////////
 // DIALOG GENERATION
 
@@ -596,5 +573,5 @@ annotations.parsedialog = function()
   //then do the additional data stuff.
 
   return new Annotation(caption, type, domain.toString());
-}
+}*/
 

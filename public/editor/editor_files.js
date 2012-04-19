@@ -2,6 +2,8 @@ var files = new function Files()
 {
   $.extend(this,
   {
+
+/*
     //member variables:
     workspace:{
       data: {},
@@ -69,5 +71,6 @@ var files = new function Files()
     {
       alert("add to workspace!");
     }
+*/
   });
 }

@@ -14,31 +14,40 @@ var editor = new function Editor()
     //plugin management
     plugins: [],
 
-    //initialization function that is passed a list of plugins from sinatra.
+    //initialization function that is passed the query information.
     load: function(query)
     {
       //check to see if we're embedding the request as an ID value.
       //then set up the AJAX query to retrieve the information
 
       if (query.substring(0,3) == "id=")
-      { 
-        this.sequence_id = query.substring(3);
-      }
+        editor.sequence_id = query.substring(3);
       else
-      {
-        this.sequence = query;    
-      }
+        editor.sequence = query;
 
       //request the sequence data the jQuery way.
+      $.get("/seq/" + query, "", editor.onsequence, "xml");
+    },
 
-      $.get("/seq/" + query, "", editor.processsequence, "xml");
+    initialize:function()
+    {
+      //the dialog box and filesystem are components that depend on the DOM
+      //but are not part of the ecosystem.
 
-      //disable context menus.
-      window.oncontextmenu = function () {return false;}
+      //TODO: really think about cutting out the files.initialize() directive here
+      //in the case of non-login user.
+
+      //initialize dialog box
+      dialog.initialize();
+      //initialize files stuff.
+      //files.initialize();
+
+      //broadcast to tell the plugins to initialize.
+      editor.broadcast("initialize");
     },
 
     //process the sequence.
-    processsequence:function(data)
+    onsequence:function(data)
     {
       $queriedxml = $(data);
 
@@ -54,38 +63,45 @@ var editor = new function Editor()
       //assign relevant dom items
       editor.infobox = document.getElementById("information");
 
-      editor.initializecomponents();
+      //editor.initializecomponents();
+      editor.broadcast("newsequence",{initial:true});
+
+      editor.onready();
     },
 
-    initializecomponents: function()
+    onready:function()
     {
-      //pass control to the graphics initialization routine.
-      //nb there will be a further asynchronous call beyond this one.
-      graphics.initialize();
-      //initialize dialog box
-      dialog.initialize();
-      //initialize files stuff.
-      files.initialize();
-    },
-  
-    //distributes tokens to the plugins.
-    broadcast: function(token)
-    {
-      for (var i = 0; i < plugins.length; i++)
-      {
-        plugins[i].handletoken(token);
-      }
+      //block until the graphics settings have arrived.
+      if (graphics.initstate.sequence && graphics.initstate.resize)
+        editor._onready();
+      else
+        window.setTimeout(editor.onready, 100);
     },
 
-    //export the image as svg:
-    getsvg: function()
+    _onready:function()
     {
-      //TODO: check to see if raphael is in svg mode.
-      mywindow = window.open("","svg output");
-      mywindow.document.write("<code>");  //flank the output with code to make it look nice.
-      mywindow.document.write(document.getElementById("editor").innerHTML.split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;"));  //substitute &, <, and > for proper HTML characters
-      mywindow.document.write("</code>"); //end code tag
+      editor.broadcast("ready");
+      editor.allsystemsgo()
     },
+
+    allsystemsgo:function()
+    {
+      for (var i = 0; i < editor.plugins.length; i++)
+        if (!editor.plugins[i].isready)
+        {
+          window.setTimeout(editor.allsystemsgo, 100);
+          return;
+        }
+      editor._allsystemsgo()
+    },
+
+    _allsystemsgo: function()
+    {
+      editor.broadcast("allsystemsgo");
+    },
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // Utility functions.
 
     //retrieve a subsequence.
     subsequence: function(domain)
@@ -146,85 +162,126 @@ var editor = new function Editor()
       //reset the context menu visibility flag
       editor.context_menu_visible = false;
     },
-  });
-};
 
-document.onclick = function()
-{
-  editor.hidecontextmenu();
-}
-
-//////////////////////////////////////////////////////////////////////
-// CONTEXT MENU STUFF
-
-
-//Token object.  These are informational objects that are to be distributed to all the plugins.
-Token = function(_type)
-{
-  $.extend(this,
-  {
-    type: _type
-  });
-};
-
-//create the base plugin object.
-Plugin = function(_name)
-{
-  $.extend(this,
-  {
-    title: _name,
-
-    handletoken: function(token)
+    //menuitem object
+    MenuItem: function(_html, _callback)
     {
-      if (this[token.type])
+      $.extend(this,{
+        html: _html, //what appears on the context menu.
+        callback: _callback, //callback should be a string described function
+      });
+    },
+  
+    ////////////////////////////////////////////////////////
+    // PLUGIN functions
+
+    broadcast: function(token, addenda)
+    //distributes tokens to the plugins
+    //Precondition: token contains a string
+    //Postcondition:  broadcast creates a new token object of type string and passes it to all of the plugins.
+    //Precondition: token is an editor.Token object
+    //Postcondition:  broadcast passes it to all of the plugins.
+    {
+      mytoken = (typeof token == "string") ? new editor.Token(token) : token;
+
+      if (addenda)
+        $.extend(mytoken, addenda)
+
+      for (var i = 0; i < editor.plugins.length; i++)
+        editor.plugins[i].handletoken(mytoken);
+    },
+  });
+
+  //Token object.  These are informational objects that are to be distributed to all the plugins.
+  this.Token = function(_type)
+  {
+    $.extend(this,
+    {
+      type: _type
+    });
+  };
+ 
+  this.Plugin = function(_name, definition)
+  {
+    //register the plugin with the editor.
+    editor.plugins.push(this);
+
+    $.extend(this,
+    {
+      title: _name,
+
+      ready: function() { this.isready = true; },
+      isready: false,
+
+      broadcast: function(token, addenda) 
+      //Precondition: token contains a string
+      //Postcondition:  broadcast creates a new token object of type string and passes it to all of the plugins.
+      //Precondition: token is an editor.Token object
+      //Postcondition:  broadcast passes it to all of the plugins.
       {
-        this[token.type](token);
+        var mytoken = (typeof token == "string") ? new editor.Token(token) : token;
+        mytoken.source = this.title;
+
+        if (addenda)
+          $.extend(mytoken, addenda);		
+
+        editor.broadcast(mytoken);
+      },
+
+      handletoken: function(token)
+      {
+        if ((typeof this[token.type]) == 'function') //check to make sure the object actually has this function.
+        {
+          //execute it and pass it the token.
+          this[token.type](token);
+        }
+      },
+
+/*    sendcontextmenu: function(x, y, ref, data, savemenu)
+      { 
+        if (!savemenu) {editor.context_menu_array = [];};
+        //set up values for the token.
+        token = new Token("contextmenu");
+        token.x = x;
+        token.y = y;
+        token.subtype = this.title;
+        token.ref = ref;
+        //tell the plugins about the context menu.
+        editor.broadcast(token);
+        editor.showcontextmenu(x, y);
+      },*/
+
+      toolbardom: {},
+      maketool: function(open)
+      {
+        var container = document.getElementById("toolbar");
+        var outside = document.createElement("div");
+        outside.setAttribute("class","toolitem");
+
+        var details = document.createElement("details");
+        details.setAttribute("id", this.title + "_toolbar");
+
+        if (open) details.setAttribute("open", "open");
+        var summary = document.createElement("summary");
+        summary.innerHTML = this.title + "<p>";  //the paragraph tag provides an elegant fallback for browsers which don't support the details/summary tags.
+      
+        container.appendChild(outside);
+        outside.appendChild(details);
+        details.appendChild(summary);
+    
+        this.toolbardom = details;
       }
-    },
+    });
+    //append the coded definition to the end of the object.
+    $.extend(this, definition);
+  };
+};
 
-    sendcontextmenu: function(x, y, ref, data, savemenu)
-    {
-      if (!savemenu) {editor.context_menu_array = [];};
-      //set up values for the token.
-      token = new Token("contextmenu");
-      token.x = x;
-      token.y = y;
-      token.subtype = this.title;
-      token.ref = ref;
-      //tell the plugins about the context menu.
-      editor.broadcasttoken(token);
-      editor.showcontextmenu(x, y);
-    },
+/////////////////////////////////////////////////////////////////
+// GLOBAL OVERRIDES
 
-    toolbardom: {},
-    maketool: function(open)
-    {
-      var container = document.getElementById("toolbar");
-      var outside = document.createElement("div");
-      outside.setAttribute("class","toolitem");
+//set up the trigger to let it know that the DOM is ready.
+document.onready = editor.initialize;
 
-      var details = document.createElement("details");
-      details.setAttribute("id", this.title + "_toolbar");
-
-      if (open) details.setAttribute("open", "open");
-      var summary = document.createElement("summary");
-      summary.innerHTML = this.title + "<p>";  //the paragraph tag provides an elegant fallback for browsers which don't support the details/summary tags.
-      
-      container.appendChild(outside);
-      outside.appendChild(details);
-      details.appendChild(summary);
-      
-      this.toolbardom = details;
-    }
-  });
-}
-
-//menuitem object
-
-MenuItem = function(_html, _callback)
-{
-  $.extend(this,{
-    html: _html, //what appears on the context menu.
-    callback: _callback, //callback should be a string described function
-  });
-}
+document.onclick = function() { editor.hidecontextmenu(); }
+window.oncontextmenu = function() {return false;}

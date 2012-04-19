@@ -7,14 +7,14 @@ Figure out how to center the dialog box.
 
 Important Fixes:
 
-Figure out why rendering is so slow for really long (~40kb) sequences when redrawing.
+Fix layout bug where MCS in pUC19 only gets placed correctly on second graphics.layout() call.
+Implement Layout stacking priority:  Layout objects which are wider should go on the bottom.
 Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
 Manage visibility for other users.
 Fix modality on dialog boxes.
 Fix the selection object so that its domain naturally stores SelectionRange objects instead of in a separate array.
-Implement consistent z-stacking.
 fix some unpredictable merge() events for multi-merge.
 fix fork() so that only undeprecated annotations are passed on.
 
@@ -25,7 +25,6 @@ Create a click-dismiss queue.
 
 Global projects
 
-make everything refer to "plus" or "minus" strands.
 clean up to check for mysql injection hacks.
 create groups system.
 

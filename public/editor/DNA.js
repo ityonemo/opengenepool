@@ -29,7 +29,7 @@ Domain = function(init)
         var rangetexts = string.split("+");
         for (var i = 0; i < rangetexts.length; i++)
         {
-          this.ranges.push(new OGPRange(rangetexts[i]))
+          this.ranges.push(OGPRange(rangetexts[i]))
         }
       }
     },
@@ -129,7 +129,7 @@ OGPRange = function(text)
     start = parseInt(text);
     end = parseInt(text);
   }
-  return Range(start, end, orientation)
+  return new Range(start, end, orientation)
 }
 
 Range = function(_start, _end, _orientation)
@@ -153,34 +153,6 @@ Range = function(_start, _end, _orientation)
     start: _start,
     end: _end,
     orientation: _orientation,
-
-    span: function ()
-    //return spanning information for the range
-    //spanning information is an object with the following properties:
-    //  start_s - starting segment
-    //  end_s - ending segment
-    //  start_p - position within starting segment
-    //  end_p - position within ending segment
-    {
-      //figure out which segment they're going to be in, and where in that segement.
-      var startsegment = Math.floor((this.start)/graphics.settings.zoomlevel);
-      var endsegment = Math.floor((this.end)/graphics.settings.zoomlevel);
-      var startpos = (this.start)%graphics.settings.zoomlevel;
-      var endpos = (this.end)%graphics.settings.zoomlevel;
-      //adjust it so that it's flush with the end of the line instead of the beginning.
-      if ((endpos == 0) && (this.start != this.end))
-      {
-        endsegment--;
-        endpos = graphics.settings.zoomlevel;
-      }
-
-      return {
-        start_s: startsegment,
-        end_s: endsegment,
-        start_p: startpos,
-        end_p: endpos
-      }
-    },
 
     toString: function()
     {
