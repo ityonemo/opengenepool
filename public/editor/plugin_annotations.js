@@ -219,28 +219,28 @@ var annotations = new editor.Plugin("annotations",
     arrow.ref = ref;
     $(arrow).attr("class", ref.cssclass());
   
-  /*thisfragment.mousedown(
-    function(e)
-    {
-      if (!e) var e = window.event;
-      if (e.which) rightclick = (e.which == 3);
-      else if (e.button) rightclick = (e.button == 2);
-
-      if (rightclick)
+    $(arrow).mousedown(
+      function(e)
       {
-        //var data = {ref.domain.}
+        if (!e) var e = window.event;
+        if (e.which) rightclick = (e.which == 3);
+        else if (e.button) rightclick = (e.button == 2);
+
+        if (rightclick)
+        {
+/*        //var data = {ref.domain.}
         annotations.sendcontextmenu(e.clientX, e.clientY, ref)
 
         //for aesthetic purpsoses, hide the annotatation tooltip.
-        annotations.hideTip();
-      }
-      else //normal click triggers selection of underlying sequence
-      {
-        var token = new Token(e.shiftKey ? "appendselect" : "select");
-        token.domain = ref.domain;
-        editor.broadcasttoken(token);
-      }
-    })*/
+        annotations.hideTip();*/
+        }
+        else //normal click triggers selection of underlying sequence
+        {
+          var token = new editor.Token(e.shiftKey ? "appendselect" : "select");
+          token.domain = arrow.ref.toString();
+          annotations.broadcast(token);
+        }
+      });
   },
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -432,12 +432,8 @@ annotations.filldialog = function(start, end, orientation, caption, type)
       document.getElementById("ann_d_for").selected = true;
     break;
   }
-}
+}*/
 
-//////////////////////////////////////////////////////////////////////
-// GENERAL MEMBER FUNCTIONS
-
-*/
 ////////////////////////////////////////////////////////////////////////
 // HELPER OBJECTS
 

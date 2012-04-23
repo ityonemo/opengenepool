@@ -264,6 +264,8 @@ graphics = new editor.Plugin("graphics",
     //first go through and deal with the anchored content.
     var unanchored = [];     //temporary array identifying content that can be moved.
 
+    graphics.sort(line); //cycle sort the line.
+
     for (var i = 0; i < line.childNodes.length; i++)
     {
       if (line.childNodes[i].anchored)
@@ -311,6 +313,26 @@ graphics = new editor.Plugin("graphics",
     //then translate the entire line.
     line.applytransform(new dali.Translate(graphics.settings.lmargin, translatey), true);
   },
+
+  sort: function(line) //specialized sorting function which orders the line graphics elements by width.
+  {
+    if (line.childNodes.length < 2) return; //quit if there are zero or one elements.
+    var previous = line.childNodes[0].width; //stores the previous result.
+    for (var index = 1; index < line.childNodes.length; index++)
+    {
+      if (line.childNodes[index].width <= previous) //move ahead by resetting the previous value
+        previous = line.childNodes[index].width;
+      else                                          //otherwise we need to do an insertion.
+        for (var index2 = 0; index2 < index; index2++)
+          if (line.childNodes[index].width >= line.childNodes[index2].width) //then we move index before index2.
+          {
+            line.insertBefore(line.childNodes[index], line.childNodes[index2]);
+            break;
+          }
+    }
+  },
+
+  /*
 
   getlocation: function(event, target)
   {

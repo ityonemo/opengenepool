@@ -100,6 +100,32 @@ var selection = new editor.Plugin("selection",
         range.showhandles();
       };
   },
+
+  ///////////////////////////////////////////////////////////////////////////////////
+  // NON-TOKEN FUNCTIONS
+
+  ///////////////////////////////////////////////////////////////////////////////////
+  // clipboard trapping.
+
+  _temp_selection: {},
+  trapclip: function()
+  {
+    //THIS IS A TOTAL HACK, but it works on CHROME (and probably on firefox)
+    //for the copy function to work, we need to put the adjoined text or alternatively
+    //the reverse complement text into the secret, hidden "clipboard div" and then 
+    //change the selection.
+    //we will almost certainly need to make changes to make this work with safari and IE.
+
+    var _sel_actual = window.getSelection();       //named such to prevent confusion with the selection plugin object.
+    _sel_actual.removeAllRanges();                 //clear whatever we think is isselected.
+
+    selection.clipboard.innerHTML = 
+      editor.subsequence(selection.domain);
+
+    var temprange = document.createRange();                  //create a new range          
+    temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
+    _sel_actual.addRange(temprange);
+  },
 });
 /*
 
@@ -298,38 +324,6 @@ selection.drop = function(token)
 //////////////////////////////////////////////////////////////////////////
 // GENERAL FUNCTIONS
 
-selection.synchronize = function()
-{
-  //prepare to copy data from the isselected range to the domain.
-  var src = selection.ranges[selection.currentrange].range;
-  var dest = selection.domain.ranges[selection.currentrange];
-  //synchronize the isselected region with that in the domain object.
-  dest.start = src.start;
-  dest.end = src.end;
-  dest.orientation = src.orientation;
-}
-
-selection.createranges = function()
-  //create the selection ranges from the domain
-{
-  // first clear all the ranges.
-  for (var i = 0; i < selection.ranges.length; i++)
-  {
-    selection.ranges[i].deleteme();
-  }
-  selection.ranges = [];
-
-  for (var i = 0; i < selection.domain.ranges.length; i++)
-  {
-    var currentrange = selection.domain.ranges[i];
-    var newrange = new SelectionRange(currentrange.start, currentrange.end, currentrange.orientation)
-    if (selection.domain.ranges.length > 1)
-      newrange.tag = selection.tag(i + 1);
-    selection.ranges.push(newrange);
-    selection.ranges[i].showhandles();
-  }
-};
-
 //selection range manipulation functions.
 
 selection.flip = function(index)
@@ -404,29 +398,6 @@ selection.selupto = function(start, end)
     selection.domain.ranges[0].end = start;
 
   selection.createranges();
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-// clipboard trapping functions.
-
-selection._temp_selection = {};
-selection.trapclip = function()
-{
-  //THIS IS A TOTAL HACK, but it works on CHROME (and probably on firefox)
-  //for the copy function to work, we need to put the adjoined text or alternatively
-  //the reverse complement text into the secret, hidden "clipboard div" and then 
-  //change the selection.
-  //we will almost certainly need to make changes to make this work with safari and IE.
-
-  var _sel_actual = window.getSelection();       //named such to prevent confusion with the selection plugin object.
-  _sel_actual.removeAllRanges();                 //clear whatever we think is isselected.
-
-  selection.clipboard.innerHTML = 
-    editor.subsequence(selection.domain);
-
-  var temprange = document.createRange();                  //create a new range          
-  temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
-  _sel_actual.addRange(temprange);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -617,7 +588,8 @@ selection.merge = function()
   var lowerindex = Math.min(targets[0], targets[1]);
   var higherindex = Math.max(targets[0], targets[1]);
   var lower = selection.domain.ranges[lowerindex];
-  var higher = selection.domain.ranges[higherindex];
+  var higCute. Spent a bit of time trying to figure out how to get an arrow: It's not obvious that you need to drag to get an arrow object, because if you just click without dragging, all the other objects will create a new instance at top left. I started out assuming that the UI would be select the object, then click to make a new instance where you wanted it. So, once an object appeared, I thought the intended UI was, click to get object, move it to where you wanted. I think you need to either not create a new object unless the user does drag, so they understand that something more is required (which is how visio seems to do it) or make 'new instance at top left' work for all objects.
+her = selection.domain.ranges[higherindex];
   var newRange = new Range(Math.min(lower.start,higher.start), Math.max(lower.end, higher.end),
     (lower.length() > higher.length()) ? lower.orientation : higher.orientation); // the longer piece dominates.
 
@@ -683,6 +655,10 @@ selection.RangeExtension = function()
     {
       //remove the path from the paper.
       this.path.remove();
+      var that = this;
+
+      this.handle_s.hide(function(){that.handle_s.remove();});
+      this.handle_e.hide(function(){that.handle_e.remove();});
       //then take care of the handles
 /*      this.handle_s.animate(selection.animateout);
       this.handle_e.animate(selection.animateout);
@@ -695,7 +671,7 @@ selection.RangeExtension = function()
         { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);*/
     },
 
-    showhandles: function()
+    showhandles: function(complete)
     {
       var sel_span = new graphics.Span(this);
 
@@ -760,12 +736,6 @@ selection.RangeExtension = function()
           })
       }
 
-      this.handle_s.attr("class", this.hcssclass());
-      this.handle_e.attr("class", this.hcssclass());
-
-      this.handle_s.toFront();
-      this.handle_e.toFront();
-
       if (this.tag)
       {
         this.tag.transform(
@@ -776,11 +746,11 @@ selection.RangeExtension = function()
         this.tag.animate(selection.animatein);
       }*/
 
-      this.handle_s.show();
-      this.handle_e.show();
+      this.handle_s.show(complete);
+      this.handle_e.show(complete);
     },
 
-    hidehandles: function()
+    hidehandles: function(complete)
     {
       /*if (this.tag)
       {
@@ -788,8 +758,8 @@ selection.RangeExtension = function()
         this.tag.animate(selection.animateout);
       }*/
 
-      this.handle_s.hide();
-      this.handle_e.hide();
+      this.handle_s.hide(complete);
+      this.handle_e.hide(complete);
     },
 
    /*
@@ -861,8 +831,8 @@ selection.handle = function(position)
   {
     ref: {}, //reference for handles.
     position: position,
-    show: function () {$(handle).animate({opacity:1},250)},
-    hide: function () {$(handle).animate({opacity:1},250)},
+    show: function (complete) {$(handle).animate({opacity:1},250, complete)},
+    hide: function (complete) {$(handle).animate({opacity:1},250, complete)},
   });
 
   $(handle).css("opacity","0");
