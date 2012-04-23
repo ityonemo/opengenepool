@@ -42,5 +42,6 @@ get '/settings/graphics_settings.js' do
     :rmargin => 80,
     :zoomlevel => 100,
     :linepadding => 6,
+    :contentpadding => 1,
   }.to_json()
 end

@@ -4,7 +4,7 @@ graphics = new editor.Plugin("graphics",
   //various variables that we'll be keeping track of.
   //NB: these cannot remain zero, will be set in initialize method.
   metrics: {linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0},
-  settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, textsequence: false},  
+  settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, contentpadding: 0, textsequence: false},  
   linecount: 0,
   invalid: false,
   initstate: {settings: false, sequence: false, resize: false},
@@ -264,7 +264,7 @@ graphics = new editor.Plugin("graphics",
     //first go through and deal with the anchored content.
     var unanchored = [];     //temporary array identifying content that can be moved.
 
-    graphics.sort(line); //cycle sort the line.
+    graphics.sort(line);     //sort the line, in descending order.  The downstream greedy algorithm will result in pretty layout.
 
     for (var i = 0; i < line.childNodes.length; i++)
     {
@@ -294,7 +294,7 @@ graphics = new editor.Plugin("graphics",
             //we are not cleared.
             cleared = false;
             //now find out how much we have to move the element up.
-            boxshell.deltay += boxes[j].top - (boxshell.bottom + boxshell.bottompadding);
+            boxshell.deltay += boxes[j].top - boxshell.bottom - graphics.settings.contentpadding;
 
             break;  //break out of the for loop and because cleared is false, run through the
           };         //while loop again.
@@ -456,16 +456,6 @@ graphics.newcontainer = function(line, _name, anchored)
     rightpadding: 0,
     toppadding: 0,
     bottompadding: 0,
-
-    paddedBBox: function()
-    {
-      var box = dali.rect();
-      box.left = this.left - this.leftpadding;
-      box.top = this.top - this.toppadding;
-      box.right = this.right + this.rightpadding;
-      box.bottom = this.bottom + this.bottompadding;
-      return box;
-    }
   });
 
   return container;
@@ -509,10 +499,10 @@ graphics.Shell = function(template)
   var left = template.left, top = template.top, right = template.right, bottom = template.bottom;
 
   //these getters apply the deltax and deltays to the box variables.
-  this.__defineGetter__("left",function() {return left + this.deltax;});
-  this.__defineGetter__("top",function() {return top + this.deltay;});
-  this.__defineGetter__("right",function() {return right + this.deltax;});
-  this.__defineGetter__("bottom",function() {return bottom + this.deltay;});
+  this.__defineGetter__("left",function() {return left + this.deltax - this.leftpadding;});
+  this.__defineGetter__("top",function() {return top + this.deltay - this.toppadding;});
+  this.__defineGetter__("right",function() {return right + this.deltax + this.rightpadding;});
+  this.__defineGetter__("bottom",function() {return bottom + this.deltay + this.bottompadding;});
 
   $.extend(this,
   {

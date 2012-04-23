@@ -7,8 +7,6 @@ Figure out how to center the dialog box.
 
 Important Fixes:
 
-Fix layout bug where MCS in pUC19 only gets placed correctly on second graphics.layout() call.
-Implement Layout stacking priority:  Layout objects which are wider should go on the bottom.
 Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
