@@ -92,37 +92,33 @@ var sequence = new editor.Plugin("sequence",
 
     //now set mousedown jQuery event.
 
-    /*$(sequenceobject).mousedown(function(e)
+    $(sequenceobject).mousedown(function(e)
     {
-      if (!e) var e = window.event;
+      //assign rightclick
+      var rightclick;
       if (e.which) rightclick = (e.which == 3);
       else if (e.button) rightclick = (e.button == 2);
 
-      var point = graphics.getlocation(e, e.target.parentNode);
+      var point = graphics.getlocation(e);
+
       //figure out the row and character we clicked on.
       var ref = {};
       //retrieve the position within the sequence object that we are at.
       //nb:  0 is on the very left side, and y coordinates go from -lineheight to 0.
-      ref.line = graphics.getline(point.svgy); 
-      ref.linepos = Math.floor((point.internalx / graphics.metrics.charwidth) + 0.5);
+      ref.line = graphics.getline(point.y); 
+      ref.linepos = graphics.getpos(point.x);
       ref.pos = ref.line * graphics.settings.zoomlevel + ref.linepos;
 
       if (rightclick)
       {
-        sequence.sendcontextmenu(e.clientX, e.clientY, ref);
+        //sequence.sendcontextmenu(e.clientX, e.clientY, ref);
       }
       else //normal click
-      {
-        var token = new Token(e.shiftKey ? "addselect" : "startselect");
-        token.line = ref.line;
-        token.linepos = ref.linepos;
-        token.pos = ref.pos;
-        editor.broadcasttoken(token);
-      }
-    });*/
+        sequence.broadcast(e.shiftKey ? "addselect" : "startselect", ref);
+    });
     
+    //graphics element which draws the position box.
     positioncontainer = graphics.newcontainer(token.line, "position_" + token.line, true);
-
     //in the case that we are drawing a standard forward DNA strand, we will put the "baseline" underneath
     //the object.  Note that Raphael positions text in a centered fashion with respect to height.
     var positionobject = positioncontainer.text(-graphics.settings.rmargin/4, 0, (token.line * graphics.settings.zoomlevel + 1).toString());

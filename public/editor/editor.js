@@ -182,10 +182,7 @@ var editor = new function Editor()
     //Precondition: token is an editor.Token object
     //Postcondition:  broadcast passes it to all of the plugins.
     {
-      mytoken = (typeof token == "string") ? new editor.Token(token) : token;
-
-      if (addenda)
-        $.extend(mytoken, addenda)
+      mytoken = (typeof token == "string") ? new editor.Token(token, addenda) : token;
 
       for (var i = 0; i < editor.plugins.length; i++)
         editor.plugins[i].handletoken(mytoken);
@@ -193,12 +190,11 @@ var editor = new function Editor()
   });
 
   //Token object.  These are informational objects that are to be distributed to all the plugins.
-  this.Token = function(_type)
+  this.Token = function(type, data)
   {
-    $.extend(this,
-    {
-      type: _type
-    });
+    this.type = type;
+    if (data)
+      $.extend(this, data);
   };
  
   this.Plugin = function(_name, definition)
@@ -219,12 +215,8 @@ var editor = new function Editor()
       //Precondition: token is an editor.Token object
       //Postcondition:  broadcast passes it to all of the plugins.
       {
-        var mytoken = (typeof token == "string") ? new editor.Token(token) : token;
+        var mytoken = (typeof token == "string") ? new editor.Token(token, addenda) : token;
         mytoken.source = this.title;
-
-        if (addenda)
-          $.extend(mytoken, addenda);		
-
         editor.broadcast(mytoken);
       },
 

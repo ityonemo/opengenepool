@@ -1,9 +1,13 @@
 //Graphics plugin class definition
+
+var globalarray = [];
+var globalarray2 = [];
+
 graphics = new editor.Plugin("graphics",
 {
   //various variables that we'll be keeping track of.
   //NB: these cannot remain zero, will be set in initialize method.
-  metrics: {linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0},
+  metrics: {linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0, box:{}},
   settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, contentpadding: 0, textsequence: false},  
   linecount: 0,
   invalid: false,
@@ -205,6 +209,8 @@ graphics = new editor.Plugin("graphics",
 
     graphics.metrics.charwidth = graphics.metrics.linewidth/graphics.settings.zoomlevel;
 
+    graphics.metrics.box = graphics.editor.parentNode.getBoundingClientRect();
+
     //clear the testline from the page
     testline.remove();
   },
@@ -332,27 +338,22 @@ graphics = new editor.Plugin("graphics",
     }
   },
 
-  /*
-
   getlocation: function(event, target)
   {
-    var location = {};
-    if (target)
-    {
-      location.internalx = event.clientX - target.getBoundingClientRect().left;
-      location.internaly = event.clientY - target.getBoundingClientRect().top;
-    }
-    location.svgx = event.clientX - graphics.editor.dom.getBoundingClientRect().left;
-    location.svgy = event.clientY - graphics.editor.dom.getBoundingClientRect().top + graphics.editor.dom.scrollTop;
-    
-    return location;
+    //returns the location of an event relative to the internal coordinate system of "target".  If nothing is passed,
+    //returns it relative to graphics.editor.
+    var bbox = (target) ? target.getBoundingClientRect() : graphics.metrics.box;
+
+    return dali.point(event.clientX - bbox.left, event.clientY - bbox.top + 
+      ((target == undefined) || (target == graphics.editor) ? graphics.editor.parentNode.scrollTop : 0));
   },
 
   getpos: function(xpos)
   {
+    //converts an x pixel position to an x position.
     //to get the position, divide the x position by charwidth
     var value = Math.floor(((xpos - graphics.settings.lmargin) / graphics.metrics.charwidth) + 0.5)
-    return ((value < 0) || (value > graphics.settings.zoomlevel)) ? undefined : value;
+    return ((value < 0) ? 0 : ((value > graphics.settings.zoomlevel) ? graphics.settings.zoomlevel : value));
   },
 
   getline: function(ypos)
@@ -360,50 +361,55 @@ graphics = new editor.Plugin("graphics",
     //for example how the drag and drop code immediately below handles the situation.
   {
     var i = 0;
-    for (; i < graphics.lines.length; i++)
-      if (graphics.lines[i].translatey > ypos) break;
-
+    for (; i < graphics.mainlayer.childNodes.length; i++)
+      if (graphics.mainlayer.childNodes[i].bottom > ypos) break;
     return i;
   },
 
   /////////////////////////////////////////////////////////////////////////////////////////
   //drag and drop function.
-/*  dragtarget: {},
+  dragtarget: {},
   dragline: 0,  //hack to get more responsive drag and drop events.
 
   registerdrag: function(who)
   {
     dragtarget = who;
-    graphics.editor.dom.onmousemove = graphics.dragmove;
-    window.onmouseup = graphics.dragfinish;
+    //then register a mousemove event using event handling.
+    graphics.editor.addEventListener("mousemove", graphics.dragmove, true);
+    window.addEventListener("mouseup", graphics.dragfinish, true);
   },
 
   unregisterdrag: function()
   {
     dragtarget = null;
-    graphics.editor.dom.onmousemove = null;
-    window.onmouseup = null;
+    graphics.editor.removeEventListener("mousemove", graphics.dragmove, true);
+    window.removeEventListener("mouseup", graphics.dragfinish, true);
   },
   
   dragmove: function(event)
   {
-    var location = graphics.getlocation(event, graphics.editor.dom);
-    var token = new Token("drag");
-    token.line = graphics.dragline
-    token.linepos = graphics.getpos(location.internalx);
-    token.pos = token.line * graphics.settings.zoomlevel + token.linepos;
-    token.event = event;
-    dragtarget.handletoken(token);
-    return false;
+    var location = graphics.getlocation(event);
+    var linepos = graphics.getpos(location.x);
+
+    if (linepos != undefined) //note getpos can return 'undefined' if we are outside of the general range.
+    {
+      var token = new editor.Token("drag", 
+      {
+        line: graphics.dragline, 
+        linepos: linepos,
+        pos: graphics.dragline * graphics.settings.zoomlevel + linepos,
+        event: event
+      });
+      dragtarget.handletoken(token);
+    }
   },
 
   dragfinish: function(event)
   {
-    var token = new Token("drop");
+    var token = new editor.Token("drop");
     dragtarget.handletoken(token);
     graphics.unregisterdrag();
-  },*/
-
+  },
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //ZOOM VALUES HELPER
@@ -437,6 +443,9 @@ graphics.newline = function(index)
     invalid: true,
     index: index,
   });
+
+  //hack to enable faster line hinting for drag/drop events:
+  line.onmouseover = function(){graphics.dragline = line.index;};
 
   return line;
 };
@@ -498,7 +507,7 @@ graphics.Shell = function(template)
   //private variables that cache the old box.
   var left = template.left, top = template.top, right = template.right, bottom = template.bottom;
 
-  //these getters apply the deltax and deltays to the box variables.
+  //these getters apply the deltax deltay, and padding to the box variables.
   this.__defineGetter__("left",function() {return left + this.deltax - this.leftpadding;});
   this.__defineGetter__("top",function() {return top + this.deltay - this.toppadding;});
   this.__defineGetter__("right",function() {return right + this.deltax + this.rightpadding;});

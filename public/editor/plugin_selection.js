@@ -226,13 +226,12 @@ selection.appendselect = function(token)
   selection.createranges();
 }
 
-
+*/
 
 ////////////////////////////////////////////////////////////////////////
 // DRAG and DROP TOKEN handling.
 
-selection.selectionstart = 0;
-selection.currentrange = 0;
+selection.anchor = 0;
 selection.draglowlimit = 0;
 selection.draghighlimit = 0;
 
@@ -240,15 +239,19 @@ selection.startselect = function(token)
 {
   selection.unselect();
   selection.domain = new Domain(token.pos.toString());
-  selection.selectionstart = token.pos;
+  selection.anchor = token.pos;
   selection.isselected = true;
-  selection.createranges();
-  selection.currentrange = 0;
   selection.draglowlimit = 0;
   selection.draghighlimit = editor.sequence.length;
 
+  var range = selection.domain.ranges[0];
+  $.extend(range, new selection.RangeExtension(selection.domain.ranges[0]));
+  range.draw();
+
   graphics.registerdrag(selection);
 };
+
+/*
 
 selection.addselect = function(token)
 {  
@@ -275,51 +278,45 @@ selection.addselect = function(token)
   selection.currentrange = selection.domain.ranges.length - 1;
 
   graphics.registerdrag(selection);
-}
+}*/
 
 selection.drag = function(token)
 {
   if ((token.pos > selection.draghighlimit) || (token.pos < selection.draglowlimit)) return;  //empty-handed.
-  var currentrange = selection.ranges[selection.currentrange];
-  
-  var oldorientation = currentrange.range.orientation;
+  var range = selection.domain.ranges[selection.domain.ranges.length - 1]; //our working range is always the last range.
 
-  if (token.pos < selection.selectionstart)
+  var oldorientation = range.orientation;
+  if (token.pos < selection.anchor) //we should have a reverse orientation.
   {
-    //first set up the correct color for the selection.
-    currentrange.range.start = token.pos;
-    currentrange.range.end = selection.selectionstart;
+    range.start = token.pos;
+    range.end = selection.anchor;
+    //reset the orientation.
     if (oldorientation != -1)
     {
-      currentrange.range.orientation = -1;
-      currentrange.path.attr("class",currentrange.cssclass());
+      range.orientation = -1;
+      $(range.path).attr("class", range.cssclass());
     }
   }
-  else
+  else  //we should have a forward orientation.
   {
-    currentrange.range.start = selection.selectionstart;
-    currentrange.range.end = token.pos;
+    range.start = selection.anchor;
+    range.end = token.pos;
     if (oldorientation != 1)
     {
-      currentrange.range.orientation = 1;
-      currentrange.path.attr("class", currentrange.cssclass());
+      range.orientation = 1;
+      $(range.path).attr("class", range.cssclass());
     }
   }
-
-  currentrange.draw();
+  range.draw();
 };
 
 selection.drop = function(token)
 {
-  //copy data from the isselected range object to the selection domain object.
-  selection.synchronize();
-
-  //unregister the region from recieving drag/drop notifications.
-  graphics.unregisterdrag();
-
   //show the handles.
-  selection.ranges[selection.currentrange].showhandles();
+  selection.domain.ranges[selection.domain.ranges.length - 1].showhandles();
 };
+
+/*
 
 //////////////////////////////////////////////////////////////////////////
 // GENERAL FUNCTIONS
@@ -413,51 +410,65 @@ selection.handle_estart = function ()
 {
   this.movedhandle="end";
   selection.handlestart(this);
-};
+};*/
 
-selection.handlestart = function(who)
+selection.handlestart = function()
 {
-  who.ambiguoushandle = (who.range.start == who.range.end);
-  who.ambiguousinit = who.range.start;  //could actually be either
-  who.handle_e.attr("cursor","col-resize");
+  //figure out which handle is being moved.
+  var handle = dali.dragobject;
 
-  //now, figure out who got clicked.
-  selection.currentrange = selection.ranges.indexOf(who);
+  //set the cursor to the handle to be the left/right cursor.
+  $(handle).css("cursor","col-resize");
 
-  //discover the high and low limits for the selection.
-  selection.draglowlimit = 0;
-  selection.draghighlimit = editor.sequence.length;
-  selection.handle_initpos = ((this.movedhandle=="start") ? who.range.start : who.range.end) //determine the current position.
+  //set the absolute maximum high and low limits for the selection.
+  handle.draglowlimit = 0;
+  handle.draghighlimit = editor.sequence.length;
+  handle.lastpos = ((this.movedhandle=="start") ? handle.ref.start : handle.ref.end) //determine the current position.
 
-  //seek through the domain-ranges and ascertain the correct start
+  //set the anchor for the handle.
+  handle.ambiganchor = handle.ref.start; //(choice is arbitrary since this is used only if it started off ambiguously)
+
+  //seek through the domain-ranges and determine if we need to change the limits.
   for (var i = 0; i < selection.domain.ranges.length; i++)
   {
-    if (i != selection.currentrange)
-    {
-      var thisrange = selection.domain.ranges[i]
-      //do we need to reset the low limit.
-      selection.draglowlimit = (((thisrange.end > selection.draglowlimit) && (thisrange.end <= selection.handle_initpos)) ?
-        thisrange.end : selection.draglowlimit);
-      //do we need to reset the high limit?
-      selection.draghighlimit = (((thisrange.start < selection.draghighlimit) && (thisrange.start >= selection.handle_initpos)) ?
-        thisrange.start : selection.draghighlimit);
-    }
+    var range = selection.domain.ranges[i]
+    //do we need to reset the low limit.
+    handle.draglowlimit = (((range.end > handle.draglowlimit) && (range.end <= handle.lastpos)) ?
+      range.end : handle.draglowlimit);
+    //do we need to reset the high limit?
+    handle.draghighlimit = (((range.start < handle.draghighlimit) && (range.start >= handle.lastpos)) ?
+      range.start : handle.draghighlimit);
   }
 }
 
-selection.handlemove = function (dx, dy, x, y, e)
+selection.handlemove = function (x, y)
 { 
-  var location = graphics.getlocation(e);
-  (this.movedhandle == "start" ? this.handle_s : this.handle_e).transform(
-        "T"+ location.svgx + "," + location.svgy);
-  var line = graphics.getline(location.svgy);
-  var linepos = graphics.getpos(location.svgx);
+  var handle = dali.dragobject;
+  //move the handle to the correct position.
+  handle.applytransform(new dali.Translate(x,y), true);
+  var line = graphics.getline(y);
+  var linepos = graphics.getpos(x);
   var pos = line * graphics.settings.zoomlevel + linepos;
 
-  //calculate the correct position created by the handle. 
-  if (this.ambiguoushandle)
+  switch (handle.position)
   {
-    if ((pos >= selection.draglowlimit) && (pos <= selection.draghighlimit))
+    //this depends on the current position of the handle.
+    case 0: //ambiguous due to overlap.
+    break;
+    case -1: //start handle
+      if (pos <= handle.ref.end) //make sure we don't overshoot our bounds.
+        handle.ref.start = pos;
+    break;
+    case 1: //end handle
+      if (pos >= handle.ref.start) //make sure we don't overshoot our bounds.
+        handle.ref.end = pos;
+    break;
+  }
+
+  //calculate the correct position created by the handle. 
+  /*if (handle.position == 0)
+  {
+    /*if ((pos >= selection.draglowlimit) && (pos <= selection.draghighlimit))
     {
       if (pos <= this.ambiguousinit)
       {
@@ -469,37 +480,24 @@ selection.handlemove = function (dx, dy, x, y, e)
         this.range.start = this.ambiguousinit;
       }
     }
-  }
-  else
-  {
-    //if we have a normal, non-contracted range.
-    if ((this.movedhandle == "start") && (pos <= this.range.end) && (pos >= selection.draglowlimit))
-    {
-      this.range.start = pos;
-    }
-    if ((this.movedhandle == "end") && (pos >= this.range.start) && (pos <= selection.draghighlimit))
-    {
-      this.range.end = pos;
-    }
-  }
+  }*/
 
   //redraw the selection border.
-  this.draw();
+  handle.ref.draw();
 };
 
-
-selection.handleend = function()
+selection.handleend = function(x, y)
 {
-  //reset the handle position.
-  this.hidehandles();
-  this.showhandles();
+  var handle = dali.dragobject;
+  
+  handle.ref.hidehandles();
+  handle.ref.showhandles();
 
-  //find and store the index of the handle's range
-  var thisrange = selection.ranges.indexOf(this)
+  $(handle).css("cursor","");
 
   //run a check to see if we're going to have an overlapping handle problem.  First the start handle
-  if ((this.movedhandle == "start") || ((this.ambiguoushandle) && (this.range.end == this.ambiguousinit)))
-    if (this.range.start == selection.draglowlimit)
+/*  if ((handle.position == -1) || ((handle.position == 0) && (handle.ref.end == handle.ambiganchor)))
+    if (handle.ref.start == selection.draglowlimit)
     {
       for (var i = 0; i < selection.domain.ranges.length; i++) //now run through the ranges and look for the range that shares the overlap.
         if (selection.domain.ranges[i].end == this.range.start)
@@ -515,8 +513,8 @@ selection.handleend = function()
         selection.ranges[this.overlapstart].overlapend = -1;
         this.overlapstart = -1;
       }
-    }
-
+    }*/
+/*
   //now the end handle
   if ((this.movedhandle == "end") || ((this.ambiguoushandle) && (this.range.start == this.ambiguousinit)))
     if (this.range.end == selection.draghighlimit)
@@ -534,19 +532,12 @@ selection.handleend = function()
         selection.ranges[this.overlapend].overlapstart = -1
         this.overlapend = -1;
       }
-    }
-
-  selection.synchronize();
+    }*/
 };
-
+/*
 
 ////////////////////////////////////////////////////////////////////////////////////
 // CLASS FUNCTIONS
-
-selection.handle = function (position)
-{
-  return graphics.editor.paper.circle(0,0,4);
-};
 
 selection.tag = function (i)
 {
@@ -588,8 +579,7 @@ selection.merge = function()
   var lowerindex = Math.min(targets[0], targets[1]);
   var higherindex = Math.max(targets[0], targets[1]);
   var lower = selection.domain.ranges[lowerindex];
-  var higCute. Spent a bit of time trying to figure out how to get an arrow: It's not obvious that you need to drag to get an arrow object, because if you just click without dragging, all the other objects will create a new instance at top left. I started out assuming that the UI would be select the object, then click to make a new instance where you wanted it. So, once an object appeared, I thought the intended UI was, click to get object, move it to where you wanted. I think you need to either not create a new object unless the user does drag, so they understand that something more is required (which is how visio seems to do it) or make 'new instance at top left' work for all objects.
-her = selection.domain.ranges[higherindex];
+  var higher = selection.domain.ranges[higherindex];
   var newRange = new Range(Math.min(lower.start,higher.start), Math.max(lower.end, higher.end),
     (lower.length() > higher.length()) ? lower.orientation : higher.orientation); // the longer piece dominates.
 
@@ -615,7 +605,7 @@ selection.RangeExtension = function()
     path: undefined,
     handle_s: selection.handle(-1),
     handle_e: selection.handle(1),
-    //?
+    //graphic element to supply the (merge) method
     tag: undefined,
 
     draw: function()
@@ -657,19 +647,17 @@ selection.RangeExtension = function()
       this.path.remove();
       var that = this;
 
+      //take care of handles
       this.handle_s.hide(function(){that.handle_s.remove();});
       this.handle_e.hide(function(){that.handle_e.remove();});
-      //then take care of the handles
-/*      this.handle_s.animate(selection.animateout);
-      this.handle_e.animate(selection.animateout);
+
       //take care of tag (if necessary)
       if (this.tag)
         this.tag.animate(selection.animateout);
-
-      var _sel_todelete = this;
-      window.setTimeout(function()
-        { _sel_todelete.handle_s.remove(); _sel_todelete.handle_e.remove(); if (_sel_todelete.tag) {_sel_todelete.tag.remove();};}, 250);*/
     },
+
+    overlapstart: -1,
+    overlapend: -1,
 
     showhandles: function(complete)
     {
@@ -680,8 +668,8 @@ selection.RangeExtension = function()
       var handleendx = sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin;
       var handleendy = graphics.line(sel_span.end_l).top + graphics.line(sel_span.end_l).height/2;
 
-      this.handle_s.applytransform(new dali.Translate(handlestartx, handlestarty, true));
-      this.handle_e.applytransform(new dali.Translate(handleendx, handleendy, true));
+      this.handle_s.applytransform(new dali.Translate(handlestartx, handlestarty), true);
+      this.handle_e.applytransform(new dali.Translate(handleendx, handleendy), true);
 
       //brand the handles with the identity of the range.
       this.handle_s.ref = this;
@@ -762,18 +750,6 @@ selection.RangeExtension = function()
       this.handle_e.hide(complete);
     },
 
-   /*
-
-    //which handle has been moved last.
-    movedhandle: "",
-    //are we unsure because we started with a collapsed handle?
-    ambiguoushandle: false,
-    ambiguousinit: 0, //initial position of the collapsed handle.
-    //have we created a situation where we have overlapping handles?
-    overlapstart: -1,
-    overlapend: -1,
-    */
-
     hcssclass: function()
     {
       return [
@@ -807,15 +783,14 @@ selection.RangeExtension = function()
   */
   });
 
-  /*
-  segment.handle_s.drag(selection.handlemove, selection.handle_sstart, selection.handleend, segment);
-  segment.handle_e.drag(selection.handlemove, selection.handle_estart, selection.handleend, segment);
-  */
+  this.handle_s.setdrag(selection.handleend, selection.handlemove, selection.handlestart);
+  this.handle_e.setdrag(selection.handleend, selection.handlemove, selection.handlestart);
 }
 
 selection.handlegraphic = function(position)
   //position is a variable which refers to whether this is a start handle or an end handle.
   // -1: start
+  // 0: ambiguous
   // +1: end
 {
   var graphic = selection.floater.circle(0,0,5);
@@ -829,7 +804,7 @@ selection.handle = function(position)
   //two positions: start and end.
   $.extend(handle,
   {
-    ref: {}, //reference for handles.
+    ref: {}, //references the current range
     position: position,
     show: function (complete) {$(handle).animate({opacity:1},250, complete)},
     hide: function (complete) {$(handle).animate({opacity:1},250, complete)},
