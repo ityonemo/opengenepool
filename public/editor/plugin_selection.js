@@ -412,7 +412,7 @@ selection.handle_estart = function ()
   selection.handlestart(this);
 };*/
 
-selection.handlestart = function()
+selection.handlestart = function(event)
 {
   //figure out which handle is being moved.
   var handle = dali.dragobject;
@@ -441,11 +441,11 @@ selection.handlestart = function()
   }
 }
 
-selection.handlemove = function (x, y)
+selection.handlemove = function (x, y, event)
 { 
   var handle = dali.dragobject;
   //move the handle to the correct position.
-  handle.applytransform(new dali.Translate(x,y), true);
+  handle.applytransform(dali.translate(x,y), true);
   var line = graphics.getline(y);
   var linepos = graphics.getpos(x);
   var pos = line * graphics.settings.zoomlevel + linepos;
@@ -486,7 +486,7 @@ selection.handlemove = function (x, y)
   handle.ref.draw();
 };
 
-selection.handleend = function(x, y)
+selection.handleend = function()
 {
   var handle = dali.dragobject;
   
@@ -668,8 +668,8 @@ selection.RangeExtension = function()
       var handleendx = sel_span.end_p*graphics.metrics.charwidth + graphics.settings.lmargin;
       var handleendy = graphics.line(sel_span.end_l).top + graphics.line(sel_span.end_l).height/2;
 
-      this.handle_s.applytransform(new dali.Translate(handlestartx, handlestarty), true);
-      this.handle_e.applytransform(new dali.Translate(handleendx, handleendy), true);
+      this.handle_s.applytransform(dali.translate(handlestartx, handlestarty), true);
+      this.handle_e.applytransform(dali.translate(handleendx, handleendy), true);
 
       //brand the handles with the identity of the range.
       this.handle_s.ref = this;

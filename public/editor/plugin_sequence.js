@@ -129,6 +129,6 @@ var sequence = new editor.Plugin("sequence",
     //some glyphs descending below the baseline.  This may not have to be perfect.  TODO: figure out if this scales.
     hackvalue = 4;
     ////END HACK
-    positionobject.applytransform(new dali.Translate(0, -positionobject.height/2 - hackvalue));
+    positionobject.applytransform(dali.translate(0, -positionobject.height/2 - hackvalue));
   }
 });

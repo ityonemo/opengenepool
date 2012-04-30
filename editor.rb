@@ -38,8 +38,8 @@ get '/settings/graphics_settings.js' do
   content_type :json
   {
     :vmargin => 20,
-    :lmargin => 80,
-    :rmargin => 80,
+    :lmargin => 75,
+    :rmargin => 75,
     :zoomlevel => 100,
     :linepadding => 6,
     :contentpadding => 1,

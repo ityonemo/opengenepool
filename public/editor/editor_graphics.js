@@ -241,7 +241,7 @@ graphics = new editor.Plugin("graphics",
 
   clearline: function(line)
   {
-    if (!isNaN(line)) line = graphics.line(line); //set it to the element if we've not got it set that way yet.
+    line = (isNaN(line) ? line : graphics.line(line)); //set it to the element if we've not got it set that way yet.
     line.clear();
   },
 
@@ -260,9 +260,9 @@ graphics = new editor.Plugin("graphics",
   layout: function(line)
   {
     //fix the line variable
-    if (!isNaN(line)) line = graphics.line(line);
+    line = (isNaN(line) ? line : graphics.line(line)); 
     //reset the line to (0,0).
-    line.applytransform(new dali.Identity(), true);
+    line.currenttransform = undefined;
 
     //create a local variable to hold the bounding boxes.
     var boxes = [];
@@ -317,7 +317,7 @@ graphics = new editor.Plugin("graphics",
     var translatey = prevy + graphics.settings.linepadding + line.height - line.bottom;
 
     //then translate the entire line.
-    line.applytransform(new dali.Translate(graphics.settings.lmargin, translatey), true);
+    line.applytransform(dali.translate(graphics.settings.lmargin, translatey), true);
   },
 
   sort: function(line) //specialized sorting function which orders the line graphics elements by width.
@@ -454,7 +454,7 @@ graphics.newline = function(index)
 graphics.newcontainer = function(line, _name, anchored)
 {
   //if we've passed it a line number, replace it with the actual object.
-  if (!isNaN(line)) line = $("#line_" + line)[0];  
+  line = (isNaN(line) ? line : graphics.line(line)); 
   
   container = line.group(_name);
   $.extend(container,
@@ -522,7 +522,7 @@ graphics.Shell = function(template)
     bottompadding: template.bottompadding,
     toppadding: template.toppadding,
     ref: template,
-    brand: function() {this.ref.applytransform(new dali.Translate(this.deltax, this.deltay), true);},
+    brand: function() {this.ref.applytransform(dali.translate(this.deltax, this.deltay), true);},
     overlaps: function(box)
     {
       return !((box.left > this.right) || 
