@@ -1,8 +1,4 @@
 //Graphics plugin class definition
-
-var globalarray = [];
-var globalarray2 = [];
-
 graphics = new editor.Plugin("graphics",
 {
   //various variables that we'll be keeping track of.

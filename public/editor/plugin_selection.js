@@ -251,20 +251,8 @@ selection.startselect = function(token)
   graphics.registerdrag(selection);
 };
 
-/*
-
 selection.addselect = function(token)
-{  
-  for (var i = 0; i < selection.ranges.length; i++)
-  {
-    //deal with resetting the high and low limits
-    var thisrange = selection.domain.ranges[i]
-    selection.draglowlimit = (((thisrange.end <= token.pos) && (thisrange.end > selection.draglowlimit)) ?
-      thisrange.end : selection.draglowlimit)
-    selection.draghighlimit = (((thisrange.start >= token.pos) && (thisrange.start < selection.draghighlimit)) ?
-      thisrange.start : selection.draghighlimit)
-  }
-
+{ 
   if (!selection.isselected)  //just in case we're being asked to 
     selection.domain = new Domain(token.pos.toString());
   else if (selection.domain.contains(token.pos))
@@ -272,13 +260,27 @@ selection.addselect = function(token)
   else
     selection.domain.ranges.push(new Range(token.pos, token.pos, 0));
 
-  selection.selectionstart = token.pos;
+  selection.anchor = token.pos;
   selection.isselected = true;
-  selection.createranges();
-  selection.currentrange = selection.domain.ranges.length - 1;
+  selection.draglowlimit = 0;
+  selection.draghighlimit = editor.sequence.length;
+
+  //deal with resetting the high and low limits
+  for (var i = 0; i < selection.domain.ranges.length - 1; i++)
+  {
+    var thisrange = selection.domain.ranges[i];
+    selection.draglowlimit = (((thisrange.end <= token.pos) && (thisrange.end > selection.draglowlimit)) ?
+      thisrange.end : selection.draglowlimit)
+    selection.draghighlimit = (((thisrange.start >= token.pos) && (thisrange.start < selection.draghighlimit)) ?
+      thisrange.start : selection.draghighlimit)
+  }
+
+  var range = selection.domain.ranges[selection.domain.ranges.length - 1];
+  $.extend(range, new selection.RangeExtension(selection.domain.ranges[0]));
+  range.draw();
 
   graphics.registerdrag(selection);
-}*/
+}
 
 selection.drag = function(token)
 {
