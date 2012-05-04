@@ -10,12 +10,20 @@ graphics = new editor.Plugin("graphics",
   initstate: {settings: false, sequence: false, resize: false},
 
   //editor is the dali.js generated DOM object.
-  editor: {},
+  editor: undefined,
+  //zoomer is the zoomer object in the toolbar.
+  zoomer: undefined,
   //main layer is a group element that signifies the main layer.
-  mainlayer: {},
+  mainlayer: undefined,
   //there is also a selection layer, behind the main layer, and a floater layer, above it.
-  selectionlayer: {},
-  floaterlayer: {},
+  selectionlayer: undefined,
+  floaterlayer: undefined,
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  //ZOOM VALUES HELPER ARRAY
+  zoomvalues: [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
+  zoomstrings: ["50bp","75bp","100bp","200bp","500bp","1kbp","2kbp","5kbp","10kbp","20kbp","50kbp","100kbp","500kbp","1Mbp","5Mbp","10Mbp"],
+  zoomarray: [],
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // TOKEN-BASED FUNCTIONS
@@ -32,6 +40,22 @@ graphics = new editor.Plugin("graphics",
 
     //register the onresize() function
     graphics.editor.parentNode.onresize = graphics.onresize;
+
+    ////////////////////////////////////
+    // GENERATE THE GRAPHICS TOOLBAR
+    graphics.maketool();
+    graphics.toolbardom.innerHTML +=
+      "<select id='zoomer'></select><br><button id='getsvg' type='button' onclick='graphics.getsvg()'>get svg</button>";
+    //now assign the zoomer object.
+    graphics.zoomer = document.getElementById("zoomer");
+
+    //set the callback function for changing the zoomer.
+    graphics.zoomer.onchange = function()
+    {
+      graphics.zoom(graphics.zoomarray[graphics.zoomer.selectedIndex]);
+    }
+
+    graphics.initstate.sequence = true;
 
     //pull the settings data from the database.  This should be formatted as json.
     //then execute the callback function.
@@ -61,31 +85,28 @@ graphics = new editor.Plugin("graphics",
     for (var i = 0; i < graphics.linecount; i++)
       graphics.newline(i);
 
-    //create the zoomer object
-    var zoomer = document.getElementById("zoomer");
+    //now create the zoomer object to contain the appropriate zoom levels.
+    //first nuke everything.
+    graphics.zoomer.innerHTML="";
     graphics.zoomarray = [];
-    for (var i = 0; graphics.zoomvalues[i] < editor.sequence.length; i++) //infinite loooooooop =(
+    //rebuild it.
+    for (var i = 0; graphics.zoomvalues[i] < editor.sequence.length; i++) //beware the infinite loooooooop =(
     {
       var selection = document.createElement('option');
       selection.innerHTML = graphics.zoomstrings[i];
       graphics.zoomarray.push(graphics.zoomvalues[i]);
-      zoomer.appendChild(selection);
+      graphics.zoomer.appendChild(selection);
     }
 
+    //finally create the last object.
     var selection = document.createElement('option');
     selection.innerHTML = 'full';
     graphics.zoomarray.push(editor.sequence.length);
     zoomer.appendChild(selection);
-
-    zoomer.onchange = function()
-    {
-      graphics.zoom(graphics.zoomarray[this.selectedIndex]);
-    }
-
-    graphics.initstate.sequence = true;
   },
 
-  allsystemsgo: function()
+  
+allsystemsgo: function()
   {
     graphics.broadcast("render");
   },
@@ -115,6 +136,7 @@ graphics = new editor.Plugin("graphics",
   //Then render these lines.  If rendering said line causes the succeeding 
   //lines to become invalid, invalidate those.
   { 
+    if (!graphics.invalid) return;
     graphics.invalid = false; //flag the invalidation to false.
     //iterate over the lines array
     for (var i = 0; i < graphics.linecount; i++)
@@ -406,12 +428,6 @@ graphics = new editor.Plugin("graphics",
     dragtarget.handletoken(token);
     graphics.unregisterdrag();
   },
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  //ZOOM VALUES HELPER
-  zoomvalues: [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000, 10000000],
-  zoomstrings: ["50bp","75bp","100bp","200bp","500bp","1kbp","2kbp","5kbp","10kbp","20kbp","50kbp","100kbp","500kbp","1Mbp","5Mbp","10Mbp"],
-  zoomarray: [],
 
   //export the image as svg:
   getsvg: function()

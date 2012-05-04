@@ -7,6 +7,7 @@ var editor = new function Editor()
     queryresult: "",	//the raw output from the AJAX query
     $queriedxml: {},	//jQuery-processed AJAX query xml
     sequence: "",		//the actual sequence
+    asgcount: 0,	//how many times we have gone through all systems go.
 
     //DOM items
     infobox: {},
@@ -86,6 +87,13 @@ var editor = new function Editor()
 
     allsystemsgo:function()
     {
+      if (editor.asgcount++ > 20) 
+      {
+        editor.findbrokenplugins();
+        alert("ERROR: plugins " + editor.brokenplugins.join(" ") + " have failed initialization");
+        return;
+      };
+
       for (var i = 0; i < editor.plugins.length; i++)
         if (!editor.plugins[i].isready)
         {
@@ -96,8 +104,14 @@ var editor = new function Editor()
     },
 
     _allsystemsgo: function()
+    { editor.broadcast("allsystemsgo"); },
+
+    findbrokenplugins: function()
     {
-      editor.broadcast("allsystemsgo");
+      editor.brokenplugins = [];
+      for (var i = 0; i < editor.plugins.length; i++)
+        if (!editor.plugins[i].isready)
+          editor.brokenplugins.push(editor.plugins[i].title);
     },
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,10 +196,10 @@ var editor = new function Editor()
     //Precondition: token is an editor.Token object
     //Postcondition:  broadcast passes it to all of the plugins.
     {
-      mytoken = (typeof token == "string") ? new editor.Token(token, addenda) : token;
+      token = (typeof token == "string") ? new editor.Token(token, addenda) : token;
 
       for (var i = 0; i < editor.plugins.length; i++)
-        editor.plugins[i].handletoken(mytoken);
+        editor.plugins[i].handletoken(token);
     },
   });
 
@@ -206,7 +220,11 @@ var editor = new function Editor()
     {
       title: _name,
 
-      ready: function() { this.isready = true; },
+      //default ready function just sets isready to true.
+      ready: function() 
+      {
+        this.isready = true;
+      },
       isready: false,
 
       broadcast: function(token, addenda) 
