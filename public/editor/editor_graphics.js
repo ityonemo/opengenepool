@@ -55,6 +55,9 @@ graphics = new editor.Plugin("graphics",
       graphics.zoom(graphics.zoomarray[graphics.zoomer.selectedIndex]);
     }
 
+    ////////////////////////////////////
+    // OTHER INITIALIZATION
+
     graphics.initstate.sequence = true;
 
     //pull the settings data from the database.  This should be formatted as json.

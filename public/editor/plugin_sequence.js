@@ -92,14 +92,14 @@ var sequence = new editor.Plugin("sequence",
 
     //now set mousedown jQuery event.
 
-    $(sequenceobject).mousedown(function(e)
+    $(sequenceobject).mousedown(function(event)
     {
       //assign rightclick
       var rightclick;
-      if (e.which) rightclick = (e.which == 3);
-      else if (e.button) rightclick = (e.button == 2);
+      if (event.which) rightclick = (event.which == 3);
+      else if (event.button) rightclick = (event.button == 2);
 
-      var point = graphics.getlocation(e);
+      var point = graphics.getlocation(event);
 
       //figure out the row and character we clicked on.
       var ref = {};
@@ -111,10 +111,11 @@ var sequence = new editor.Plugin("sequence",
 
       if (rightclick)
       {
-        //sequence.sendcontextmenu(e.clientX, e.clientY, ref);
+        editor.showcontextmenu(event);
+        sequence.broadcast("contextmenu");
       }
       else //normal click
-        sequence.broadcast(e.shiftKey ? "addselect" : "startselect", ref);
+        sequence.broadcast(event.shiftKey ? "addselect" : "startselect", ref);
     });
     
     //graphics element which draws the position box.

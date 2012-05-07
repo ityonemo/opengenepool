@@ -135,37 +135,44 @@ var editor = new function Editor()
     //////////////////////////////////////////////////////////////////////
     // CONTEXT MENU STUFF
     context_menu_visible: false,
-    context_menu_array: [],  //array of menuitems.
 
-    addcontextmenuitem: function(what) {editor.context_menu_array.push(what)}, //synonymous call.
+    //life cycle of the context menu:  showcontextmenu gets called.
+    //(ideally) calling object propagates a "contextmenu" token.
+    //responders push contextmenuitems using addcontextmenu function.
+    //wait for click, then hidecontextmenu.
 
-    showcontextmenu: function(x, y)
+    showcontextmenu: function(event)
     {
-      //make sure that there actually context menu items to show.
-      if (editor.context_menu_array.length > 0)
-      {
-        //create the context menu.
-        //get the context menu DOM object.
-        var contextmenu = document.getElementById("contextmenu");
-        //clear the context menu.
-        contextmenu.innerHTML = "";
-        for (i = 0; i < editor.context_menu_array.length; i++)
-        {
-          var menuitem = editor.context_menu_array[i];
-          childdiv = document.createElement("div");
-          childdiv.innerHTML = menuitem.html;
-          childdiv.onclick = new Function(menuitem.callback + "editor.hidecontextmenu();");  //set up the correct onclick.
-          childdiv.setAttribute("class","menuitem");
-          contextmenu.appendChild(childdiv);  
-        };  
+      var x = event.clientX, y = event.clientY;
 
-        //actually show the context menu:
-        $("#contextmenu")
-          .css("left",(x - 5).toString() + "px")
-          .css("top",(y - 5).toString() + "px")
-          .css("display","block");
-        //set the context menu visibility flag
-        editor.context_menu_visible = true;
+      //create the context menu.
+      //get the context menu DOM object.
+      var contextmenu = document.getElementById("contextmenu");
+      //clear the context menu.
+      contextmenu.innerHTML = "";
+
+      //actually show the context menu:
+      $("#contextmenu")
+        .css("left",(x - 5).toString() + "px")
+        .css("top",(y - 5).toString() + "px")
+        .css("display","block");
+      //set the context menu visibility flag
+      editor.context_menu_visible = true;
+      //create a hook for window to close the context menu on finish.
+      window.addEventListener("click",editor.hidecontextmenu);
+    },
+
+    addcontextmenuitem: function(menuitem) 
+      //puts a context menu object into the menu.
+    {
+      if (editor.context_menu_visible)
+      {
+        var contextmenu = document.getElementById("contextmenu");
+        var childdiv = document.createElement("div");
+        childdiv.innerHTML = menuitem.html;
+        childdiv.onclick = menuitem.callback;
+        childdiv.setAttribute("class","menuitem");
+        contextmenu.appendChild(childdiv);
       }
     },
 
@@ -175,6 +182,8 @@ var editor = new function Editor()
       $("#contextmenu").css("display", "none");
       //reset the context menu visibility flag
       editor.context_menu_visible = false;
+      //clear the event listener.
+      window.removeEventListener("click", editor.hidecontextmenu);
     },
 
     //menuitem object
@@ -182,7 +191,7 @@ var editor = new function Editor()
     {
       $.extend(this,{
         html: _html, //what appears on the context menu.
-        callback: _callback, //callback should be a string described function
+        callback: _callback, //callback should be a string describing the callback function
       });
     },
   
@@ -246,20 +255,6 @@ var editor = new function Editor()
           this[token.type](token);
         }
       },
-
-/*    sendcontextmenu: function(x, y, ref, data, savemenu)
-      { 
-        if (!savemenu) {editor.context_menu_array = [];};
-        //set up values for the token.
-        token = new Token("contextmenu");
-        token.x = x;
-        token.y = y;
-        token.subtype = this.title;
-        token.ref = ref;
-        //tell the plugins about the context menu.
-        editor.broadcast(token);
-        editor.showcontextmenu(x, y);
-      },*/
 
       toolbardom: {},
       maketool: function(open)

@@ -88,6 +88,14 @@ var selection = new editor.Plugin("selection",
     editor.broadcast("selected");
   },
 
+  selectall: function(token)
+  {
+    //overwrite the token domain spec.
+    token.domain= "0.." + editor.sequence.length;
+    //pass it to the select function.
+    selection.select(token);
+  },
+
   rendered: function(token)
   {
     //gets called after a render() event.  In this case, the selection may need to be redrawn.
@@ -126,81 +134,86 @@ var selection = new editor.Plugin("selection",
     temprange.selectNodeContents(selection.clipboard);       //assign the range to the hidden div
     _sel_actual.addRange(temprange);
   },
-});
-/*
 
-selection.contextmenu = function(token)
-{
-  if (!selection.isselected)
-    editor.addcontextmenuitem(new MenuItem("select all", "select('0.." + editor.sequence.length + "');"))
-  else if (token.subtype != "selection") // this prevents this menu item from being doubled because of how selection duplicates the token.
-    editor.addcontextmenuitem(new MenuItem("select none", "selection.unselect();"));
-
-  switch (token.subtype)
+  //target for menu actions.
+  target: undefined,
+  contextmenu: function(token)
   {
-    case "sequence":
-      if (selection.isselected)
-      {
-        for (var i = 0; i < selection.domain.ranges.length; i++)
+    if (!selection.isselected)
+      editor.addcontextmenuitem(new editor.MenuItem("select all", selection.selectall))
+    else if (token.source != "selection") // this prevents this menu item from being doubled because of how selection duplicates the token.
+      editor.addcontextmenuitem(new editor.MenuItem("select none", selection.unselect));
+
+    switch (token.source)
+    {/*
+      case "sequence":
+        if (selection.isselected)
         {
-          if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
-            selection.sendcontextmenu(token.x, token.y, selection.ranges[i], null, true);
-          if (selection.domain.contains(token.ref.pos))
-            editor.addcontextmenuitem(new MenuItem("split selection range", "selection.splitdomain(" + token.ref.pos + ");"));
-        }
-      }
-    break;
-    case "selection":
-      if (selection.domain.ranges.length == 1)
-        editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
-
-      var refindex = selection.ranges.indexOf(token.ref);
-
-      switch (token.ref.range.orientation)
-      {
-        case -1:
-        case 1:
-          editor.addcontextmenuitem(new MenuItem("flip selection strand", "selection.flip(" + refindex + ");"));
-          editor.addcontextmenuitem(new MenuItem("make selection undirected", "selection.undirect(" + refindex + ");"));
-        break;
-        case 0:
-          editor.addcontextmenuitem(new MenuItem("set selection to plus strand", "selection.toplus(" + refindex + ");"));
-          editor.addcontextmenuitem(new MenuItem("set selection to minus strand", "selection.tominus(" + refindex + ");"));
-        break;
-      }
-    break;
-    case "annotations":
-      if (selection.isselected)
-        if (selection.ranges.length == 1)
-        {
-          var tgtdomain = token.ref.domain;
-
-          //assign the bounds of the annotation domain..
-          var start = editor.sequence.length;
-          var end = 0;
-          for (var j = 0; j < tgtdomain.ranges.length; j++)
+          for (var i = 0; i < selection.domain.ranges.length; i++)
           {
-            start = Math.min(tgtdomain.ranges[j].start, start);
-            end = Math.max(tgtdomain.ranges[j].end, end);
+            if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
+              selection.sendcontextmenu(token.x, token.y, selection.ranges[i], null, true);
+            if (selection.domain.contains(token.ref.pos))
+              editor.addcontextmenuitem(new MenuItem("split selection range", "selection.splitdomain(" + token.ref.pos + ");"));
           }
-
-          var ourrange = selection.domain.ranges[0];
-          //for encompassing, check that we aren't already ecompassing the annotation.
-          if (!((start >= ourrange.start) && (end <= ourrange.end)))
-            editor.addcontextmenuitem(new MenuItem("encompass this annotation", "selection.encompass(" + start + "," + end + ");"));
-
-          //for select-up-to, check that we aren't already partially overlapping the selection.
-          if ((start > ourrange.end) || (end < ourrange.start))
-            editor.addcontextmenuitem(new MenuItem("select up to annotation", "selection.selupto(" + start + "," + end + ");"));
-          else //for subtraction, additionally check to make sure we aren't encompassed in it.
-            if (!((ourrange.start >= start) && (ourrange.end <= end)))
-              editor.addcontextmenuitem(new MenuItem("subtract this annotation", "selection.subtract(" + start + "," + end + ");"));
         }
-    break;
-  }
-}
+      break;*/
+      case "selection":
+        //if (selection.domain.ranges.length == 1)
+        //  editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
+
+        selection.target = token.ref;
+
+        switch (token.ref.orientation)
+        {
+          case -1:
+          case 1:
+            editor.addcontextmenuitem(new editor.MenuItem("flip selection strand", selection.flip));
+            editor.addcontextmenuitem(new editor.MenuItem("make selection undirected", selection.undirect));
+          break;
+          case 0:
+            editor.addcontextmenuitem(new editor.MenuItem("set selection to plus strand", selection.toplus));
+            editor.addcontextmenuitem(new editor.MenuItem("set selection to minus strand", selection.tominus));
+          break;
+        }
+      break;
+      case "annotations":
+        if (selection.isselected){}	
+          /*if (selection.ranges.length == 1)
+          {
+            var tgtdomain = token.ref.domain;
+  
+            //assign the bounds of the annotation domain..
+            var start = editor.sequence.length;
+            var end = 0;
+            for (var j = 0; j < tgtdomain.ranges.length; j++)
+            {
+              start = Math.min(tgtdomain.ranges[j].start, start);
+              end = Math.max(tgtdomain.ranges[j].end, end);
+            }
+
+            var ourrange = selection.domain.ranges[0];
+            //for encompassing, check that we aren't already ecompassing the annotation.
+            if (!((start >= ourrange.start) && (end <= ourrange.end)))
+              editor.addcontextmenuitem(new MenuItem("encompass this annotation", "selection.encompass(" + start + "," + end + ");"));
+
+            //for select-up-to, check that we aren't already partially overlapping the selection.
+            if ((start > ourrange.end) || (end < ourrange.start))
+              editor.addcontextmenuitem(new MenuItem("select up to annotation", "selection.selupto(" + start + "," + end + ");"));
+            else //for subtraction, additionally check to make sure we aren't encompassed in it.
+              if (!((ourrange.start >= start) && (ourrange.end <= end)))
+                editor.addcontextmenuitem(new MenuItem("subtract this annotation", "selection.subtract(" + start + "," + end + ");"));
+          }*/
+        else //offer to add to the selection
+          editor.addcontextmenuitem(new editor.MenuItem("select this annotation", function(){}));
+      break;
+    }
+  },
+});
 
 
+
+/*
 selection.appendselect = function(token)
 {
   for (var i = 0; i < token.domain.ranges.length; i++)
@@ -318,33 +331,37 @@ selection.drop = function(token)
   selection.domain.ranges[selection.domain.ranges.length - 1].showhandles();
 };
 
-/*
-
 //////////////////////////////////////////////////////////////////////////
 // GENERAL FUNCTIONS
 
 //selection range manipulation functions.
 
-selection.flip = function(index)
+selection.flip = function()
 {
-  selection.domain.ranges[index].orientation *= -1;
-  selection.createranges();
+  selection.target.orientation *= -1;
+  selection.target.draw();
+  selection.target.sethandlecss();
 }
-selection.undirect = function(index)
+selection.undirect = function()
 {
-  selection.domain.ranges[index].orientation = 0;
-  selection.createranges();
+  selection.target.orientation = 0;
+  selection.target.draw();
+  selection.target.sethandlecss();
 }
-selection.toplus = function(index)
+selection.toplus = function()
 {
-  selection.domain.ranges[index].orientation = 1;
-  selection.createranges();
+  selection.target.orientation = 1;
+  selection.target.draw();
+  selection.target.sethandlecss();
 }
-selection.tominus = function(index)
+selection.tominus = function()
 {
-  selection.domain.ranges[index].orientation = -1;
-  selection.createranges();
+  selection.target.orientation = -1;
+  selection.target.draw();
+  selection.target.sethandlecss();
 }
+
+/*
 
 ///////////////////////////////////////////////////////////////////////////////////
 // annotations gymnastics
@@ -613,7 +630,7 @@ selection.RangeExtension = function()
     draw: function()
     {
       if (!this.path)
-        this.path = selection.layer.path();
+        this.path = selection.layer.path("");
 
       //retrieve the data that will be used to generate the image.
       var sel_span = new graphics.Span(this);
@@ -641,6 +658,7 @@ selection.RangeExtension = function()
                      " Z";
 
       $(this.path).attr("class", this.cssclass());
+      this.setclickhandler();
     },
 
     deleteme: function()
@@ -661,6 +679,13 @@ selection.RangeExtension = function()
     overlapstart: -1,
     overlapend: -1,
 
+    sethandlecss: function()
+    {
+      //set the css class of the handles.
+      $(this.handle_s).attr("class", this.hcssclass());
+      $(this.handle_e).attr("class", this.hcssclass());
+    },
+
     showhandles: function(complete)
     {
       var sel_span = new graphics.Span(this);
@@ -677,10 +702,7 @@ selection.RangeExtension = function()
       this.handle_s.ref = this;
       this.handle_e.ref = this;
 
-      //set the css class of the handles.
-      $(this.handle_s).attr("class", this.hcssclass());
-      $(this.handle_e).attr("class", this.hcssclass());
-
+      this.sethandlecss();
 
       /*if (this.overlapstart >= 0)
       {
@@ -768,21 +790,23 @@ selection.RangeExtension = function()
         "selection undirected",
         "selection plus"][this.orientation + 1];
     },
-/*
-  segment.path.translate(graphics.settings.lmargin, 0);
-  segment.path.mousedown(function(e)
-  {
-    if (!e) var e = window.event;
-    if (e.which) rightclick = (e.which == 3);
-    else if (e.button) rightclick = (e.button == 2);
 
-    if (rightclick)
+    setclickhandler: function()
     {
-      selection.sendcontextmenu(e.clientX, e.clientY, segment);
-    }
-  })
+      var that = this;
+      $(this.path).mousedown(function(e)
+      {
+        if (!e) var e = window.event;
+        if (e.which) rightclick = (e.which == 3);
+        else if (e.button) rightclick = (e.button == 2);
 
-  */
+        if (rightclick)
+        {
+          editor.showcontextmenu(e);
+          selection.broadcast("contextmenu", {ref:that});
+        }
+      })
+    }
   });
 
   this.handle_s.setdrag(selection.handleend, selection.handlemove, selection.handlestart);
@@ -877,5 +901,10 @@ MergeBubble = function()
 select = function(spec)
 {
   editor.broadcast("select",{domain: spec});
+}
+
+selectall = function()
+{
+  editor.broadcast("selectall");
 }
 

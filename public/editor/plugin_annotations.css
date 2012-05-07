@@ -22,6 +22,11 @@
 
 }
 
+.annotoolbar {
+  font-size: 14px;
+  font-family: "Lucida Sans", sans-serif;
+}
+
 .ann_inptitle {
   position: absolute;
   width: 60px;

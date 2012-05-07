@@ -8,6 +8,9 @@ var annotations = new editor.Plugin("annotations",
   annotip: {},
   fragments: [],
 
+  //annotations typelist
+  types: [],
+
   ////////////////////////////////////////////////////////////////////////
   // OVERLOADING TOKEN FUNCTIONS
 
@@ -25,6 +28,10 @@ var annotations = new editor.Plugin("annotations",
     var annotip_text = document.createElement('span');
     annotip_text.setAttribute('id','annotip_text');
     annotations.annotip.appendChild(annotip_text);
+
+    ////////////////////////////////////
+    // GENERATE THE ANNOTATIONS TOOLBAR
+    annotations.maketool();
   },
 
   //temporary variable to store current annotation.
@@ -44,6 +51,15 @@ var annotations = new editor.Plugin("annotations",
                                                       $(this).attr("type"),
                                                       $(this).attr("domain"),
                                                       $(this).attr("id"));
+
+        //add the type to the type list.
+        var type = $(this).attr("type");
+        if (annotations.types.indexOf(type) < 0)
+        {
+          annotations.types.push(type);
+          //populate the toolbar with this information.
+          annotations.toolbardom.innerHTML += "<div class='annotoolbar' id='tb_" + type + "'>" + type + "</div>"
+        }
 
         current_annotation = myannotation;
 
@@ -228,11 +244,11 @@ var annotations = new editor.Plugin("annotations",
 
         if (rightclick)
         {
-/*        //var data = {ref.domain.}
-        annotations.sendcontextmenu(e.clientX, e.clientY, ref)
+          editor.showcontextmenu(event);
+          annotations.broadcast("contextmenu",{ref:arrow.ref});
 
-        //for aesthetic purpsoses, hide the annotatation tooltip.
-        annotations.hideTip();*/
+          //for aesthetic purpsoses, hide the annotatation tooltip.
+          annotations.hideTip();
         }
         else //normal click triggers selection of underlying sequence
         {
