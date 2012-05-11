@@ -423,8 +423,8 @@ selection.handlestart = function(event)
   $(handle).css("cursor","col-resize");
 
   //set the absolute maximum high and low limits for the selection.
-  handle.draglowlimit = 0;
-  handle.draghighlimit = editor.sequence.length;
+  handle.draglowlimit = (handle.position == 1) ? handle.ref.start : 0;
+  handle.draghighlimit = (handle.position == -1) ? handle.ref.end : editor.sequence.length;
   handle.lastpos = (handle.position == -1 ? handle.ref.start : handle.ref.end) //determine the current position.
 
   //set the anchor for the handle.
@@ -434,12 +434,15 @@ selection.handlestart = function(event)
   for (var i = 0; i < selection.domain.ranges.length; i++)
   {
     var range = selection.domain.ranges[i];
-    //do we need to reset the low limit.
-    handle.draglowlimit = (((range.end > handle.draglowlimit) && (range.end <= handle.lastpos)) ?
-      range.end : handle.draglowlimit);
-    //do we need to reset the high limit?
-    handle.draghighlimit = (((range.start < handle.draghighlimit) && (range.start >= handle.lastpos)) ?
-      range.start : handle.draghighlimit);
+    if (range !== handle.ref)
+    {
+      //do we need to reset the low limit.
+      handle.draglowlimit = (((range.end > handle.draglowlimit) && (range.end <= handle.lastpos)) ?
+        range.end : handle.draglowlimit);
+      //do we need to reset the high limit?
+      handle.draghighlimit = (((range.start < handle.draghighlimit) && (range.start >= handle.lastpos)) ?
+        range.start : handle.draghighlimit);
+    }
   }
 }
 
@@ -458,14 +461,22 @@ selection.handlemove = function (x, y, event)
     {
       //this depends on the current position of the handle.
       case 0: //ambiguous due to overlap.
+        if (pos < handle.ambiganchor)
+        {
+          handle.ref.start = pos;
+          handle.ref.end = handle.ambiganchor;
+        }
+        else
+        {
+          handle.ref.start = handle.ambiganchor;
+          handle.ref.end = pos;
+        }
       break;
       case -1: //start handle
-        if (pos <= handle.ref.end) //make sure we don't overshoot our bounds.
-          handle.ref.start = pos;
+        handle.ref.start = pos;
       break;
       case 1: //end handle
-        if (pos >= handle.ref.start) //make sure we don't overshoot our bounds.
-          handle.ref.end = pos;
+        handle.ref.end = pos;
       break;
     }
   }
@@ -683,6 +694,15 @@ selection.RangeExtension = function()
 
       this.handle_s.applytransform(dali.translate(handlestartx, handlestarty), true);
       this.handle_e.applytransform(dali.translate(handleendx, handleendy), true);
+
+      //brand the handles with their relative position.
+      if (this.start == this.end)
+        this.handle_s.position = this.handle_e.position = 0;
+      else
+      {
+        this.handle_s.position = -1;
+        this.handle_e.position = 1;
+      }
 
       //brand the handles with the identity of the range.
       this.handle_s.ref = this;
