@@ -245,7 +245,7 @@ var annotations = new editor.Plugin("annotations",
         if (rightclick)
         {
           editor.showcontextmenu(event);
-          annotations.broadcast("contextmenu",{ref:arrow.ref});
+          annotations.broadcast("contextmenu",{ref:ref});
 
           //for aesthetic purpsoses, hide the annotatation tooltip.
           annotations.hideTip();

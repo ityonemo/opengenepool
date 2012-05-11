@@ -178,32 +178,34 @@ var selection = new editor.Plugin("selection",
         }
       break;
       case "annotations":
-        if (selection.isselected){}	
-          /*if (selection.ranges.length == 1)
+        if (selection.isselected)
+          if (selection.ranges.length == 1)
           {
-            var tgtdomain = token.ref.domain;
-  
-            //assign the bounds of the annotation domain..
-            var start = editor.sequence.length;
-            var end = 0;
-            for (var j = 0; j < tgtdomain.ranges.length; j++)
+            var target = selection.target = token.ref;
+
+            alert("hi dad " + target.ranges.length);
+
+            //calculate the absolute bounds of the particular annotation.
+            var refstart = editor.sequence.length;
+            var refend = 0;
+            for (var i = 0; i < target.ranges.length; i++)
             {
-              start = Math.min(tgtdomain.ranges[j].start, start);
-              end = Math.max(tgtdomain.ranges[j].end, end);
+              refstart = Math.min(refstart, target.ranges[i].start);
+              refend = Math.max(refend, target.ranges[i].end);
             }
 
-            var ourrange = selection.domain.ranges[0];
-            //for encompassing, check that we aren't already ecompassing the annotation.
-            if (!((start >= ourrange.start) && (end <= ourrange.end)))
-              editor.addcontextmenuitem(new MenuItem("encompass this annotation", "selection.encompass(" + start + "," + end + ");"));
+            var start = selection.domain.ranges[0].start;
+            var end = selection.domain.ranges[0].end;
 
-            //for select-up-to, check that we aren't already partially overlapping the selection.
-            if ((start > ourrange.end) || (end < ourrange.start))
-              editor.addcontextmenuitem(new MenuItem("select up to annotation", "selection.selupto(" + start + "," + end + ");"));
-            else //for subtraction, additionally check to make sure we aren't encompassed in it.
-              if (!((ourrange.start >= start) && (ourrange.end <= end)))
-                editor.addcontextmenuitem(new MenuItem("subtract this annotation", "selection.subtract(" + start + "," + end + ");"));
-          }*/
+            if (!((start >= refstart) && (end <= refend)))
+              editor.addcontextmenuitem(new MenuItem("encompass this annotation", selection.encompass));
+
+            if (!((ourrange.start >= start) && (ourrange.end <= end)))
+              editor.addcontextmenuitem(new editor.MenuItem("select up to annotation", selection.selupto));
+            else if (!((ourrange.start >= start) && (ourrange.end <= end)))
+              editor.addcontextmenuitem(new editor.MenuItem("subtract this annotation", selection.subtract));
+
+          }
         else //offer to add to the selection
           editor.addcontextmenuitem(new editor.MenuItem("select this annotation", function(){}));
       break;
@@ -361,75 +363,56 @@ selection.tominus = function()
   selection.target.sethandlecss();
 }
 
-/*
-
 ///////////////////////////////////////////////////////////////////////////////////
 // annotations gymnastics
 
-selection.encompass = function(start, end) 
+selection.encompass = function() 
 {
-  selection.domain.ranges[0].start = Math.min(selection.domain.ranges[0].start, start);
-  selection.domain.ranges[0].end = Math.max(selection.domain.ranges[0].end, end);
-
-  selection.createranges();
+  var selrange = selection.domain.ranges[0];
+  selrange.start = Math.min(selrange.start, target.start);
+  selrange.end = Math.max(selrange.end, target.end);
 }
 
-selection.subtract = function(start, end) 
+selection.subtract = function() 
 {
-  var selstart = selection.domain.ranges[0].start;
-  var selend = selection.domain.ranges[0].end;
+  var selrange = selection.domain.ranges[0];
 
-  if ((start > selstart) && (end < selend))
+  if ((target.start > selrange.start) && (target.end < selrange.end))
   {
-    var orientation = selection.domain.ranges[0].orientation;
+    var orientation = selrange.orientation;
     //gonna have to split it into two!
     if (orientation >= 0)
     {
-      selection.domain.ranges.push(new Range(end, selend, orientation));
-      selection.domain.ranges[0].end = start;
+      selection.domain.ranges.push(new Range(target.end, selrange.end, orientation));
+      selrange.end = target.start;
     } else
     {
-      selection.domain.ranges.push(new Range(selstart, start, orientation));
-      selection.domain.ranges[0].start = end;
+      selection.domain.ranges.push(new Range(selrange.start, target.start, orientation));
+      selrange.start = target.end;
     }
   } else
   {
     //contract as appropriate.
-    if (selend > end)
-      selection.domain.ranges[0].start = end;
+    if (selrange.end > target.end)
+      selrange.start = target.end;
     else //(selstart < start)
-      selection.domain.ranges[0].end = start;
+      selrange.end = target.start;
   }
-  selection.createranges();
 }
 
-selection.selupto = function(start, end) 
+selection.selupto = function() 
 {
-  var selstart = selection.domain.ranges[0].start;
-  var selend = selection.domain.ranges[0].end;
+  var selrange = selection.domain.ranges[0];
   
-  if (selstart > end)
-    selection.domain.ranges[0].start = end;
+  if (selrange.start > target.end)
+    selrange.start = target.end;
   else // selend < start
-    selection.domain.ranges[0].end = start;
+    selrange.end = target.start;
 
-  selection.createranges();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
 // selection handle drag/drop directives
-
-selection.handle_sstart = function ()
-{
-  this.movedhandle="start";
-  selection.handlestart(this);
-};
-
-selection.handle_estart = function ()
-{
-  this.movedhandle="end";
-  selection.handlestart(this);
-};*/
 
 selection.handlestart = function(event)
 {
@@ -442,7 +425,7 @@ selection.handlestart = function(event)
   //set the absolute maximum high and low limits for the selection.
   handle.draglowlimit = 0;
   handle.draghighlimit = editor.sequence.length;
-  handle.lastpos = ((this.movedhandle=="start") ? handle.ref.start : handle.ref.end) //determine the current position.
+  handle.lastpos = (handle.position == -1 ? handle.ref.start : handle.ref.end) //determine the current position.
 
   //set the anchor for the handle.
   handle.ambiganchor = handle.ref.start; //(choice is arbitrary since this is used only if it started off ambiguously)
@@ -450,7 +433,7 @@ selection.handlestart = function(event)
   //seek through the domain-ranges and determine if we need to change the limits.
   for (var i = 0; i < selection.domain.ranges.length; i++)
   {
-    var range = selection.domain.ranges[i]
+    var range = selection.domain.ranges[i];
     //do we need to reset the low limit.
     handle.draglowlimit = (((range.end > handle.draglowlimit) && (range.end <= handle.lastpos)) ?
       range.end : handle.draglowlimit);
@@ -469,19 +452,22 @@ selection.handlemove = function (x, y, event)
   var linepos = graphics.getpos(x);
   var pos = line * graphics.settings.zoomlevel + linepos;
 
-  switch (handle.position)
+  if ((pos >= handle.draglowlimit) && (pos <= handle.draghighlimit))
   {
-    //this depends on the current position of the handle.
-    case 0: //ambiguous due to overlap.
-    break;
-    case -1: //start handle
-      if (pos <= handle.ref.end) //make sure we don't overshoot our bounds.
-        handle.ref.start = pos;
-    break;
-    case 1: //end handle
-      if (pos >= handle.ref.start) //make sure we don't overshoot our bounds.
-        handle.ref.end = pos;
-    break;
+    switch (handle.position)
+    {
+      //this depends on the current position of the handle.
+      case 0: //ambiguous due to overlap.
+      break;
+      case -1: //start handle
+        if (pos <= handle.ref.end) //make sure we don't overshoot our bounds.
+          handle.ref.start = pos;
+      break;
+      case 1: //end handle
+        if (pos >= handle.ref.start) //make sure we don't overshoot our bounds.
+          handle.ref.end = pos;
+      break;
+    }
   }
 
   //calculate the correct position created by the handle. 
@@ -622,8 +608,8 @@ selection.RangeExtension = function()
   {
     //graphics elements:
     path: undefined,
-    handle_s: selection.handle(-1),
-    handle_e: selection.handle(1),
+    handle_s: selection.createhandle(-1),
+    handle_e: selection.createhandle(1),
     //graphic element to supply the (merge) method
     tag: undefined,
 
@@ -704,50 +690,7 @@ selection.RangeExtension = function()
 
       this.sethandlecss();
 
-      /*if (this.overlapstart >= 0)
-      {
-        var t1 = this.overlapstart;
-        var t2 = selection.ranges.indexOf(this);
-        this.handle_s.mousedown(
-          function(e)
-          {
-            if (!e) var e = window.event;
-            if (e.which) rightclick = (e.which == 3);
-            else if (e.button) rightclick = (e.button == 2);
-
-            if (rightclick)
-            {
-              //create a merge bubble option.
-              selection.mergebubble.targets = [t1, t2];
-              selection.mergebubble.hide();
-              selection.mergebubble.show(handlestartx, 
-                graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height);
-            }
-          })
-      }
-
-      if (this.overlapend >= 0)
-      {
-        var t1 = this.overlapend;
-        var t2 = selection.ranges.indexOf(this);
-        this.handle_e.mousedown(
-          function(e)
-          {
-            if (!e) var e = window.event;
-            if (e.which) rightclick = (e.which == 3);
-            else if (e.button) rightclick = (e.button == 2);
-
-            if (rightclick)
-            {
-              //create a merge bubble option.
-              selection.mergebubble.targets = [t1, t2];
-              selection.mergebubble.hide();
-              selection.mergebubble.show(handleendx, 
-                graphics.lines[sel_span.end_s].translatey - graphics.lines[sel_span.end_s].content.getBBox().height);
-            }
-          })
-      }
-
+      /*
       if (this.tag)
       {
         this.tag.transform(
@@ -823,7 +766,7 @@ selection.handlegraphic = function(position)
   return graphic;
 };
 
-selection.handle = function(position)
+selection.createhandle = function(position)
 {
   var handle = selection.handlegraphic(position);
 
