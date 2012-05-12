@@ -301,6 +301,8 @@ annotations.todelete = {};
 
 annotations.contextmenu = function(token)
 {
+  editor.addcontextmenuitem(new editor.MenuItem());  //menu break
+
   switch (token.subtype)
   {
     case "annotations":
@@ -317,6 +319,7 @@ annotations.contextmenu = function(token)
         editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog();"))
     break;
   }
+
 }
 
 /////////////////////////////////////////////////////////////////

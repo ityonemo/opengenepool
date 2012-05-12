@@ -80,7 +80,7 @@ var selection = new editor.Plugin("selection",
       var range = selection.domain.ranges[i];
       $.extend(range, new selection.RangeExtension(selection.domain.ranges[i]));
       range.draw();
-      range.showhandles();
+      range.showwidgets();
     }
 
     selection.isselected = true;
@@ -103,9 +103,9 @@ var selection = new editor.Plugin("selection",
       for (var i = 0; i < selection.domain.ranges.length; i++)
       {
         var range = selection.domain.ranges[i];
-        range.hidehandles();
+        range.hidewidgets();
         range.draw();
-        range.showhandles();
+        range.showwidgets();
       };
   },
 
@@ -139,25 +139,39 @@ var selection = new editor.Plugin("selection",
   target: undefined,
   contextmenu: function(token)
   {
+    editor.addcontextmenuitem(new editor.MenuItem());  //menu break
+
     if (!selection.isselected)
       editor.addcontextmenuitem(new editor.MenuItem("select all", selection.selectall))
     else if (token.source != "selection") // this prevents this menu item from being doubled because of how selection duplicates the token.
       editor.addcontextmenuitem(new editor.MenuItem("select none", selection.unselect));
 
     switch (token.source)
-    {/*
+    {
       case "sequence":
         if (selection.isselected)
         {
+          /*
           for (var i = 0; i < selection.domain.ranges.length; i++)
           {
             if ((token.ref.pos >= selection.domain.ranges[i].start) && (token.ref.pos <= selection.domain.ranges[i].end))
               selection.sendcontextmenu(token.x, token.y, selection.ranges[i], null, true);
             if (selection.domain.contains(token.ref.pos))
               editor.addcontextmenuitem(new MenuItem("split selection range", "selection.splitdomain(" + token.ref.pos + ");"));
+          }*/
+
+          //throw a second request on top that replicates the token except via selection.
+          //first check to see if the token position is in current selection.
+          if (selection.domain.contains(token.pos))
+          {
+            var j = 0;
+            for(; j < selection.domain.ranges.length; j++)
+              if (selection.domain.ranges[j].contains(token.pos))
+                token.ref = selection.domain.ranges[j];
+            selection.broadcast(token);
           }
         }
-      break;*/
+      break;
       case "selection":
         //if (selection.domain.ranges.length == 1)
         //  editor.addcontextmenuitem(new MenuItem("fork selection", "selection.fork();"));
@@ -175,6 +189,17 @@ var selection = new editor.Plugin("selection",
             editor.addcontextmenuitem(new editor.MenuItem("set selection to plus strand", selection.toplus));
             editor.addcontextmenuitem(new editor.MenuItem("set selection to minus strand", selection.tominus));
           break;
+        }
+
+        //various selection tools that are only invoked if there are more than one selection ranges.
+        if (selection.domain.ranges.length > 1)
+        {
+          editor.addcontextmenuitem(new editor.MenuItem());  //menu break
+          editor.addcontextmenuitem(new editor.MenuItem("delete selection range", selection.delrange));
+          editor.addcontextmenuitem(new editor.MenuItem("move selection range up", selection.moveup));
+          editor.addcontextmenuitem(new editor.MenuItem("move selection range down", selection.movedown));
+          editor.addcontextmenuitem(new editor.MenuItem("make first selection range", selection.movefirst));
+          editor.addcontextmenuitem(new editor.MenuItem("make last selection range", selection.movelast));
         }
       break;
       case "annotations":
@@ -211,6 +236,25 @@ var selection = new editor.Plugin("selection",
       break;
     }
   },
+
+  showtags:function()
+  {    
+    if (selection.domain.ranges.length > 1)
+    for (var i = 0; i < selection.domain.ranges.length; i++)
+    {
+      var range = selection.domain.ranges[i];
+      var sel_span = new graphics.Span(range);
+
+      if (range.tag)
+        range.tag.hide(range.tag.remove);
+
+      range.tag = selection.createtag(i + 1);
+      range.tag.applytransform(
+        dali.translate(sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin, graphics.line(sel_span.start_l).top)
+      );
+      range.tag.show();
+    }
+  }
 });
 
 
@@ -330,7 +374,7 @@ selection.drag = function(token)
 selection.drop = function(token)
 {
   //show the handles.
-  selection.domain.ranges[selection.domain.ranges.length - 1].showhandles();
+  selection.domain.ranges[selection.domain.ranges.length - 1].showwidgets();
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -444,6 +488,12 @@ selection.handlestart = function(event)
         range.start : handle.draghighlimit);
     }
   }
+
+  //disappear the tag in case we are using the start handle.
+  if ((handle.position == -1) && (handle.ref.tag))
+  {
+    handle.ref.tag.hide(function(){handle.ref.tag.remove(); handle.ref.tag = undefined;});
+  }
 }
 
 selection.handlemove = function (x, y, event)
@@ -506,8 +556,8 @@ selection.handleend = function()
 {
   var handle = dali.dragobject;
   
-  handle.ref.hidehandles();
-  handle.ref.showhandles();
+  handle.ref.hidewidgets();
+  handle.ref.showwidgets();
 
   $(handle).css("cursor","");
 
@@ -557,14 +607,6 @@ selection.handleend = function()
 
 selection.tag = function (i)
 {
-  var tagtext = graphics.editor.paper.text(0,-2,i.toString());
-  tagtext.attr("class","sel_tag text");
-  var textbox = tagtext.getBBox();
-  var tagbox = graphics.editor.paper.rect(-(textbox.width/2) - 1, -(textbox.height/2), textbox.width + 2, textbox.height + 1);
-  tagbox.attr("class","sel_tag box");
-  var tagset = graphics.editor.paper.set();
-  tagset.push(tagbox,tagtext);
-  return tagset;
 };
 
 selection.splitdomain = function(pos)
@@ -670,7 +712,7 @@ selection.RangeExtension = function()
 
       //take care of tag (if necessary)
       if (this.tag)
-        this.tag.animate(selection.animateout);
+        this.tag.hide(function(){that.tag.remove()});
     },
 
     overlapstart: -1,
@@ -683,7 +725,7 @@ selection.RangeExtension = function()
       $(this.handle_e).attr("class", this.hcssclass());
     },
 
-    showhandles: function(complete)
+    showwidgets: function(complete)
     {
       var sel_span = new graphics.Span(this);
 
@@ -710,28 +752,18 @@ selection.RangeExtension = function()
 
       this.sethandlecss();
 
-      /*
-      if (this.tag)
-      {
-        this.tag.transform(
-          "T"+(sel_span.start_p*graphics.metrics.charwidth + graphics.settings.lmargin)+
-          ","+(graphics.lines[sel_span.start_s].translatey - graphics.lines[sel_span.start_s].content.getBBox().height)
-        );
-        this.tag.toFront();
-        this.tag.animate(selection.animatein);
-      }*/
-
       this.handle_s.show(complete);
       this.handle_e.show(complete);
+
+      selection.showtags();
     },
 
-    hidehandles: function(complete)
+    hidewidgets: function(complete)
     {
-      /*if (this.tag)
-      {
-        this.tag.toFront();
-        this.tag.animate(selection.animateout);
-      }*/
+      var thattag = this.tag;
+      if (this.tag)
+        this.tag.hide(function(){if (complete) complete(); thattag.remove();});
+      this.tag = undefined;
 
       this.handle_s.hide(complete);
       this.handle_e.hide(complete);
@@ -786,22 +818,47 @@ selection.handlegraphic = function(position)
   return graphic;
 };
 
+//position is a variable which specifies the position of the handle:
+// -1: start, 0: either (0 length selection), 1: end
 selection.createhandle = function(position)
 {
   var handle = selection.handlegraphic(position);
 
-  //two positions: start and end.
-  $.extend(handle,
-  {
-    ref: {}, //references the current range
-    position: position,
-    show: function (complete) {$(handle).animate({opacity:1},250, complete)},
-    hide: function (complete) {$(handle).animate({opacity:1},250, complete)},
-  });
-
+  $.extend(handle, new selection.Widget({position:position}));
   $(handle).css("opacity","0");
   return handle;
 };
+
+selection.taggraphic = function(i)
+{
+  var tagset = selection.floater.group();
+  var tagtext = tagset.text(0, 0, i.toString());
+  $(tagtext).attr("class","sel_tag text");
+  var textbox = tagtext.getBBox();
+  tagtext.dy = textbox.height / 2;
+  var tagbox = tagset.rect(-(textbox.width/2) - 2, -(textbox.height/2), textbox.width + 4, textbox.height + 4);
+  $(tagbox).attr("class","sel_tag box");
+  tagbox.parentNode.insertBefore(tagbox,tagtext);
+  return tagset;
+}
+
+selection.createtag = function(i)
+{
+  var tag = selection.taggraphic(i);
+  $.extend(tag, new selection.Widget({val:i}));
+  $(tag).css("opacity","0");
+  return tag;
+}
+
+selection.Widget = function(etc)
+{
+  $.extend(this,
+  {
+    ref: {}, //references the current range
+    show: function (complete) {$(this).animate({opacity:1},250, complete)},
+    hide: function (complete) {$(this).animate({opacity:1},250, complete)},
+  }, etc);
+}
 
 /*
 

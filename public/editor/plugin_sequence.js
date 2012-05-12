@@ -33,6 +33,8 @@ var sequence = new editor.Plugin("sequence",
 
   contextmenu : function (token)
   {
+    editor.addcontextmenuitem(new editor.MenuItem());  //menu break
+
     switch (token.subtype)
     {
       case "selection":
@@ -41,6 +43,7 @@ var sequence = new editor.Plugin("sequence",
         //editor.addcontextmenuitem(new MenuItem("fork to workspace", "sequence._fork(" + selection.range.datastring() + ");"));
       break;
     }
+
   },
 
   editdialog: function (a, b, c)
@@ -112,7 +115,7 @@ var sequence = new editor.Plugin("sequence",
       if (rightclick)
       {
         editor.showcontextmenu(event);
-        sequence.broadcast("contextmenu");
+        sequence.broadcast("contextmenu", ref);
       }
       else //normal click
         sequence.broadcast(event.shiftKey ? "addselect" : "startselect", ref);

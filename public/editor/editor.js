@@ -163,14 +163,25 @@ var editor = new function Editor()
     },
 
     addcontextmenuitem: function(menuitem) 
-      //puts a context menu object into the menu.
+    //puts a context menu object into the menu.
     {
       if (editor.context_menu_visible)
       {
         var contextmenu = document.getElementById("contextmenu");
+
+        //first check to see if we're adding an <hr> element.
+        if (menuitem.html == "<hr>")
+        {
+          //reject if it's the first object.
+          if (contextmenu.innerHTML == "") return;
+          //reject if the last object is also an <hr> element.
+          if (contextmenu.lastChild.innerHTML == "<hr>") return;
+        }
+
         var childdiv = document.createElement("div");
         childdiv.innerHTML = menuitem.html;
-        childdiv.onclick = menuitem.callback;
+        if (menuitem.callback)
+          childdiv.onclick = menuitem.callback;
         childdiv.setAttribute("class","menuitem");
         contextmenu.appendChild(childdiv);
       }
@@ -187,11 +198,12 @@ var editor = new function Editor()
     },
 
     //menuitem object
-    MenuItem: function(_html, _callback)
+    MenuItem: function(html, callback)
     {
+      if (!html) html = "<hr>";
       $.extend(this,{
-        html: _html, //what appears on the context menu.
-        callback: _callback, //callback should be a string describing the callback function
+        html: html, //what appears on the context menu.
+        callback: callback, //callback should be a string describing the callback function
       });
     },
   
