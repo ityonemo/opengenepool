@@ -549,9 +549,6 @@ var selection = new editor.Plugin("selection",
     handle.draghighlimit = (handle.position == -1) ? handle.ref.end : editor.sequence.length;
     handle.lastpos = (handle.position == -1 ? handle.ref.start : handle.ref.end) //determine the current position.
 
-    //set the anchor for the handle.
-    handle.ambiganchor = handle.ref.start; //(choice is arbitrary since this is used only if it started off ambiguously)
-
     //seek through the domain-ranges and determine if we need to change the limits.
     for (var i = 0; i < selection.domain.ranges.length; i++)
     {
@@ -565,6 +562,26 @@ var selection = new editor.Plugin("selection",
         handle.draghighlimit = (((range.start < handle.draghighlimit) && (range.start >= handle.lastpos)) ?
           range.start : handle.draghighlimit);
       }
+    }
+
+    //check to see if we are moving a handle ref.
+    if (handle.ref.overlap_s && handle.position == -1)
+    {
+      handle.leftrange = handle.ref.overlap_s;
+      handle.rightrange = handle.ref;
+      handle.antihandle = handle.ref.overlap_s.handle_e;
+      handle.draglowlimit = handle.leftrange.start;
+    } else if (handle.ref.overlap_e && handle.position == 1)
+    {
+      handle.leftrange = handle.ref;
+      handle.rightrange = handle.ref.overlap_e;
+      handle.antihandle = handle.ref.overlap_e.handle_s;
+      handle.draghighlimit = handle.rightrange.end;
+    } else
+    {
+      handle.leftrange = undefined;
+      handle.rightrange = undefined;
+      handle.antihandle = undefined;
     }
 
     //disappear the tag in case we are using the start handle.
@@ -586,18 +603,37 @@ var selection = new editor.Plugin("selection",
     pos = Math.max(pos, handle.draglowlimit);
     pos = Math.min(pos, handle.draghighlimit);
 
-    switch (handle.position)
+    if (handle.antihandle) // then we are dealing with an overlap situation.
+    {
+      if (pos < handle.lastpos)
+      {
+        handle.leftrange.end = pos;
+        handle.rightrange.start = handle.lastpos;
+        handle.setAttribute("class",handle.leftrange.hcssclass());
+        handle.antihandle.setAttribute("class",handle.rightrange.hcssclass());
+      } else
+      {
+        handle.rightrange.start = pos;
+        handle.leftrange.end = handle.lastpos;
+        handle.setAttribute("class",handle.rightrange.hcssclass());
+        handle.antihandle.setAttribute("class",handle.leftrange.hcssclass());
+        handle.rightrange.tag.hide(function(){handle.ref.tag.remove(); handle.ref.tag = undefined;});
+      }
+      handle.leftrange.draw();
+      handle.rightrange.draw();
+      return;
+    } else switch (handle.position)
     {
       //this depends on the current position of the handle.
       case 0: //ambiguous due to overlap.
-        if (pos < handle.ambiganchor)
+        if (pos < handle.lastpos)
         {
           handle.ref.start = pos;
-          handle.ref.end = handle.ambiganchor;
+          handle.ref.end = handle.lastpos;
         }
         else
         {
-          handle.ref.start = handle.ambiganchor;
+          handle.ref.start = handle.lastpos;
           handle.ref.end = pos;
         }
       break;
@@ -616,12 +652,8 @@ var selection = new editor.Plugin("selection",
   handleend: function()
   {
     var handle = dali.dragobject;
-  
-    handle.ref.hidewidgets();
-    handle.ref.showwidgets();
-
+    selection.rendered();
     $(handle).css("cursor","");
-
     selection.flagoverlaps();
   },
 
@@ -637,10 +669,20 @@ selection.splitrange = function()
     var thisrange = selection.domain.ranges[i];
     if ((pos > thisrange.start) && (pos < thisrange.end))
     {
-      var newrange = new Range(pos, thisrange.end, thisrange.orientation);
-      $.extend(newrange, new selection.RangeExtension(newrange));
-      thisrange.end = pos;
-      selection.domain.ranges.splice(i + 1, 0,newrange);
+      if (thisrange.orientation >= 0)
+      {
+        var newrange = new Range(thisrange.start, pos, thisrange.orientation);
+        $.extend(newrange, new selection.RangeExtension(newrange));
+        thisrange.start = pos;
+        selection.domain.ranges.splice(i, 0,newrange);
+      } else 
+      {
+        var newrange = new Range(pos, thisrange.end, thisrange.orientation);
+        $.extend(newrange, new selection.RangeExtension(newrange));
+        thisrange.end = pos;
+        selection.domain.ranges.splice(i, 0, newrange);
+      } 
+
       selection.flagoverlaps();
       selection.rendered();
       return;
