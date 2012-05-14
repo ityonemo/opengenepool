@@ -168,11 +168,6 @@ Range = function(_start, _end, _orientation)
       }
     },
 
-    length: function()
-    {
-      return this.end - this.start;
-    },
-
     toGenBank: function()
     {
       return ((this.orientation == -1) ? "complement" : "") + this.toString(); 
@@ -211,6 +206,8 @@ Range = function(_start, _end, _orientation)
     else {this.orientation = 1;}
   }
 }
+
+Range.prototype.__defineGetter__("length",function(){return this.end - this.start});
 
 /////////////////////////////////////////////
 // generic reverse complement

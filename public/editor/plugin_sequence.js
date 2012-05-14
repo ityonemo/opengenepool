@@ -118,7 +118,10 @@ var sequence = new editor.Plugin("sequence",
         sequence.broadcast("contextmenu", ref);
       }
       else //normal click
-        sequence.broadcast(event.shiftKey ? "addselect" : "startselect", ref);
+      {
+        ref.mode = event.shiftKey;
+        sequence.broadcast("startselect", ref);
+      }
     });
     
     //graphics element which draws the position box.

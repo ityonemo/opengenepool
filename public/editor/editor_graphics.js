@@ -15,9 +15,6 @@ graphics = new editor.Plugin("graphics",
   zoomer: undefined,
   //main layer is a group element that signifies the main layer.
   mainlayer: undefined,
-  //there is also a selection layer, behind the main layer, and a floater layer, above it.
-  selectionlayer: undefined,
-  floaterlayer: undefined,
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //ZOOM VALUES HELPER ARRAY
