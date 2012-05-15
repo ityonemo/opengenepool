@@ -7,6 +7,7 @@ Figure out how to center the dialog box.
 
 Important Fixes:
 
+Migrate from Mysql rubygem to "sequel" rubygem.
 Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
