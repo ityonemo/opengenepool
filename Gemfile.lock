@@ -2,6 +2,7 @@ GEM
   remote: http://rubygems.org/
   specs:
     haml (3.1.5)
+    json (1.7.3)
     mysql (2.8.1)
     rack (1.1.0)
     sinatra (1.2.8)
@@ -14,6 +15,7 @@ PLATFORMS
 
 DEPENDENCIES
   haml
+  json
   mysql
   rack (= 1.1)
   sinatra
