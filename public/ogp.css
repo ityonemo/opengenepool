@@ -113,8 +113,17 @@ section#content{
   right: 0px;
 }
 
-#dialog{
+#dialogmodal{
+  position: absolute;
   display: none;
+  background-color: rgba(0,0,0,0);
+  top: 0px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+}
+
+#dialog{
   background-color: #999;
   border: solid 1px #AAA;
   position: absolute;

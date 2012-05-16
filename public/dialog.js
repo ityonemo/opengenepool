@@ -3,13 +3,11 @@ var dialog = new function Dialog()
   $.extend(this,
   {
     //DOM variables
-    content:{},
-    okbutton:{},
-    cancelbutton:{},
-
-    //functions
-    callback:{},
-    onrender:{},
+    content:undefined,
+    okbutton:undefined,
+    cancelbutton:undefined,
+    onrender: undefined,
+    callback: undefined,
 
     initialize: function()
     {
@@ -21,6 +19,7 @@ var dialog = new function Dialog()
 
     show: function(what, callback, onrender)
     {
+      $("#dialogmodal").css("display","block");
       //set the content of the dialog box.
       dialog.content.innerHTML = what;
 
@@ -54,7 +53,7 @@ var dialog = new function Dialog()
     hide: function()
     {
       //make it go away.
-      $("#dialog").css("display","none");
+      $("#dialogmodal").css("display","none");
     },
   });
 }

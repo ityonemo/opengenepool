@@ -296,32 +296,30 @@ var annotations = new editor.Plugin("annotations",
   },
 });
 
-/*
 annotations.todelete = {};
 
 annotations.contextmenu = function(token)
 {
   editor.addcontextmenuitem(new editor.MenuItem());  //menu break
 
-  switch (token.subtype)
+  switch (token.source)
   {
     case "annotations":
-      annotations.todelete = token.ref;
+      annotations.menuref = token.ref;
       if (user_loggedin)
       {
-        editor.addcontextmenuitem(new MenuItem("delete annotation", "annotations.deletemenu();"));
-        editor.addcontextmenuitem(new MenuItem("edit annotation", "annotations.editdialog(" + 
-          annotations.annotations.indexOf(token.ref) + ");"));
+        editor.addcontextmenuitem(new editor.MenuItem("delete annotation"));
+        editor.addcontextmenuitem(new editor.MenuItem("edit annotation", annotations.editdialog));
       }
     break;
     case "selection":
       if (user_loggedin)
-        editor.addcontextmenuitem(new MenuItem("create annotation", "annotations.createdialog();"))
+        editor.addcontextmenuitem(new editor.MenuItem("create annotation"))
     break;
   }
-
 }
 
+/*
 /////////////////////////////////////////////////////////////////
 // DIALOGS and such
 
@@ -342,11 +340,14 @@ annotations.deletemenu = function()
     }
   });
 }
+*/
 
-annotations.editdialog = function(index)
+annotations.editdialog = function()
 {
-  var oldannotation = annotations.annotations[index];
+  var oldannotation = annotations.menuref;
+  alert("do dialog stuff here");
 
+/*
   dialog.show(annotations.dialogstring(oldannotation),
     function(){
       var newannotation = annotations.parsedialog();
@@ -374,9 +375,9 @@ annotations.editdialog = function(index)
         },
         error: function(a, b, e) {alert("edit failed; error: " + e);}
       });
-    });
+    });*/
 }
-
+/*
 annotations.createdialog = function(domain)
 {
   dialog.show(annotations.dialogstring(),
