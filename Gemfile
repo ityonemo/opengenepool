@@ -1,6 +1,6 @@
 source "http://rubygems.org"
-gem "rack", "1.1"
-gem "sinatra"
+gem "rack", "1.3"
+gem "sinatra", "1.3"
 gem "haml"
 gem "mysql"
 gem "json"
