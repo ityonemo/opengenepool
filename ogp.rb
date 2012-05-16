@@ -1,10 +1,5 @@
 #!/usr/bin/ruby
 
-#packages for running the webserver
-require 'rubygems'
-require 'sinatra'
-require 'haml'
-
 #code for utility pages
 require 'initialize' #initialization
 require 'userman' #user management

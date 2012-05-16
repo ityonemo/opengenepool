@@ -1,6 +1,7 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    haml (3.1.5)
     rack (1.1.0)
     sinatra (1.2.8)
       rack (~> 1.1)
@@ -11,5 +12,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  haml
   rack (= 1.1)
   sinatra
