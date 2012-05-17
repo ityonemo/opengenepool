@@ -8,7 +8,7 @@ def amisuperuser()
     return false
   end
 
-  dbh = Mysql.real_connect("localhost","www-data","","ogp")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
 
     #let's make sure there are tables (presumably, including a users table)
     if (dbh.list_tables.length() == 0)
@@ -68,7 +68,7 @@ get '/userlist/' do
   $users = Array.new();
 
   #connect to the database.
-  dbh=Mysql.real_connect("localhost","www-data","", "DNAutics")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     #query the entire list.
     res=dbh.query("SELECT * FROM users")
    
@@ -101,7 +101,7 @@ post '/makeuser/' do
   $mystring = ""
 
   #check to make sure that the name doesn't exist in the database already.
-  dbh=Mysql.real_connect("localhost","www-data","", "DNAutics")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
 
     #use a SELECT query to check if the user name exists
     res=dbh.query('SELECT * FROM users WHERE login = "' + $login + '"')

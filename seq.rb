@@ -21,7 +21,7 @@ get '/seq/:query' do |query|
   $annotations = Array.new()
 
   #connect to the database.
-  dbh=Mysql.real_connect("localhost","www-data","", "ogp")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     #query the sequences database for the sequence, use the unique ID.
 
     if (query[0..2].eql?("id="))

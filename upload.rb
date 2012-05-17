@@ -245,7 +245,7 @@ post '/uploadseq' do
     end
 
     #initiate the connection to the mysql database
-    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+    dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
 
       #upload the sequence data into the database.
       dbh.query("INSERT INTO sequences (#{$keyjoin}, created, owner) VALUES (#{$valjoin}, NOW(), '#{session[:user]}')")

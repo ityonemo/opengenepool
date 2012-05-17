@@ -1,5 +1,10 @@
 #!/usr/bin/ruby
 
+#packages for running the webserver
+require 'rubygems'
+require 'sinatra'
+require 'haml'
+
 #code for utility pages
 require 'initialize' #initialization
 require 'userman' #user management
@@ -14,6 +19,11 @@ require 'workspace' #workspace xml
 
 #enable sessions and user management
 enable :sessions
+
+$dblogin = ENV("OPENSHIFT_DB_USERNAME")
+$dbpass = ENV("OPENSHIFT_DB_PASSWORD")
+$dbhost = ENV("OPENSHIFT_DB_HOST")
+$dbname = ENV("OPENSHIFT_DB_USERNAME")
 
 #main page
 get '/' do
