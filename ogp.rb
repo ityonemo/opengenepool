@@ -25,6 +25,10 @@ $dbpass = ENV("OPENSHIFT_DB_PASSWORD")
 $dbhost = ENV("OPENSHIFT_DB_HOST")
 $dbname = ENV("OPENSHIFT_DB_USERNAME")
 
+get '/dbtest' do
+  "login " + $dblogin + " pass " + $dbpass + " host " + $dbhost + " name " + $dbname
+end
+
 #main page
 get '/' do
   handleuser()
