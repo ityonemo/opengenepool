@@ -19,6 +19,6 @@ PLATFORMS
 DEPENDENCIES
   haml
   json
-  mysql
+  mysql (~> 2)
   rack (= 1.3)
   sinatra (= 1.3)
