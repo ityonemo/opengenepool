@@ -7,7 +7,7 @@ get '/initialize' do
 end
 
 post '/initialize' do
-  dbh=Mysql.real_connect("localhost","www-data","","ogp")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     if (dbh.list_tables.length() == 0)
 
       #create the users table
@@ -66,7 +66,7 @@ end
 
 get '/nuke' do
   if (amisuperuser)
-    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
 
       #delete the users table
       res=dbh.query("DROP TABLE users")

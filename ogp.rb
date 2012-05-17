@@ -20,6 +20,11 @@ require 'workspace' #workspace xml
 #enable sessions and user management
 enable :sessions
 
+$dblogin = "www-data"
+$dbpass = ""
+$dbhost = "localhost"
+$dbname = "ogp"
+
 #main page
 get '/' do
   handleuser()

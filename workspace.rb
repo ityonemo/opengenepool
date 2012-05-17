@@ -2,7 +2,7 @@ require 'json'
 
 get '/workspace/' do
   if (session[:user])
-    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+    dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
 
       #modify the workspaces table.
       res = dbh.query("SELECT sequences.title, sequences.id FROM (sequences, workspaces) WHERE workspaces.login = '#{session[:user]}' AND sequences.id = workspaces.sequence")

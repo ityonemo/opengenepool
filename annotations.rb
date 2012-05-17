@@ -9,7 +9,7 @@ post '/annotation/' do
   if (session[:user])
     error = false
 
-    dbh=Mysql.real_connect("localhost","www-data","","ogp")
+    dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
       #check to make sure the sequence we're trying to annotate exists.
       res = dbh.query("SELECT * FROM sequences WHERE (id='" + params[:seqid] + "');")
       if (res.num_rows() != 0)
