@@ -20,10 +20,10 @@ require 'workspace' #workspace xml
 #enable sessions and user management
 enable :sessions
 
-$dblogin = ENV("OPENSHIFT_DB_USERNAME")
-$dbpass = ENV("OPENSHIFT_DB_PASSWORD")
-$dbhost = ENV("OPENSHIFT_DB_HOST")
-$dbname = ENV("OPENSHIFT_DB_USERNAME")
+$dblogin = ENV["OPENSHIFT_DB_USERNAME"]
+$dbpass = ENV["OPENSHIFT_DB_PASSWORD"]
+$dbhost = ENV["OPENSHIFT_DB_HOST"]
+$dbname = ENV["OPENSHIFT_DB_USERNAME"]
 
 get '/dbtest' do
   "login " + $dblogin + " pass " + $dbpass + " host " + $dbhost + " name " + $dbname
