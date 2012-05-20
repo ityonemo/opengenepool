@@ -1,13 +1,12 @@
 get '/initialize' do
-  dbh=Mysql.real_connect("localhost","www-data","","ogp")
-    $tablecount = dbh.list_tables.length()
-  dbh.close if dbh
-
+  
+  $tablecount = $DB.tables.length()
+  
   haml :initialize
 end
 
 post '/initialize' do
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass)
     if (dbh.list_tables.length() == 0)
 
       #create the users table

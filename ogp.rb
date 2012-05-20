@@ -4,6 +4,7 @@
 require 'rubygems'
 require 'sinatra'
 require 'haml'
+require 'sequel'
 
 #code for utility pages
 require 'initialize' #initialization
@@ -24,6 +25,10 @@ $dblogin = "www-data"
 $dbpass = ""
 $dbhost = "localhost"
 $dbname = "ogp"
+
+def db_connect
+  $DB=Sequel.mysql($dbname, :user => $dblogin, :password => $dbpass, :host => $dbhost)
+end
 
 #main page
 get '/' do

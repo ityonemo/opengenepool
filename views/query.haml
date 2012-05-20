@@ -1,17 +1,18 @@
 %gbml
-  %locus #{@result['locus']}
-  %title #{@result['title']}
-  %definition #{@result['definition']}
-  %accession #{@result['accession']}
-  %version #{@result['version']}
-  %keywords #{@result['keywords']}
-  %soure #{@result['source']}
-  %organism #{@result['organism']}
-  %id #{@result['id']}
-  %sequence #{@result['sequence']}
+  %locus #{@result[:locus]}
+  %title #{@result[:title]}
+  %definition #{@result[:definition]}
+  %accession #{@result[:accession]}
+  %version #{@result[:version]}
+  %keywords #{@result[:keywords]}
+  %soure #{@result[:source]}
+  %organism #{@result[:organism]}
+  %id #{@result[:id]}
+  %sequence #{@result[:sequence]}
 
-  -$annotations.each do |@i|
-    %annotation(id="#{@i.id}" type="#{@i.type}" caption="#{@i.caption}" domain="#{@i.domain}")
-      -@i.dataarray.each do |@data|
-        %data(id="#{@data[0]}" type="#{@data[1]}")
-          #{@data[2]}
+  -@annotations.each do |@i|
+    %annotation(id="#{@i[:id]}" type="#{@i[:type]}" caption="#{@i[:caption]}" domain="#{@i[:domain]}")
+      -#$DB[]
+      -#@i.dataarray.each do |@data|
+      -#  %data(id="#{@data[0]}" type="#{@data[1]}")
+      -#    #{@data[2]}

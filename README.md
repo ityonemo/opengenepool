@@ -13,7 +13,7 @@ Following Rubygems:
 sinatra
 haml
 json
-mysql
+mysql2
 
 Recommended for developers:
 ---------------------------
