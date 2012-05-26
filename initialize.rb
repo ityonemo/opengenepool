@@ -1,13 +1,19 @@
 get '/initialize' do
   
+<<<<<<< Updated upstream
   db_connect
     $tablecount = $DB.tables.length
   $DB.disconnect
 
+=======
+  $tablecount = $DB.tables.length()
+  
+>>>>>>> Stashed changes
   haml :initialize
 end
 
 post '/initialize' do
+<<<<<<< Updated upstream
   db_connect
 
   if ($DB.tables.length == 0)
@@ -20,6 +26,19 @@ post '/initialize' do
       Integer		:level
       String		:hash
     end
+=======
+  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass)
+    if (dbh.list_tables.length() == 0)
+
+      #create the users table
+      res=dbh.query("CREATE TABLE users (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+        "login varchar(16), name varchar(256), email varchar(64), level int(64), hash varchar(64), " +
+        "UNIQUE INDEX (login), INDEX(name, email, level));")
+
+      #add the owner to the users table
+      res=dbh.query("INSERT INTO users (login, name, email, hash, level) VALUES " +
+        "('#{params[:login]}','#{params[:name]}','#{params[:email]}',SHA('#{params[:password]}'),0);")
+>>>>>>> Stashed changes
 
     #insert the superuser into the table.
     $DB[:users].insert(

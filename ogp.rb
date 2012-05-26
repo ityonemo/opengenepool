@@ -4,6 +4,7 @@
 require 'rubygems'
 require 'sinatra'
 require 'haml'
+require 'sequel'
 
 #distribution-dependent ruby files
 require 'ogp-db' #database stuff
@@ -26,6 +27,18 @@ require 'workspace' #workspace xml
 #enable sessions and user management
 enable :sessions
 
+<<<<<<< Updated upstream
+=======
+$dblogin = "www-data"
+$dbpass = ""
+$dbhost = "localhost"
+$dbname = "ogp"
+
+def db_connect
+  $DB=Sequel.mysql($dbname, :user => $dblogin, :password => $dbpass, :host => $dbhost)
+end
+
+>>>>>>> Stashed changes
 #main page
 get '/' do
   handleuser()
