@@ -1,10 +1,20 @@
 #!/usr/bin/ruby
 
 #packages for running the webserver
+require 'rubygems'
 require 'sinatra'
 require 'haml'
 require 'sequel'
-require 'mysql'
+require 'mysql2'
+
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
+
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
+
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
 
 #code for utility pages
 require './initialize' #initialization
@@ -20,15 +30,6 @@ require './workspace' #workspace xml
 
 #enable sessions and user management
 enable :sessions
-
-$dblogin = "www-data"
-$dbpass = ""
-$dbhost = "localhost"
-$dbname = "ogp"
-
-def db_connect
-  $DB=Sequel.mysql($dbname, :user => $dblogin, :password => $dbpass, :host => $dbhost)
-end
 
 #main page
 get '/' do

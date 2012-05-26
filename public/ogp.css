@@ -15,14 +15,29 @@ header {
   user-select: none;
 }
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #logo {
   position: absolute;
   top: 0px;
   left: 0px;
+=======
+=======
+>>>>>>> Stashed changes
+#pic{
+  position: absolute;
+  left: 0px;
+  top: 0px;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
   width: 100px;
   height: 100px;
 }
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #logoimg{
   width:100px;
   height:100px;
@@ -32,6 +47,17 @@ header {
   position: absolute;
   top: 0px;
   left: 100px;
+=======
+=======
+>>>>>>> Stashed changes
+#title{
+  position: absolute;
+  left:100px;
+  top:0px;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 }
 
 header h1 {
