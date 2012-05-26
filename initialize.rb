@@ -3,7 +3,11 @@ get '/initialize' do
   db_connect
     $tablecount = $DB.tables.length
   $DB.disconnect
+<<<<<<< Updated upstream
 
+=======
+  
+>>>>>>> Stashed changes
   haml :initialize
 end
 

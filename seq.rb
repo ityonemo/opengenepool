@@ -4,9 +4,12 @@ require 'mysql'
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 class AnnoML
   attr_accessor :caption, :type, :domain, :id, :dataarray
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
   #connect to the database
@@ -56,6 +59,7 @@ get '/seq/:query' do |query|
       tres = dbh.query("DELETE FROM tann WHERE id IN (SELECT * FROM tann2);")
       tres = dbh.query("DELETE FROM tann WHERE status='deleted';");
 
+<<<<<<< Updated upstream
       res2=dbh.query("SELECT * FROM tann;")
       (1..res2.num_rows).each do
         @annoresult = res2.fetch_hash()
@@ -69,6 +73,8 @@ get '/seq/:query' do |query|
           curranno.dataarray.push([@annodata["id"], @annodata["infokey"], @annodata["value"]])
         end
 =======
+=======
+>>>>>>> Stashed changes
     @tr = $DB.create_table!(:tann, :as => "SELECT * FROM annotations WHERE (sequence = '#{@result[:id]}');", :temp => true)
       #in the future, eliminations based on user and such will occur here.
       #pivot against annotations which have been superceded.
@@ -77,6 +83,7 @@ get '/seq/:query' do |query|
     @tr = $DB["SELECT * FROM tann WHERE id IN (SELECT * FROM tann2);"].delete
     @tr = $DB["SELECT * FROM tann WHERE status='deleted';"].delete
 
+<<<<<<< Updated upstream
 =======
     @tr = $DB.create_table!(:tann, :as => "SELECT * FROM annotations WHERE (sequence = '#{@result[:id]}');", :temp => true)
       #in the future, eliminations based on user and such will occur here.
@@ -86,6 +93,8 @@ get '/seq/:query' do |query|
     @tr = $DB["SELECT * FROM tann WHERE id IN (SELECT * FROM tann2);"].delete
     @tr = $DB["SELECT * FROM tann WHERE status='deleted';"].delete
 
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     @annotations = $DB["SELECT * FROM tann;"].all
   end
