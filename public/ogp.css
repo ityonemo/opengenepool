@@ -40,36 +40,22 @@ header h1 {
 
 #loginbox,#searchbox {
   position: absolute;
-  top: 30px;
+  display: block;
   right: 100px;
 }
 
 #searchbox {
-  display: block
+  top: 40px;
 }
 
 #loginbox{
-  display: none;
-}
-
-#searchcomponent{
-  position: absolute;
-  top: 0px;
-  right: 220px;
-}
-
-#logincomponent {
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  width: 200px;
+  top: 8px;
 }
 
 #innersearch{
   display: block;
   width: 14em;
   height: 1.4em;
-  margin-top: 0.65em;
   position: relative;
   min-height: 1px;
   border: solid 1px #AAA;
@@ -81,16 +67,14 @@ header h1 {
 
 #innerloginleft{
   position: absolute;
-  margin: 0.65em;
-  right: 220px;
+  right: 50px;
   width: 600px;
   text-align: right;
 }
 
 #innerloginright{
   position: absolute;
-  margin: 0.65em;
-  left: -210px;
+  right: 0px;
   text-align: left;
 }
 

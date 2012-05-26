@@ -55,17 +55,5 @@ end
 #handle the user stuff off the bat.
 def handleuser()
   session[:user] ||= nil
-  $user = session[:user]
-  
-  @logincontent = $user.nil? ? $emptylogincontent : logoutgen()
 end
-
-#HTML content for emptylogincontent.
-$emptylogincontent = "<div onclick=\"activatelogin();\">Login</div>"
-
-#generate HTML content to display current user and allow logout (kind of hack-ey).
-def logoutgen ()
-  return "Logged in as: " + $user + " <a href=\"logout/\" id=\"logout\"> (Logout)</a>"
-end
-
 

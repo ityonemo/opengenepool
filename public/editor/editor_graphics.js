@@ -102,7 +102,7 @@ graphics = new editor.Plugin("graphics",
     var selection = document.createElement('option');
     selection.innerHTML = 'full';
     graphics.zoomarray.push(editor.sequence.length);
-    zoomer.appendChild(selection);
+    graphics.zoomer.appendChild(selection);
   },
 
   
