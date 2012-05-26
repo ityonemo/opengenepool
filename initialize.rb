@@ -16,8 +16,12 @@ end
 
 post '/initialize' do
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     if (dbh.list_tables.length() == 0)
+=======
+  db_connect
+>>>>>>> Stashed changes
 =======
   db_connect
 >>>>>>> Stashed changes
