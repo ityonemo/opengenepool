@@ -1,16 +1,34 @@
 Feel free to change or remove this file, it is informational only.
 
+<<<<<<< HEAD
 Repo layout
 ===========
 tmp/ - Temporary storage
 public/ - Content (images, css, etc. available to the public)
 config.ru - This file is used by Rack-based servers to start the application.
 ../data - For persistent data
+=======
+Get started
+===========
+1. Add framework of choice to your repo.
+2. Modify .openshift/action_hooks/start to start your application.
+   The application is required to bind to $OPENSHIFT_INTERNAL_IP:8080.
+3. Modify .openshift/action_hooks/stop to stop your application.
+4. Commit and push your changes.
+
+Repo layout
+===========
+static/ - Externally exposed static content goes here
+../data - For persistent data (full path in environment var: OPENSHIFT_DATA_DIR)
+.openshift/action_hooks/start - Script that gets run to start your application
+.openshift/action_hooks/stop - Script that gets run to stop your application
+>>>>>>> a3f87842435fc66844f4bcfd107f18161797aafa
 .openshift/action_hooks/pre_build - Script that gets run every git push before the build
 .openshift/action_hooks/build - Script that gets run every git push as part of the build process (on the CI system if available)
 .openshift/action_hooks/deploy - Script that gets run every git push after build but before the app is restarted
 .openshift/action_hooks/post_deploy - Script that gets run every git push after the app is restarted
 
+<<<<<<< HEAD
 Ruby Mirror
 ===========
 OpenShift is mirroring rubygems.org at http://mirror1.prod.rhcloud.com/mirror/ruby/
@@ -26,6 +44,17 @@ Edit your Gemfile.lock and replace
   remote: http://rubygems.org/
 with
   remote: http://mirror1.prod.rhcloud.com/mirror/ruby/
+=======
+
+Notes about layout
+==================
+Please leave the static directory in place (alter but do not delete) but feel
+free to create additional directories if needed.
+
+Note: Every time you push, everything in your remote repo dir gets recreated
+please store long term items (like an sqlite database) in ../data which will
+persist between pushes of your repo.
+>>>>>>> a3f87842435fc66844f4bcfd107f18161797aafa
 
 
 Environment Variables
@@ -34,6 +63,7 @@ Environment Variables
 OpenShift provides several environment variables to reference for ease
 of use.  The following list are some common variables but far from exhaustive:
 
+<<<<<<< HEAD
     ENV['OPENSHIFT_GEAR_NAME']  - Application name
     ENV['OPENSHIFT_GEAR_DIR']   - Application dir
     ENV['OPENSHIFT_DATA_DIR']  - For persistent storage (between pushes)
@@ -46,11 +76,19 @@ variables for username, host and password:
     ENV['OPENSHIFT_DB_PORT']      - DB Port
     ENV['OPENSHIFT_DB_USERNAME']  - DB Username
     ENV['OPENSHIFT_DB_PASSWORD']  - DB Password
+=======
+    $_ENV['OPENSHIFT_INTERNAL_IP']  - IP Address assigned to the application
+    $_ENV['OPENSHIFT_GEAR_NAME']  - Application name
+    $_ENV['OPENSHIFT_GEAR_DIR']   - Application dir
+    $_ENV['OPENSHIFT_DATA_DIR']  - For persistent storage (between pushes)
+    $_ENV['OPENSHIFT_TMP_DIR']   - Temp storage (unmodified files deleted after 10 days)
+>>>>>>> a3f87842435fc66844f4bcfd107f18161797aafa
 
 To get a full list of environment variables, simply add a line in your
 .openshift/action_hooks/build script that says "export" and push.
 
 
+<<<<<<< HEAD
 Notes about layout
 ==================
 Every time you push, everything in your remote application path gets recreated
@@ -71,3 +109,9 @@ Option 2) Git add your .bundle and vendor/bundle directories after running
 code or ensure they can run on RHEL x86_64.
 
 
+=======
+Additional information
+======================
+
+Link to additional information will be here, when we have it :)
+>>>>>>> a3f87842435fc66844f4bcfd107f18161797aafa
