@@ -10,8 +10,16 @@
   %id #{@result['id']}
   %sequence #{@result['sequence']}
 
+<<<<<<< Updated upstream
   -$annotations.each do |@i|
     %annotation(id="#{@i.id}" type="#{@i.type}" caption="#{@i.caption}" domain="#{@i.domain}")
       -@i.dataarray.each do |@data|
         %data(id="#{@data[0]}" type="#{@data[1]}")
           #{@data[2]}
+=======
+  -@annotations.each do |@i|
+    %annotation(id="#{@i[:id]}" type="#{@i[:type]}" caption="#{@i[:caption]}" domain="#{@i[:domain]}")
+      -$DB["SELECT * FROM annotationdata WHERE id = #{@i[:id]}"].each do |@data|
+        %data(id="#{@data[:id]}" type="#{@data[:infokey]}")
+          #{@data[:value]}
+>>>>>>> Stashed changes

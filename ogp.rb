@@ -5,6 +5,9 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
+
 #code for utility pages
 require 'initialize' #initialization
 require 'userman' #user management
@@ -20,6 +23,7 @@ require 'workspace' #workspace xml
 #enable sessions and user management
 enable :sessions
 
+<<<<<<< Updated upstream
 $dblogin = ENV["OPENSHIFT_DB_USERNAME"]
 $dbpass = ENV["OPENSHIFT_DB_PASSWORD"]
 $dbhost = ENV["OPENSHIFT_DB_HOST"]
@@ -29,6 +33,8 @@ get '/dbtest' do
   "login " + $dblogin + " pass " + $dbpass + " host " + $dbhost + " name " + $dbname
 end
 
+=======
+>>>>>>> Stashed changes
 #main page
 get '/' do
   handleuser()

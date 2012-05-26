@@ -2,8 +2,13 @@
 
 require 'mysql'
 
+<<<<<<< Updated upstream
 class AnnoML
   attr_accessor :caption, :type, :domain, :id, :dataarray
+=======
+  #connect to the database
+  db_connect
+>>>>>>> Stashed changes
 
   def initialize (caption, type, domain, id)
     @caption = caption
@@ -20,6 +25,7 @@ get '/seq/:query' do |query|
 
   $annotations = Array.new()
 
+<<<<<<< Updated upstream
   #connect to the database.
   dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     #query the sequences database for the sequence, use the unique ID.
@@ -58,6 +64,18 @@ get '/seq/:query' do |query|
           @annodata = res3.fetch_hash()
           curranno.dataarray.push([@annodata["id"], @annodata["infokey"], @annodata["value"]])
         end
+=======
+    @tr = $DB.create_table!(:tann, :as => "SELECT * FROM annotations WHERE (sequence = '#{@result[:id]}');", :temp => true)
+      #in the future, eliminations based on user and such will occur here.
+      #pivot against annotations which have been superceded.
+    @tr = $DB.create_table!(:tann2, :as => "SELECT (supercedes) FROM tann WHERE (supercedes > '0');", :temp => true)
+ 
+    @tr = $DB["SELECT * FROM tann WHERE id IN (SELECT * FROM tann2);"].delete
+    @tr = $DB["SELECT * FROM tann WHERE status='deleted';"].delete
+
+    @annotations = $DB["SELECT * FROM tann;"].all
+  end
+>>>>>>> Stashed changes
 
         $annotations.push(curranno)
       end

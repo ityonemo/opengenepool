@@ -1,87 +1,119 @@
 get '/initialize' do
+<<<<<<< Updated upstream
   dbh=Mysql.real_connect("localhost","www-data","","ogp")
     $tablecount = dbh.list_tables.length()
   dbh.close if dbh
 
+=======
+  
+  db_connect
+    $tablecount = $DB.tables.length
+  $DB.disconnect
+  
+>>>>>>> Stashed changes
   haml :initialize
 end
 
 post '/initialize' do
+<<<<<<< Updated upstream
   dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
     if (dbh.list_tables.length() == 0)
+=======
+  db_connect
+>>>>>>> Stashed changes
 
-      #create the users table
-      res=dbh.query("CREATE TABLE users (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "login varchar(16), name varchar(256), email varchar(64), level int(64), hash varchar(64), " +
-        "UNIQUE INDEX (login), INDEX(name, email, level));")
-
-      #add the owner to the users table
-      res=dbh.query("INSERT INTO users (login, name, email, hash, level) VALUES " +
-        "('#{params[:login]}','#{params[:name]}','#{params[:email]}',SHA('#{params[:password]}'),0);")
-
-      #create the sequences table
-      res=dbh.query("CREATE TABLE sequences (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "owner varchar(16), created timestamp, supercedes int(64), status varchar(64), visibility varchar(64), " + #ogp housekeeping
-        "locus varchar(64), title varchar(64), accession varchar(64), definition text, " +                       #genbank params
-        "version varchar(64), keywords text, source varchar(64), organism varchar(64), sequence text, " +
-        "type varchar(64), class varchar(64), " +                                                                #ogp params
-        "FOREIGN KEY (owner) REFERENCES users(login));")
-
-      #create the self-referential foreign keys
-      res=dbh.query("ALTER TABLE sequences ADD FOREIGN KEY (supercedes) REFERENCES sequences(id);")
-
-      #create the annotations table
-      res=dbh.query("CREATE TABLE annotations (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "owner varchar(16), sequence int(64), created timestamp, supercedes int(64), status varchar(64), " +
-        "visibility varchar(64), " + #ogp housekeeping
-        "caption varchar(64), type varchar(64), domain varchar(64), " +
-        "INDEX (owner, sequence), FOREIGN KEY (owner) REFERENCES users(login)," +
-        "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
-
-      #create the self-referential foreign keys
-      res=dbh.query("ALTER TABLE annotations ADD FOREIGN KEY (supercedes) REFERENCES annotations(id);")
-
-      #create the annotations data table
-      res=dbh.query("CREATE TABLE annotationdata (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "annotation int(64), infokey varchar(64), value text, " +
-        "INDEX (annotation), FOREIGN KEY (annotation) REFERENCES annotations(id) ON DELETE CASCADE);")
-
-      #create the sources data table
-      res=dbh.query("CREATE TABLE sources (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "parent int(64), child int(64), pdomain varchar(64), cdomain varchar(64), " +
-        "INDEX (parent, child), FOREIGN KEY (parent) REFERENCES sequences(id) ON DELETE CASCADE, " +
-        "FOREIGN KEY (child) REFERENCES sequences(id) ON DELETE CASCADE);")
-
-      #create the workspaces data table
-      res=dbh.query("CREATE TABLE workspaces (id int(64) NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-        "login varchar(64), sequence int(64), " +
-        "INDEX (login, sequence), FOREIGN KEY (login) REFERENCES users(login) ON DELETE CASCADE, " +
-        "FOREIGN KEY (sequence) REFERENCES sequences(id) ON DELETE CASCADE);")
-      
+  if ($DB.tables.length == 0)
+    #create the users table
+    $DB.create_table(:users) do
+      primary_key	:id
+      String		:login,		:size => 15, :index => true, :unique => true
+      String		:email,		:size => 63, :index => true
+      String		:name,		:index => true
+      Integer		:level
+      String		:hash
     end
-  dbh.close if dbh
+
+    #insert the superuser into the table.
+    $DB[:users].insert(
+      :login => params[:login],
+      :name => params[:name],
+      :email => params[:email],
+      :hash => "SHA(#{params[:password]})",
+      :level => 0)
+
+
+    #create the sequences table
+    $DB.create_table(:sequences) do
+      primary_key 	:id
+      foreign_key	:owner, 	:users, :key => :login
+      DateTime		:created
+      foreign_key	:supercedes,	:sequences
+      String		:status,	:size => 63
+      String		:visibility,	:size => 63
+      String		:locus,		:size => 63, :index => true
+      String		:title,		:size => 63, :index => true
+      String		:accession,	:size => 63, :index => true
+      String		:definition,	:text => true
+      String		:version,	:size => 63
+      String		:keywords,	:text => true
+      String		:source,	:text => true
+      String		:organism,	:text => true
+      String		:sequence,	:text => true
+      String		:type,		:size => 63
+      String		:class,		:size => 63
+    end
+
+    $DB.create_table(:annotations) do
+      primary_key	:id
+      foreign_key	:owner,		:users, :key => :login
+      foreign_key	:sequence,	:sequences, :on_delete => :cascade
+      DateTime		:created
+      foreign_key	:supercedes,	:annotations
+      String		:status,	:size => 63
+      String		:visibility,	:size => 63
+      String		:caption,	:text => true
+      String		:type,		:size => 63
+      String		:domain,	:size => 63
+    end
+
+    $DB.create_table(:annotationdata) do
+      primary_key	:id
+      foreign_key	:annotation,	:annotations, :on_delete => :cascade
+      String		:infokey,	:size => 63
+      String		:value,		:text => true
+    end
+
+    $DB.create_table(:sources) do
+      primary_key	:id
+      foreign_key	:parent,	:sequences, :on_delete => :cascade
+      foreign_key	:child,		:sequences, :on_delete => :cascade
+      String		:pdomain,	:size => 63
+      String		:cdomain,	:size => 63
+    end
+
+    $DB.create_table(:workspaces) do
+      primary_key	:id
+      foreign_key	:login,		:users, :key => :login, :on_delete => :cascade
+      foreign_key	:sequence,	:sequences, :on_delete => :cascade
+    end
+
+  end
+
+  $DB.disconnect
 
   redirect '/'
 end
 
 get '/nuke' do
   if (amisuperuser)
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
-
-      #delete the users table
-      res=dbh.query("DROP TABLE users")
-      #delete the sequences table
-      res=dbh.query("DROP TABLE sequences")
-      #delete the annotations table
-      res=dbh.query("DROP TABLE annotations")
-      #delete the annotations data table
-      res=dbh.query("DROP TABLE annotationdata")
-      #delete the sources data table
-      res=dbh.query("DROP TABLE sources")
-      #delete the workspaces data table
-      res=dbh.query("DROP TABLE workspaces")
-
-    dbh.close if dbh
+    db_connect
+      $DB.drop_table(:workspaces)
+      $DB.drop_table(:sources)
+      $DB.drop_table(:annotationdata)
+      $DB.drop_table(:annotations)
+      $DB.drop_table(:sequences)
+      $DB.drop_table(:users)
+    $DB.disconnect
 
     "the database has been nuked."
   else
