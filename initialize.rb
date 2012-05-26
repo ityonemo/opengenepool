@@ -1,30 +1,14 @@
 get '/initialize' do
-<<<<<<< Updated upstream
-  dbh=Mysql.real_connect("localhost","www-data","","ogp")
-    $tablecount = dbh.list_tables.length()
-  dbh.close if dbh
-
-=======
   
   db_connect
     $tablecount = $DB.tables.length
   $DB.disconnect
-  
->>>>>>> Stashed changes
+
   haml :initialize
 end
 
 post '/initialize' do
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
-    if (dbh.list_tables.length() == 0)
-=======
   db_connect
->>>>>>> Stashed changes
-=======
-  db_connect
->>>>>>> Stashed changes
 
   if ($DB.tables.length == 0)
     #create the users table
