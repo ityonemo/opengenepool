@@ -141,7 +141,7 @@ def process()
   $sequence = simpleextract("ORIGIN").gsub(/[\d\s\/]/,"")
 
   $current_annotation = nil
-  $current_property = nil
+  $current_property = ""
 
   $annotationslines = simpletransfer("FEATURES")
   $annotationslines.each_line do |line|
@@ -159,7 +159,7 @@ def process()
     else
       $current_annotation.data += line;
       temp = line.strip()
-      if (temp[0] == 47)  #check to see if we have a slash winner!
+      if (temp[0,1] == '/')  #check to see if we have a slash winner!
         temparray = temp.split('=',2)
         $current_property = temparray[0].slice(1..-1) #chop off the slash.
         $current_annotation.datahash[$current_property] = temparray[1].slice(1..-1) #chop off the starting quote.
@@ -202,75 +202,65 @@ def gbparse(file)
   process()
 end
 
-$mysqlarray = ["locus","title","definition","accession","version","keywords","source","organism","sequence","status"]
-#helper function that evaluates a hash with an array
-def transcode(array, hash)
-  @t_array = Array.new
-  array.each() do |key|
-    @t_array.push(hash.has_key?(key) ? hash[key] : '')
-  end
-  @t_array
-end
-
 post '/uploadseq' do
-  if(session[:user])
+  #check to make sure we are logged in and fail if we are not.
+  unless session[:user]
+    return 403
+  end
     
-    #generate the command for creating the sequence in MySQL.
-    #TODO: do some checking to make sure we aren't going to pull a bobby tables here.
-    $keyjoin = $mysqlarray.join(", ")
-    $valjoin = "'" + transcode($mysqlarray,params).join("', '") + "'"
-    #TODO: check to see if we're making this temporary.
+  #generate the command for creating the sequence in MySQL.
+  #TODO: do some checking to make sure we aren't going to pull a bobby tables here.
 
-    $annotations = Hash.new()
-    #generate the hash storing the annotations, recollated
-    params.each_key() do |key|
-      if (key =~ /\Aannotation/)
-        keyarray = key.split("_",3)
-        trimmedkey = keyarray[0]
-        unless ($annotations.has_key?(trimmedkey))  #if we need it, generate the annotation
-          $annotations[trimmedkey] = Annotation.new()
-        end
-        #TODO: fix this so that we don't do a bobby tables
-        case keyarray[1]
-          when "caption"
-            $annotations[trimmedkey].caption = params[key]
-          when "type"
-            $annotations[trimmedkey].type = params[key]
-          when "domain"
-            $annotations[trimmedkey].domain = params[key]
-          when "data"
-            $annotations[trimmedkey].datahash[keyarray[2]] = params[key]
+  #store all of the http parameters as a giant hash.
+  #note that annotations are stored in the syntax as prepared by the form.
+  seqvals = Hash[params.select{|k, v| $TD_SEQUENCES.include? k}]  #select only the values whose key are in $TD_SEQUENCES
+  seqvals.store("created", DateTime.now)
+  seqvals.store("owner", session[:user])
+
+  #generate a temporary store for the annotations.
+  annotations = Hash.new
+  #generate the hash storing the annotations, recollated
+  params.each_key() do |key|
+    if (key =~ /\Aannotation/)
+      keyarray = key.split("_",2)
+      unless (annotations.has_key?(keyarray[0]))
+        annotations[keyarray[0]] = Hash.new
+      end
+      annotations[keyarray[0]][keyarray[1]] = params[key];
+    end
+  end
+
+  #initiate the connection to the mysql database
+  db_connect
+
+    seqid = $DB[:sequences].insert(seqvals)
+
+    #generate the commands for creating the annotations
+    annotations.each do |key,value|
+      #note that "key" only contains crap values from the html form, what we really want are the hashes that
+      #get assigned to "value".
+
+
+      #filter out things that don't belong in the database table.
+      annvals = Hash[value.select{|k, v| $TD_ANNOTATIONS.include? k}]
+      #next add important records to the annotations values.
+      annvals.store("created", DateTime.now)
+      annvals.store("sequence", seqid)
+      annvals.store("owner", session[:user])
+      #then add them to the annotations table.
+      annid = $DB[:annotations].insert(annvals)
+
+      value.each do |key2, value2|
+        if (key2 =~ /\Adata/)
+          name = key2.split("_")[1]
+          $DB["INSERT INTO annotationdata (annotation, infokey, value) VALUE ('#{annid}','#{name}','#{value2}')"].insert
         end
       end
     end
 
-    #initiate the connection to the mysql database
-    dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+  #close the connection
+  $DB.disconnect
 
-      #upload the sequence data into the database.
-      dbh.query("INSERT INTO sequences (#{$keyjoin}, created, owner) VALUES (#{$valjoin}, NOW(), '#{session[:user]}')")
-      #retrieve the id.
-      $sequence_id_string = dbh.insert_id().to_s
-
-      #generate the commands for creating the annotations
-      $annotations.each() do |key,value|
-        #generate the text.  Note that the annotation object has overloaded the "to_s" to provide the correct output here.
-        dbh.query("INSERT INTO annotations (sequence, caption, type, domain, created, owner)" +
-          " VALUES ('#{$sequence_id_string}', #{value}, NOW(), '#{session[:user]}');")
-
-        annotation_id_string = dbh.insert_id().to_s
-
-        value.datahash.each() do |hkey, hvalue|
-          dbh.query("INSERT INTO annotationdata (annotation, infokey, value) VALUES ('#{annotation_id_string}','#{hkey}','#{hvalue}');")
-        end
-      end
-
-      #close the connection
-    dbh.close if dbh
-
-    redirect("/editor/id=" + $sequence_id_string)
-  else
-    status 403.3
-  end
+  redirect("/editor/id=" + seqid.to_s)
 end
 

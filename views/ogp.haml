@@ -7,15 +7,15 @@
     %script(src="/jquery.js" type="text/javascript" charset="utf-8")
     %script(src="/ogp.js" type="text/javascript" charset="utf-8")
     %script(src="/dialog.js" type="text/javascript" charset="utf-8")
-    -@scriptlist.each do |@j|
-      %script(src=@j type="text/javascript" charset="utf-8")
+    -@scriptlist.each do |j|
+      %script(src=j type="text/javascript" charset="utf-8")
 
     -#output any other scripts that we may want to generate.
     %script(type="text/javascript" charset="utf-8")
       #{@otherscripts}
 
-    -@csslist.each do |@i|
-      %link(href=@i rel="stylesheet" type="text/css")
+    -@csslist.each do |i|
+      %link(href=i rel="stylesheet" type="text/css")
 
     -#save userstate in javascript.
     -if(session[:user])
@@ -24,8 +24,8 @@
 
   %body
     %header
-      #pic
-        %img(src="/ogp.png" width="100px" height="100px")
+      #logo
+        %img#logoimg(src="/ogp.png")
       #title
         %h1(style="margin-bottom:0px;") OpenGenePool
         %i(style="padding-left:100px;") an indysci joint
