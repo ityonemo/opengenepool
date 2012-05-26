@@ -1,8 +1,5 @@
 #fork.rb - runs the appropriate procedures for forking DNA sequences.
 #the correct way to specify construct name is to 
-
-require 'mysql'
-
 def columnsfrom (db, table)
   res = db.query("SELECT COLUMN_NAME FROM information_schema.columns WHERE TABLE_NAME='#{table}';")
 

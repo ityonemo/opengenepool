@@ -1,22 +1,22 @@
 #!/usr/bin/ruby
 
 #packages for running the webserver
-require 'rubygems'
 require 'sinatra'
 require 'haml'
 require 'sequel'
+require 'mysql'
 
 #code for utility pages
-require 'initialize' #initialization
-require 'userman' #user management
-require 'fork' #DNA forking 
-require 'seq' #sequence management
-require 'annotations' #annotations management
+require './initialize' #initialization
+require './userman' #user management
+require './fork' #DNA forking 
+require './seq' #sequence management
+require './annotations' #annotations management
 
 #code for UI pages
-require 'editor' #DNA editor
-require 'upload' #sequence data upload tool
-require 'workspace' #workspace xml
+require './editor' #DNA editor
+require './upload' #sequence data upload tool
+require './workspace' #workspace xml
 
 #enable sessions and user management
 enable :sessions

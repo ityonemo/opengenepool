@@ -1,8 +1,6 @@
 #annotations.rb - runs the appropriate procedures for handling DNA annotations.
 #the correct way to specify construct name is to 
 
-require 'mysql'
-
 post '/annotation/' do
   handleuser()
 

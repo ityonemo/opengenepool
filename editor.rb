@@ -11,9 +11,9 @@ get '/editor/:query' do |query|
   @scriptlist = ["/dali/dali.js","DNA.js","editor.js","editor_graphics.js", "editor_files.js"]
   @csslist = ["editor.css"]
 
-  @pluginlist.each do |@j|
-    @scriptlist.push("plugin_" + @j + ".js")
-    @csslist.push("plugin_" + @j + ".css")
+  @pluginlist.each do |j|
+    @scriptlist.push("plugin_" + j + ".js")
+    @csslist.push("plugin_" + j + ".css")
   end
 
   @content = haml :editor

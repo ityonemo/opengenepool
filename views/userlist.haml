@@ -9,9 +9,9 @@
           %th login
           %th email
           %th password
-        -$users.each do |@i|
+        -@res.each do |i|
           %tr
-            %td #{@i["id"]}
-            %td #{@i["login"]}
-            %td #{@i["email"]}
-            %td #{@i["hash"]}
+            %td #{i[:id]}
+            %td #{i[:login]}
+            %td #{i[:email]}
+            %td #{i[:hash]}

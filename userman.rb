@@ -1,26 +1,23 @@
 #userman.rb - manages user stuff.
-
-require 'mysql'
-
 def amisuperuser()
   #make sure we have a session username
   if (session[:user] == nil)
     return false
   end
 
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+  db_connect
 
     #let's make sure there are tables (presumably, including a users table)
-    if (dbh.list_tables.length() == 0)
-      dbh.close if dbh
+    if ($DB.tables.length() == 0)
+      $DB.disconnect
       return false
     end
 
-    res = dbh.query("SELECT * FROM users WHERE login = '" + session[:user] + "';")
-    row = res.fetch_hash()
-  dbh.close if dbh
+    row = $DB["SELECT * FROM users WHERE (login='#{session[:user]}');"].first
 
-  return (Integer(row['level']) <= 1) #levels one and zero are wheel users.
+  $DB.disconnect
+
+  return (Integer(row[:level]) <= 1) #levels one and zero are wheel users.
 end
 
 #handle logins.  Will redirect to the "callback" parameter, if available;
@@ -29,26 +26,28 @@ end
 
 post '/login' do
   #access parameters.
-  $login = params[:login]
-  $password = params[:pass]
-  $callback = params[:callback]
+  login = params[:login]
+  password = params[:pass]
+  callback = params[:callback]
 
   #TODO: sanitize so that we don't have a mysql injection attack.
 
   #check to make sure that this user exists:
-  dbh=Mysql.real_connect("localhost","www-data","","ogp")
-    res = dbh.query("SELECT * FROM users WHERE login = '" + $login + "' AND hash = SHA('" + $password + "');")
+  db_connect
 
-    if (res.num_rows == 1)
-      #set the session variable.
-      session[:user] = $login
-      #TODO: log the session in the list of sessions.
+    res = $DB["SELECT * FROM users WHERE (login='#{login}' AND hash=SHA('#{password}'));"].all
+
+    #set the session variable.
+    if (res)
+      if (res.size == 1)
+        session[:user] = login
+      end
     end
 
-  dbh.close if dbh
+  $DB.disconnect
 
   #generate the redirect.
-  redirect ($callback.nil? && "/") || $callback
+  redirect (callback.nil? && "/") || callback
 end
 
 #handle clearing the logout.  Redirects back to the main page, always.
@@ -65,21 +64,17 @@ get '/userlist/' do
   #TODO: put a user check in place here.
   #we don't want unauthorized access to this list.
 
-  $users = Array.new();
+  unless amisuperuser
+    return 403.3
+  end
 
   #connect to the database.
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+  db_connect
+
     #query the entire list.
-    res=dbh.query("SELECT * FROM users")
-   
-    #for each row
-    (1..res.num_rows).each do
-      #grab the data and it into a hash.
-      row = res.fetch_hash()
-      #push the data ono the users array.
-      $users.push(row)
-    end
-  dbh.close if dbh
+    @res = $DB["SELECT * FROM users"].all
+
+  $DB.disconnect
 
   #output as the user list utility.
   haml :userlist
@@ -95,28 +90,33 @@ end
 post '/makeuser/' do
   #TODO: put a user check in place here.
   #no unauthorized access to user creation.
-  $login=params[:login]
-  $email=params[:email]
-  $passwd=params[:pass]
-  $mystring = ""
 
+  unless amisuperuser
+    return 403.3
+  end
+
+  login=params[:login]
+  email=params[:email]
+  passwd=params[:pass]
+  error = false
+  
   #check to make sure that the name doesn't exist in the database already.
-  dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+  db_connect
 
     #use a SELECT query to check if the user name exists
-    res=dbh.query('SELECT * FROM users WHERE login = "' + $login + '"')
+    check = $DB['SELECT * FROM users WHERE login = #{login}'].all
    
     #to be successful, the count has to be zero.
-    if (res.num_rows != 0)
-      $error = true;
+    if (check.size != 0)
+      error = true;
     else
-      res=dbh.query("INSERT INTO users (login, email, hash) VALUES ('#{$login}','#{$email}',PASSWORD('#{$passwd}'))")
+      $DB["INSERT INTO users (login, email, hash) VALUES ('#{login}','#{email}',SHA('#{passwd}'))"].insert
       #TODO: error checking and handling. 
     end
 
   dbh.close if dbh
 
-  if ($error)
+  if (error)
     "error, try a different name."
   else
     redirect "/makeuser/"
