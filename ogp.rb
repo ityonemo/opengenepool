@@ -8,6 +8,9 @@ require 'haml'
 #distribution-dependent ruby files
 require 'ogp-db' #database stuff
 
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
+
 #code for utility pages
 require 'initialize' #initialization
 require 'userman' #user management
