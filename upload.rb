@@ -159,7 +159,7 @@ def process()
     else
       $current_annotation.data += line;
       temp = line.strip()
-      if (temp[0] == '/')  #check to see if we have a slash winner!
+      if (temp[0,1] == '/')  #check to see if we have a slash winner!
         temparray = temp.split('=',2)
         $current_property = temparray[0].slice(1..-1) #chop off the slash.
         $current_annotation.datahash[$current_property] = temparray[1].slice(1..-1) #chop off the starting quote.
@@ -213,7 +213,7 @@ post '/uploadseq' do
 
   #store all of the http parameters as a giant hash.
   #note that annotations are stored in the syntax as prepared by the form.
-  seqvals = params.select{|k, v| $TD_SEQUENCES.include? k}  #select only the values whose key are in $TD_SEQUENCES
+  seqvals = Hash[params.select{|k, v| $TD_SEQUENCES.include? k}]  #select only the values whose key are in $TD_SEQUENCES
   seqvals.store("created", DateTime.now)
   seqvals.store("owner", session[:user])
 
@@ -242,7 +242,7 @@ post '/uploadseq' do
 
 
       #filter out things that don't belong in the database table.
-      annvals = value.select{|k, v| $TD_ANNOTATIONS.include? k}
+      annvals = Hash[value.select{|k, v| $TD_ANNOTATIONS.include? k}]
       #next add important records to the annotations values.
       annvals.store("created", DateTime.now)
       annvals.store("sequence", seqid)
