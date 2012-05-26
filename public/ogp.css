@@ -67,15 +67,14 @@ header h1 {
 
 #innerloginleft{
   position: absolute;
-  right: 50px;
-  width: 600px;
+  right: 75px;
+  width: 800px;
   text-align: right;
 }
 
 #innerloginright{
   position: absolute;
   right: 0px;
-  text-align: left;
 }
 
 input,button{

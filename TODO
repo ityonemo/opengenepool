@@ -1,13 +1,10 @@
 ogp ToDo list (in no particular order of importance):
 
 Quickies:
-Make the user management suite check to see if you're logged in as superuser.
-Scroll back to the beginning of the selection after you have made a selection.
 Figure out how to center the dialog box.
 
 Important Fixes:
-
-Migrate from Mysql rubygem to "sequel" rubygem.
+Firefox font sizes are too big.
 Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.
 Fork needs to have visibility set correctly.
