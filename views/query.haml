@@ -10,18 +10,9 @@
   %id #{@result[:id]}
   %sequence #{@result[:sequence]}
 
-<<<<<<< Updated upstream
   -@annotations.each do |i|
     %annotation(id="#{i[:id]}" type="#{i[:type]}" caption="#{i[:caption]}" domain="#{i[:domain]}")
       -@annodata.each do |data|
         -if (data[:annotation] == i[:id])
           %data(id="#{data[:id]}" type="#{data[:infokey]}")
             #{data[:value]}
-=======
-  -@annotations.each do |@i|
-    %annotation(id="#{@i[:id]}" type="#{@i[:type]}" caption="#{@i[:caption]}" domain="#{@i[:domain]}")
-      -#$DB[]
-      -#@i.dataarray.each do |@data|
-      -#  %data(id="#{@data[0]}" type="#{@data[1]}")
-      -#    #{@data[2]}
->>>>>>> Stashed changes
