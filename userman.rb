@@ -51,16 +51,16 @@ post '/login' do
 end
 
 #handle clearing the logout.  Redirects back to the main page, always.
-get '/logout/' do
+get '/logout' do
   session[:user] = nil
   redirect "/"
 end
 
-get '/whoami/' do
+get '/whoami' do
   "<html>" + session[:user] + "</html>"
 end
 
-get '/userlist/' do
+get '/userlist' do
   #TODO: put a user check in place here.
   #we don't want unauthorized access to this list.
 
@@ -80,14 +80,14 @@ get '/userlist/' do
   haml :userlist
 end
 
-get '/makeuser/' do
+get '/makeuser' do
   #TODO: put a user check in place here.
   #no unauthorized access to user creation option.
 
   haml :makeuser
 end
 
-post '/makeuser/' do
+post '/makeuser' do
   #TODO: put a user check in place here.
   #no unauthorized access to user creation.
 
@@ -114,7 +114,7 @@ post '/makeuser/' do
       #TODO: error checking and handling. 
     end
 
-  $DB.disconnect
+  dbh.close if dbh
 
   if (error)
     "error, try a different name."

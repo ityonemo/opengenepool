@@ -5,6 +5,10 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 require 'sequel'
+require 'mysql2'
+
+#distribution-dependent ruby files
+require 'ogp-db' #database stuff
 
 #distribution-dependent ruby files
 require 'ogp-db' #database stuff
@@ -13,16 +17,16 @@ require 'ogp-db' #database stuff
 require 'ogp-db' #database stuff
 
 #code for utility pages
-require 'initialize' #initialization
-require 'userman' #user management
-require 'fork' #DNA forking 
-require 'seq' #sequence management
-require 'annotations' #annotations management
+require './initialize' #initialization
+require './userman' #user management
+require './fork' #DNA forking 
+require './seq' #sequence management
+require './annotations' #annotations management
 
 #code for UI pages
-require 'editor' #DNA editor
-require 'upload' #sequence data upload tool
-require 'workspace' #workspace xml
+require './editor' #DNA editor
+require './upload' #sequence data upload tool
+require './workspace' #workspace xml
 
 #enable sessions and user management
 enable :sessions
@@ -51,17 +55,5 @@ end
 #handle the user stuff off the bat.
 def handleuser()
   session[:user] ||= nil
-  $user = session[:user]
-  
-  @logincontent = $user.nil? ? $emptylogincontent : logoutgen()
 end
-
-#HTML content for emptylogincontent.
-$emptylogincontent = "<div onclick=\"activatelogin();\">Login</div>"
-
-#generate HTML content to display current user and allow logout (kind of hack-ey).
-def logoutgen ()
-  return "Logged in as: " + $user + " <a href=\"logout/\" id=\"logout\"> (Logout)</a>"
-end
-
 

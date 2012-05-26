@@ -29,25 +29,28 @@
       #title
         %h1(style="margin-bottom:0px;") OpenGenePool
         %i(style="padding-left:100px;") an indysci joint
-      #loginbox
-        %form(action="/login" method="post")
-          #innerloginleft
-            %input(type="text" name="login" id="loginString")
-              username
-            %input(type="password" name="pass" id="passString")
-              password
-          #innerloginright
-            %button(type="submit" id="loginSubmit")
-              Login
       #searchbox
-        #searchcomponent
-          %form(action="search/")
-            #innersearch
-              %input(type="text" name="query" id="searchInput")
-              %button(type="submit" id="searchButton")
-                %img(src="/searchico.png")
-        #logincomponent
-          #{@logincontent}
+        %form(action="search/")
+          #innersearch
+            %input(type="text" name="query" id="searchInput")
+            %button(type="submit" id="searchButton")
+              %img(src="/searchico.png")
+      #loginbox
+        -if(session[:user].nil?)
+          %form(action="/login" method="post")
+            #innerloginleft
+              %input(type="text" name="login" id="loginString")
+                username
+              %input(type="password" name="pass" id="passString")
+                password
+            #innerloginright
+              %button(type="submit" id="loginSubmit")
+                Login
+        -else
+          Logged in as: #{session[:user]}
+          #br
+          %a(href="/logout")
+            (Logout)
     %section#content
       #{@content}
     #dialogmodal

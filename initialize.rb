@@ -91,7 +91,6 @@ post '/initialize' do
       end
 
       $DB.run "ALTER TABLE workspaces ADD FOREIGN KEY (login) REFERENCES users(login)"
-      
     end
 
   db_connect
