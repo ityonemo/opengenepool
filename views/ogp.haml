@@ -39,16 +39,16 @@
         -if(session[:user].nil?)
           %form(action="/login" method="post")
             #innerloginleft
-              %input(type="text" name="login" id="loginString")
+              %input#loginString(type="text" name="login")
                 username
-              %input(type="password" name="pass" id="passString")
+              %input#passString(type="password" name="pass")
                 password
+              %input#callback(type="hidden" name="callback")
             #innerloginright
               %button(type="submit" id="loginSubmit")
                 Login
         -else
           Logged in as: #{session[:user]}
-          #br
           %a(href="/logout")
             (Logout)
     %section#content
