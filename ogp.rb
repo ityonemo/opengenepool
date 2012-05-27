@@ -5,7 +5,6 @@ require 'rubygems'
 require 'sinatra'
 require 'haml'
 require 'sequel'
-require 'mysql2'
 
 #distribution-dependent ruby files
 require 'ogp-db' #database stuff
