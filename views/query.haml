@@ -1,18 +1,18 @@
 %gbml
-  %locus #{@result[:locus]}
-  %title #{@result[:title]}
-  %definition #{@result[:definition]}
-  %accession #{@result[:accession]}
-  %version #{@result[:version]}
-  %keywords #{@result[:keywords]}
-  %soure #{@result[:source]}
-  %organism #{@result[:organism]}
-  %id #{@result[:id]}
-  %sequence #{@result[:sequence]}
+  %locus #{@res[:locus]}
+  %title #{@res[:title]}
+  %definition #{@res[:definition]}
+  %accession #{@res[:accession]}
+  %version #{@res[:version]}
+  %keywords #{@res[:keywords]}
+  %soure #{@res[:source]}
+  %organism #{@res[:organism]}
+  %id #{@res[:id]}
+  %sequence #{@res[:sequence]}
 
-  -annotations.each do |i|
+  -@annotations.each do |i|
     %annotation(id="#{i[:id]}" type="#{i[:type]}" caption="#{i[:caption]}" domain="#{i[:domain]}")
-      -annodata.each do |data|
+      -@annodata.each do |data|
         -if (data[:annotation] == i[:id])
           %data(id="#{data[:id]}" type="#{data[:infokey]}")
             #{data[:value]}

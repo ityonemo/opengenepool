@@ -2,40 +2,40 @@
 
 get '/seq/:query' do |query|
 begin
-  handle_user
+  handleuser
   db_connect
 
   #check to see if we are using the id.
   if (query[0..2].eql?("id="))
-    res = $DB["SELECT * FROM sequences WHERE (id='"+ query[3..-1] +"');"].first
+    @res = $DB["SELECT * FROM sequences WHERE (id='"+ query[3..-1] +"');"].first
   else
-    res = $DB["SELECT * FROM sequences WHERE (title='#{query}');"].first
+    @res = $DB["SELECT * FROM sequences WHERE (title='#{query}');"].first
   end
 
   #STATUS TESTING
   #did we find the sequence?  if not, 404.
-  unless (res)
+  unless (@res)
     return 404
   end
 
-  unless ((res[:owner] == session[:user]) || (res[:visibility] == "public"))
+  unless ((@res[:owner] == session[:user]) || (@res[:visibility] == "public"))
     return 403
   end
 
   #EXECUTION
 
   #create a table with all of the annotations that reference the sequence.
-  $DB.run "CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE (sequence = #{res[:id]});"
+  $DB.run "CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE (sequence = #{@res[:id]});"
   #remove the deleted annotations.
-  $DB["SELECT * FROM tann WHERE status='deleted';"].delete
+  $DB.run "DELETE FROM tann WHERE status='deleted';"
 
   #then create a subtable with the annotations that supercede another annotation.
   $DB.run "CREATE TEMPORARY TABLE tann2 SELECT (supercedes) FROM tann WHERE (supercedes > 0);"
   #remove the superceded annotations
-  $DB["SELECT * FROM tann WHERE id IN (SELECT id FROM tann2);"].delete
+  $DB.run "DELETE FROM tann WHERE id IN (SELECT id FROM tann2);"
 
-  annotations = $DB["SELECT * FROM tann;"].all
-  annodata = $DB["SELECT * FROM annotationdata WHERE annotation IN (SELECT id FROM tann);"].all
+  @annotations = $DB["SELECT * FROM tann;"].all
+  @annodata = $DB["SELECT * FROM annotationdata WHERE annotation IN (SELECT id FROM tann);"].all
 
   #push it to the query xml generator
   haml :query

@@ -140,11 +140,36 @@ var annotations = new editor.Plugin("annotations",
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   // REPLICATION OF RESTful FUNCTIONS
+  // these functions use the built in HTTP request headers to make the queries function
+  // in an asynchronous fashion (jQueries are synchronous)
 
   get: function(id)
   {
-    $.get("/")
-  }
+    var request = new XMLHttpRequest();  
+    request.open('GET', '/annotation/' + id, false);  
+    request.send();  
+    return request.responseText; 
+  },
+
+  post: function(caption, type, domain)
+  {
+    var request = new XMLHttpRequest();
+    var params = "seqid=" + editor.sequence_id + "&caption=" + caption + "&type=" + type + "&domain=" + domain;
+
+    request.open('POST', '/annotation/', false);
+    request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    request.send(params);
+
+    return request.responseText;
+  },
+
+  _delete: function(id)
+  {
+    var request = new XMLHttpRequest();  
+    request.open('DELETE', '/annotation/' + id, false);  
+    request.send();  
+    return request.responseText; 
+  },
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   // NONTOKEN HELPER FUNCTIONS

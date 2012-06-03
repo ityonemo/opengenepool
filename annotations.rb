@@ -43,7 +43,7 @@ begin
   end
 
   #check to make sure the sequence we're trying to annotate exists.
-  unless ($DB["SELECT * FROM sequences WHERE (id = '#{params[:seqid]}');"].count)
+  unless ($DB["SELECT * FROM sequences WHERE (id = '#{params[:seqid]}');"].first)
     return [404, {:error => 404}.to_json]
   end
 
@@ -121,8 +121,8 @@ begin
     return 403
   end
 
-  query = $DB["SELECT * FROM annotations WHERE (id='#{query}');"]
-  res = query.first
+  dbq = $DB["SELECT * FROM annotations WHERE (id='#{query}');"]
+  res = dbq.first
 
   #make sure the specified annotation exists
   unless (res)
@@ -136,7 +136,7 @@ begin
 
   #EXECUTION
   #merely flag the object as deleted.
-  query.update(:status => 'deleted')
+  $DB.run "UPDATE annotations SET status='deleted' WHERE (id='#{query}');"
 
   #http 200, baby!
   200

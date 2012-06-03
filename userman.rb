@@ -73,7 +73,7 @@ begin
   end
 
   #query the entire list.
-  res = $DB["SELECT * FROM users"].all
+  @res = $DB["SELECT * FROM users"].all
 
   #output as the user list utility.
   haml :userlist

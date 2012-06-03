@@ -9,7 +9,7 @@
           %th login
           %th email
           %th password
-        -res.each do |i|
+        -@res.each do |i|
           %tr
             %td #{i[:id]}
             %td #{i[:login]}

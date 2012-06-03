@@ -5,15 +5,19 @@ Requires:
 ---------
 
 Ruby
+
 MySql
 
 Following Rubygems:
 -------------------
 
 sinatra
+
 haml
+
 json
-mysql2
+
+sequel
 
 Recommended for developers:
 ---------------------------
