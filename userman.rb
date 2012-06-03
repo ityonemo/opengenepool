@@ -1,23 +1,25 @@
 #userman.rb - manages user stuff.
 def amisuperuser()
+  #MUST BE CONNECTED TO DB AT THE TIME OF EXECUTION.
   #make sure we have a session username
   if (session[:user] == nil)
     return false
   end
 
-  db_connect
+  #let's make sure there are tables (presumably, including a users table)
+  if ($DB.tables.length() == 0)
+    $DB.disconnect
+    return false
+  end
 
-    #let's make sure there are tables (presumably, including a users table)
-    if ($DB.tables.length() == 0)
-      $DB.disconnect
-      return false
-    end
-
-    row = $DB["SELECT * FROM users WHERE (login='#{session[:user]}');"].first
-
-  $DB.disconnect
+  row = $DB["SELECT * FROM users WHERE (login='#{session[:user]}');"].first
 
   return (Integer(row[:level]) <= 1) #levels one and zero are wheel users.
+end
+
+#handle the user stuff off the bat.
+def handleuser()
+  session[:user] ||= nil
 end
 
 #handle logins.  Will redirect to the "callback" parameter, if available;
@@ -61,23 +63,24 @@ get '/whoami' do
 end
 
 get '/userlist' do
-  #TODO: put a user check in place here.
-  #we don't want unauthorized access to this list.
-
-  unless amisuperuser
-    return 403.3
-  end
-
+begin
   #connect to the database.
+  handleuser
   db_connect
 
-    #query the entire list.
-    @res = $DB["SELECT * FROM users"].all
+  unless amisuperuser
+    return 403
+  end
 
-  $DB.disconnect
+  #query the entire list.
+  res = $DB["SELECT * FROM users"].all
 
   #output as the user list utility.
   haml :userlist
+
+ensure
+  $DB.disconnect
+end
 end
 
 get '/makeuser' do
@@ -88,11 +91,14 @@ get '/makeuser' do
 end
 
 post '/makeuser' do
+begin
   #TODO: put a user check in place here.
   #no unauthorized access to user creation.
+  handleuser
+  db_connect
 
   unless amisuperuser
-    return 403.3
+    return 403
   end
 
   login=params[:login]
@@ -100,25 +106,15 @@ post '/makeuser' do
   passwd=params[:pass]
   error = false
   
-  #check to make sure that the name doesn't exist in the database already.
-  db_connect
-
-    #use a SELECT query to check if the user name exists
-    check = $DB['SELECT * FROM users WHERE login = #{login}'].all
-   
-    #to be successful, the count has to be zero.
-    if (check.size != 0)
-      error = true;
-    else
-      $DB["INSERT INTO users (login, email, hash) VALUES ('#{login}','#{email}',SHA('#{passwd}'))"].insert
-      #TODO: error checking and handling. 
-    end
-
-  dbh.close if dbh
-
-  if (error)
-    "error, try a different name."
-  else
-    redirect "/makeuser/"
+  #use a SELECT query to check if the user name exists
+  if ($DB['SELECT * FROM users WHERE login = #{login}'].count)
+    return 403
   end
+
+  $DB.insert["INSERT INTO users (login, email, hash) VALUES ('#{login}','#{email}',SHA('#{passwd}'))"].insert
+
+  redirect "/makeuser/"
+ensure
+  $DB.disconnect
+end
 end

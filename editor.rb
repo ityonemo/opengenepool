@@ -1,7 +1,7 @@
 require 'json'
 
 get '/editor/:query' do |query|
-  handleuser()
+  handleuser
 
   #list of plugins this user is using.
   #TODO:  Make thes load from the database.
@@ -32,7 +32,7 @@ get '/editor/:query' do |query|
 end
 
 get '/settings/graphics_settings.js' do
-  handleuser()
+  handleuser
 
   #for now, simply output fixed values.  Eventually we will pull this from the database.
   content_type :json

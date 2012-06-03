@@ -10,18 +10,13 @@ require 'mysql2'
 #distribution-dependent ruby files
 require 'ogp-db' #database stuff
 
-#distribution-dependent ruby files
-require 'ogp-db' #database stuff
-
-#distribution-dependent ruby files
-require 'ogp-db' #database stuff
-
 #code for utility pages
 require './initialize' #initialization
 require './userman' #user management
 require './fork' #DNA forking 
 require './seq' #sequence management
 require './annotations' #annotations management
+require './db' #database management
 
 #code for UI pages
 require './editor' #DNA editor
@@ -33,7 +28,7 @@ enable :sessions
 
 #main page
 get '/' do
-  handleuser()
+  handleuser
 
   @scriptlist = []
   @csslist = ["/main.css"]
@@ -43,7 +38,7 @@ get '/' do
 end
 
 get '/browse' do
-  handleuser()
+  handleuser
 
   @scriptlist = []
   @csslist = ["/browse.css"]
@@ -52,8 +47,4 @@ get '/browse' do
   haml :ogp
 end
 
-#handle the user stuff off the bat.
-def handleuser()
-  session[:user] ||= nil
-end
 

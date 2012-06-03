@@ -4,6 +4,7 @@ Quickies:
 Figure out how to center the dialog box.
 
 Important Fixes:
+Protect the users database from direct access.
 Firefox font sizes are too big.
 Implement access control checks that depend on the construct status.
 Implement annotation data editing in the dialog.

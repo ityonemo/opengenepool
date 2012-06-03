@@ -10,9 +10,9 @@
   %id #{@result[:id]}
   %sequence #{@result[:sequence]}
 
-  -@annotations.each do |i|
+  -annotations.each do |i|
     %annotation(id="#{i[:id]}" type="#{i[:type]}" caption="#{i[:caption]}" domain="#{i[:domain]}")
-      -@annodata.each do |data|
+      -annodata.each do |data|
         -if (data[:annotation] == i[:id])
           %data(id="#{data[:id]}" type="#{data[:infokey]}")
             #{data[:value]}

@@ -1,5 +1,5 @@
 get '/upload' do
-  handleuser()
+  handleuser
 
   #fixes bug that makes it impossible to do this across multiple sessions.
   $keywordhash = {};
@@ -17,7 +17,7 @@ end
 #various variables have been filled out by the genbank processing stuff.
 
 post '/upload' do
-  handleuser()
+  handleuser
 
   if (session[:user])
     unless params[:file] &&
@@ -216,6 +216,7 @@ post '/uploadseq' do
   seqvals = Hash[params.select{|k, v| $TD_SEQUENCES.include? k}]  #select only the values whose key are in $TD_SEQUENCES
   seqvals.store("created", DateTime.now)
   seqvals.store("owner", session[:user])
+  seqvals.store("visibility", "public")
 
   #generate a temporary store for the annotations.
   annotations = Hash.new
@@ -247,13 +248,22 @@ post '/uploadseq' do
       annvals.store("created", DateTime.now)
       annvals.store("sequence", seqid)
       annvals.store("owner", session[:user])
+      annvals.store("visibility", "public")
       #then add them to the annotations table.
       annid = $DB[:annotations].insert(annvals)
 
       value.each do |key2, value2|
         if (key2 =~ /\Adata/)
           name = key2.split("_")[1]
-          $DB["INSERT INTO annotationdata (annotation, infokey, value) VALUE ('#{annid}','#{name}','#{value2}')"].insert
+          $DB[:annotationdata].insert(
+            {:annotation => annid,
+             :owner => session[:user],
+             :created => DateTime.now,
+             :visibility => "public",
+             :infokey => name,
+             :value => value2,
+            }
+          )
         end
       end
     end

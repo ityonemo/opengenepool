@@ -1,23 +1,23 @@
 require 'json'
 
-get '/workspace/' do
-  if (session[:user])
-    dbh=Mysql.real_connect($dbhost,$dblogin,$dbpass, $dbname)
+get '/workspace' do
+begin
+  handleuser
+  db_connect
+  content_type :json  
 
-      #modify the workspaces table.
-      res = dbh.query("SELECT sequences.title, sequences.id FROM (sequences, workspaces) WHERE workspaces.login = '#{session[:user]}' AND sequences.id = workspaces.sequence")
-
-      @hashes = Array.new
-
-      res.each_hash() do |x| 
-        @hashes.push(x)
-      end
-
-    dbh.close() if dbh
-
-    content_type :json
-    @hashes.to_json
-  else
-    403.3
+  #STATUS CHECK
+  unless (session[:user])
+    return [403, {:error => 403, :details => "not logged in"}.to_json]
   end
+
+  #modify the workspaces table.
+  res = $DB["SELECT sequences.title, sequences.id FROM (sequences, workspaces) WHERE workspaces.login = '#{session[:user]}' " +
+      "AND sequences.id = workspaces.sequence"].all
+
+  res.to_json
+
+ensure
+  $DB.disconnect
+end
 end

@@ -1,66 +1,76 @@
 #fork.rb - runs the appropriate procedures for forking DNA sequences.
-#the correct way to specify construct name is to 
-def columnsfrom (db, table)
-  res = db.query("SELECT COLUMN_NAME FROM information_schema.columns WHERE TABLE_NAME='#{table}';")
 
-  #TODO: this is not the ruby way.  Can be done better.
-  @columnlist = ""
-    res.each do |x|
-      if (x[0])
-        @columnlist += x[0] + ", " unless (x[0] == 'id')
-      end
-    end
-  @columnlist = @columnlist[0..-3]
-end
+#simple fork, which directly forks the object.  Returns a json object containing the id of the resulting forked sequence.
+post '/fork/:id/:newname' do |id, newname|
+begin
+  handleuser
+  db_connect
+  content_type :json
 
-post '/fork/:query' do |query|
-  handleuser()
-
-  if (session[:user])
-    dbh=Mysql.real_connect("localhost","www-data","","ogp")
-
-      #use elegant way to resolve id issue.
-      res = dbh.query("CREATE TEMPORARY TABLE tseq SELECT * FROM sequences WHERE id='#{params[:sourceid]}';")
-      res = dbh.query("UPDATE tseq SET owner='#{session[:user]}', title='#{query}', status='temporary', created=NOW();")
-      #grab the column names
-      @c1 = columnsfrom(dbh, "sequences")
-
-      res = dbh.query("INSERT INTO sequences (#{@c1}) SELECT #{@c1} FROM tseq")
-      @nid = dbh.insert_id().to_s
-
-      #now use the same technique to transfer the annotations.
-      res = dbh.query("CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE sequence='#{params[:sourceid]}';")
-      #clear out annotations which have been superceded.
-      res = dbh.query("CREATE TEMPORARY TABLE tann2 SELECT supercedes FROM tann WHERE supercedes > 0;")
-      res = dbh.query("DELETE FROM tann WHERE id IN (SELECT supercedes FROM tann2);")
-      #overwrite values that only pertain to the old set of data.
-      res = dbh.query("UPDATE tann SET owner='#{session[:user]}', sequence='#{@nid}', created=NOW(), supercedes='NULL';")
-      #create a temporary pivot value.
-      res = dbh.query("ALTER TABLE tann ADD COLUMN _id int(64)")
-      res = dbh.query("UPDATE tann SET _id = id;") #pivot the id value to the old id.
-      @c2 = columnsfrom(dbh, "annotations")
-
-      #add all of these columns back in.
-      res = dbh.query("INSERT INTO annotations (#{@c2}) SELECT #{@c2} FROM tann;")
-
-      #modify the annotation data table.
-      #rename the "id" column to be the "annotation" column in the new, joined table.
-      res = dbh.query("ALTER TABLE tann CHANGE COLUMN id annotation int(64)")
-
-      #grab any annotation data which we will need to duplicate.
-      res = dbh.query("CREATE TEMPORARY TABLE tanndata SELECT * FROM annotationdata WHERE annotation IN (SELECT _id FROM tann);")
-      res = dbh.query("ALTER TABLE tanndata CHANGE COLUMN annotation _id int(64)")
-      @c3 = columnsfrom(dbh, "annotationdata")
-      #pull the data from the joined tann2/tanndata table about the _id field.
-      res = dbh.query("INSERT INTO annotationdata (#{@c3}) SELECT #{@c3} FROM tanndata, tann WHERE tanndata._id = tann._id;")
-
-      #modify the workspaces table.
-      res = dbh.query("INSERT INTO workspaces (login, sequence) VALUES ('#{session[:user]}', '#{@nid}');")
-
-    dbh.close() if dbh
- 
-    "#{@nid}"
-  else
-    status 403.3
+  #STATUS TESTING
+  #check to make sure we have write access to the database.
+  unless (session[:user])
+    return [403, {:error => 403, :detail => "write access denied"}]
   end
+
+  #search for the sequence which we are forking.
+  res = $DB["SELECT * FROM sequences WHERE (id = '#{id}')"].first
+
+  #if it doesn't exist, post a 404
+  unless (res)
+    return [404, {:error => 404}.to_json]
+  end
+
+  #make sure we are allowed to see it, push a 403 if not.
+  unless ((res[:owner] == session[:user]) || (res[:visibility] == 'public'))
+    return [403, {:error => 403, :detail => "read access denied"}.to_json]
+  end
+
+  #EXECUTION
+  #set new values that are completely overridden.
+  res[:owner] = session[:user]
+  res[:created] = DateTime.now
+  res[:supercedes] = nil
+  res[:visibility] = nil
+  res[:id] = nil
+
+  #copy sequence in.
+  $DB[:sequences].insert(res)
+
+  #find the relevant annotations.
+  $DB.run "CREATE TEMPORARY TABLE tann " +
+    "SELECT * FROM annotations WHERE (sequence = '#{id}') AND ((visibility = 'public') OR (owner = '#{session[:user]}')"
+  
+  annores = $DB["SELECT * FROM tann"].all
+  annohash = Hash.new
+
+  annores.each do |annot|
+    oldindex = annot[:id]
+    annot[:owner] = session[:user]
+    annot[:created] = DateTime.now
+    annot[:supercedes] = nil
+    annot[:visibility] = nil
+    annot[:id] = nil
+    annot[:sequence] = res[:id]
+
+    newindex = $DB[:annotations].insert(annores)
+    annohash[oldindex] = newindex
+  end
+
+  datares = $DB["SELECT * FROM annotationdata WHERE annotation IN SELECT (id) FROM tann"]
+
+  datares.each do |data|
+    data[:owner] = session[:user]
+    data[:created] = DateTime.now
+    data[:visibility] = nil
+    data[:id] = nil
+    data[:annotation] = annohash[data[:annotation]]
+  end
+
+  #now find the relevant indices.
+
+  res.to_json
+ensure
+  $DB.disconnect  
+end
 end
