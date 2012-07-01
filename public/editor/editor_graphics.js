@@ -26,7 +26,7 @@ graphics = new editor.Plugin("graphics",
   // TOKEN-BASED FUNCTIONS
 
   // main graphics initialization call.
-  initialize: function()
+  _initialize: function()
   {
     //associate with the dom object.
     var editordiv = document.getElementById("editor");
@@ -67,16 +67,16 @@ graphics = new editor.Plugin("graphics",
     });
   },
 
-  newsequence: function()
+  _newsequence: function()
   {
     //block until the graphics settings have arrived.
     if (graphics.initstate.settings)
-      graphics._newsequence();
+      graphics.newsequence_wait();
     else
       window.setTimeout(graphics.newsequence, 100);
   },
 
-  _newsequence: function()
+  newsequence_wait: function()
   {
     //first set the linescount based on the sequence and the characters per line.
     graphics.linecount = Math.ceil(editor.sequence.length / graphics.settings.zoomlevel);
@@ -105,20 +105,19 @@ graphics = new editor.Plugin("graphics",
     graphics.zoomer.appendChild(selection);
   },
 
-  
-allsystemsgo: function()
+  _allsystemsgo: function()
   {
     graphics.broadcast("render");
   },
 
-  invalidateall: function()
+  _invalidateall: function()
   //invalidate all of the lines.
   {
     for (var i = 0; i < graphics.linecount; i++)
       graphics.line(i).invalidate;
   },
 
-  invalidate: function(token)
+  _invalidate: function(token)
   //basically a function that invalidates any given single line.
   {
     graphics.line((isNaN(token) ? token.line : token)).invalid = true;
@@ -131,7 +130,7 @@ allsystemsgo: function()
     }
   },
 
-  render: function()
+  _render: function()
   //goes through and checks to see if any of the lines are labeled invalid.  
   //Then render these lines.  If rendering said line causes the succeeding 
   //lines to become invalid, invalidate those.

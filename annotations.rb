@@ -145,7 +145,7 @@ end
 # PART LE DEUXIEME:
 # annotation-data only REST
 
-#GET returns an annotation, or an error, and always responds with json.
+#GET returns annotation data, or an error, and always responds with json.
 get '/annotationdata/:query' do |query|
 begin
   handleuser
@@ -173,7 +173,7 @@ ensure
 end
 end
 
-#POST returns an annotation id, or an error, and always responds with json (to avoid triggering sinatra's route
+#POST returns an annotationdata id, or an error, and always responds with json (to avoid triggering sinatra's route
 #response matching in the case that the annotation's id happens to be an http error code.)
 post '/annotationdata/' do
 begin
@@ -211,7 +211,7 @@ ensure
 end
 end
 
-#PATCH returns an annotation id, or an error, and always responds with json (to avoid triggering sinatra's route
+#PATCH returns an annotationdata id, or an error, and always responds with json (to avoid triggering sinatra's route
 #response matching in the case that the annotation's id happens to be an http error code.)
 patch '/annotationdata/:query' do |query|
 begin

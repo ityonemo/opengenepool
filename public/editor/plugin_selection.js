@@ -17,7 +17,7 @@ var selection = new editor.Plugin("selection",
 
   ////////////////////////////////////////////////////////////////////////
   // OVERLOADING TOKEN FUNCTIONS
-  initialize: function()
+  _initialize: function()
   {
     //make a secret hidden div for buffering copy events.  This is necessary
     //in order to do the injection hack for reverse complements.
@@ -52,7 +52,7 @@ var selection = new editor.Plugin("selection",
 
   /////////////////////////////////////////////////////////////////////////
   // TOKENS PUBLISHED BY SELECTION
-  unselect: function()
+  _unselect: function()
   {
     if (selection.isselected)
     {
@@ -74,7 +74,7 @@ var selection = new editor.Plugin("selection",
     }
   },
 
-  select: function(token)
+  _select: function(token)
   {
     selection.unselect();
 
@@ -93,7 +93,7 @@ var selection = new editor.Plugin("selection",
     editor.broadcast("selected");
   },
 
-  selectall: function(token)
+  _selectall: function(token)
   {
     //overwrite the token domain spec.
     token.domain= "0.." + editor.sequence.length;
@@ -101,7 +101,7 @@ var selection = new editor.Plugin("selection",
     selection.select(token);
   },
 
-  rendered: function(token)
+  _rendered: function(token)
   {
     //gets called after a render() event.  In this case, the selection may need to be redrawn.
     if (selection.isselected)

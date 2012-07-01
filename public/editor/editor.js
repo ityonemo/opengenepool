@@ -231,7 +231,7 @@ var editor = new function Editor()
     if (data)
       $.extend(this, data);
   };
- 
+
   this.Plugin = function(_name, definition)
   {
     //register the plugin with the editor.
@@ -261,10 +261,10 @@ var editor = new function Editor()
 
       handletoken: function(token)
       {
-        if ((typeof this[token.type]) == 'function') //check to make sure the object actually has this function.
+        if ((typeof this["_" + token.type]) == 'function') //check to make sure the object actually has this function.
         {
           //execute it and pass it the token.
-          this[token.type](token);
+          this["_" + token.type](token);
         }
       },
 
@@ -291,6 +291,62 @@ var editor = new function Editor()
     });
     //append the coded definition to the end of the object.
     $.extend(this, definition);
+  };
+
+  //RESTful interface object
+  this.REST = function(URL)
+  {
+    $.extend(this,
+    {
+      URL: URL,
+      get: function(id)
+      {
+        var request = new XMLHttpRequest();  
+        request.open('GET', URL + id, false);  
+        request.send();  
+        return eval("(" + request.responseText + ")"); 
+      },
+
+      post: function(what)
+      {
+        var request = new XMLHttpRequest();
+        var params = "";
+
+        for (data in what)
+          params += data + "=" + what[data] + "&";
+
+        request.open('POST', URL, false);
+        request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        request.send(params);
+
+        return eval("(" + request.responseText + ")");
+      },
+
+      patch: function(id, what) 
+      {
+        var request = new XMLHttpRequest();
+        var params = "";
+
+        for (data in what)
+          params += data + "=" + what[data] + "&";
+
+        request.open('PATCH', URL + id, false);
+        request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        request.send(params);
+
+        return eval("(" + request.responseText + ")");
+      },
+
+      _delete: function(id) 
+      {  //NB, "delete" function does not respond with a javascript object.
+        var request = new XMLHttpRequest();
+
+        request.open('DELETE', URL, false);
+        request.send();
+
+        return request.responseText;
+      },
+    });
   };
 };
 

@@ -6,13 +6,13 @@ var sequence = new editor.Plugin("sequence",
   //short bits of strings which represent the textual content of each line
   chunks:[],
 
-  ready:function()
+  _ready:function()
   {
-    sequence.newsequence();
+    sequence._newsequence();
     sequence.isready = true;
   },
 
-  newsequence:function(token)
+  _newsequence:function(token)
   {
     if ((!token) || (!token.initial))
     {
@@ -24,14 +24,14 @@ var sequence = new editor.Plugin("sequence",
     }
   },
 
-  zoomed: function()
+  _zoomed: function()
   {
     //these two functions should basically be identical.
     //NB in the future this might change.
     sequence.newsequence();
   },
 
-  contextmenu : function (token)
+  _contextmenu : function (token)
   {
     editor.addcontextmenuitem(new editor.MenuItem());  //menu break
 
@@ -46,25 +46,10 @@ var sequence = new editor.Plugin("sequence",
 
   },
 
-  editdialog: function (a, b, c)
-  {
-    alert("editing " + a + ".." + b);
-  },
-
-  _excise: function (a, b, c)
-  {
-    alert("excising " + a + ".." + b);
-  },
-
-  _fork: function(a, b, c)
-  {
-    alert("forking " + a + ".." + b);
-  },
-
   /////////////////////////////////////////////////////////////////////////
   // RENDERING THE LINE
 
-  redraw: function(token)
+  _redraw: function(token)
   {
     var sequencecontainer = graphics.newcontainer(token.line, "sequence_" + token.line, true)
     var sequenceobject = {};

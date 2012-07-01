@@ -4,28 +4,29 @@ get '/seq/:query' do |query|
 begin
   handleuser
   db_connect
+  content_type :json
 
   #check to see if we are using the id.
   if (query[0..2].eql?("id="))
-    @res = $DB["SELECT * FROM sequences WHERE (id='"+ query[3..-1] +"');"].first
+    res = $DB["SELECT * FROM sequences WHERE (id='"+ query[3..-1] +"');"].first
   else
-    @res = $DB["SELECT * FROM sequences WHERE (title='#{query}');"].first
+    res = $DB["SELECT * FROM sequences WHERE (title='#{query}');"].first
   end
 
   #STATUS TESTING
   #did we find the sequence?  if not, 404.
-  unless (@res)
+  unless (res)
     return 404
   end
 
-  unless ((@res[:owner] == session[:user]) || (@res[:visibility] == "public"))
+  unless ((res[:owner] == session[:user]) || (res[:visibility] == "public"))
     return 403
   end
 
   #EXECUTION
 
   #create a table with all of the annotations that reference the sequence.
-  $DB.run "CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE (sequence = #{@res[:id]});"
+  $DB.run "CREATE TEMPORARY TABLE tann SELECT * FROM annotations WHERE (sequence = #{res[:id]});"
   #remove the deleted annotations.
   $DB.run "DELETE FROM tann WHERE status='deleted';"
 
@@ -34,11 +35,16 @@ begin
   #remove the superceded annotations
   $DB.run "DELETE FROM tann WHERE id IN (SELECT id FROM tann2);"
 
-  @annotations = $DB["SELECT * FROM tann;"].all
-  @annodata = $DB["SELECT * FROM annotationdata WHERE annotation IN (SELECT id FROM tann);"].all
+  annotations = $DB["SELECT * FROM tann;"].all
 
-  #push it to the query xml generator
-  haml :query
+  annotations.each do |a|
+    annodata = $DB["SELECT * FROM annotationdata WHERE annotation = #{a[:id]}"].all
+    a[:data] = annodata
+  end
+
+  res[:annotations] = annotations
+
+  res.to_json
 
 ensure
   $DB.disconnect

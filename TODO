@@ -1,9 +1,14 @@
 ogp ToDo list (in no particular order of importance):
 
+IMPLEMENT BETTER COMMENTING AND ERROR CHECKING IN JAVASCRIPT FILES
+RESTRUCTURE BASE CLASSES
+
+
 Quickies:
 Figure out how to center the dialog box.
 
 Important Fixes:
+Fix the DNA.js file so that it outputs a domain as either join() or origin() depending on the collective orientation.
 Protect the users database from direct access.
 Firefox font sizes are too big.
 Implement access control checks that depend on the construct status.

@@ -14,7 +14,7 @@ var annotations = new editor.Plugin("annotations",
   ////////////////////////////////////////////////////////////////////////
   // OVERLOADING TOKEN FUNCTIONS
 
-  initialize: function()
+  _initialize: function()
   {
     //in the initialize function we are going to set up the annotations tooltip.
     annotations.annotip = document.createElement('div');
@@ -35,7 +35,7 @@ var annotations = new editor.Plugin("annotations",
   },
 
   //temporary variable to store current annotation.
-  newsequence: function(token)
+  _newsequence: function(token)
   {
     //re-initialize the annotation fragments list.
     annotations.fragments = []; 
@@ -79,14 +79,14 @@ var annotations = new editor.Plugin("annotations",
         annotations.generatefragments(i);
   },
 
-  ready: function()
+  _ready: function()
   {
     for (var i = 0; i < annotations.annotations.length; i++)
       annotations.generatefragments(i);
     annotations.isready = true;
   },
 
-  zoomed: function()
+  _zoomed: function()
   {
     //re-initialize the annotation fragments list.
     annotations.fragments = []; 
@@ -97,7 +97,7 @@ var annotations = new editor.Plugin("annotations",
       annotations.generatefragments(i);
   },
 
-  redraw: function(token)
+  _redraw: function(token)
   {
     //this is a really kludgey array parsing function.  Possibly consider
     //parsed into sub-arrays indexed by line, or sorted somehow.  OTOH
@@ -136,39 +136,6 @@ var annotations = new editor.Plugin("annotations",
         annotations.addTip(graphicscontainer, annotation.caption, tipstring);
       }
     }
-  },
-
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  // REPLICATION OF RESTful FUNCTIONS
-  // these functions use the built in HTTP request headers to make the queries function
-  // in an asynchronous fashion (jQueries are synchronous)
-
-  get: function(id)
-  {
-    var request = new XMLHttpRequest();  
-    request.open('GET', '/annotation/' + id, false);  
-    request.send();  
-    return request.responseText; 
-  },
-
-  post: function(caption, type, domain)
-  {
-    var request = new XMLHttpRequest();
-    var params = "seqid=" + editor.sequence_id + "&caption=" + caption + "&type=" + type + "&domain=" + domain;
-
-    request.open('POST', '/annotation/', false);
-    request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    request.send(params);
-
-    return request.responseText;
-  },
-
-  _delete: function(id)
-  {
-    var request = new XMLHttpRequest();  
-    request.open('DELETE', '/annotation/' + id, false);  
-    request.send();  
-    return request.responseText; 
   },
 
   /////////////////////////////////////////////////////////////////////////////////////////////
