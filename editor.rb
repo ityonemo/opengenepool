@@ -5,7 +5,7 @@ get '/editor/:query' do |query|
 
   #list of plugins this user is using.
   #TODO:  Make thes load from the database.
-  @pluginlist= ["sequence","annotations","selection"]#, "find"]
+  @pluginlist= ["sequence"]#,"annotations","selection"]#, "find"]
 
   #assemble information necessary for the execution of the editor.
   @scriptlist = ["/dali/dali.js","DNA.js","editor.js","editor_graphics.js", "editor_files.js"]
@@ -19,13 +19,15 @@ get '/editor/:query' do |query|
   @content = haml :editor
 
   #set up the script.  first the window onload.
-  @otherscripts = 'window.onload = editor.load("' + query + '");'
+  @otherscripts = "editor.query = '#{query}';"
 
   if (session[:user])
-    @otherscripts += "\n user_loggedin = true;"
+    @otherscripts += "\n editor.user_loggedin = true;"
   else
-    @otherscripts += "\n user_loggedin = false;"
+    @otherscripts += "\n editor.user_loggedin = false;"
   end
+
+  @otherscripts += "\n editor.load();"
 
   #call the OGP template.
   haml :ogp

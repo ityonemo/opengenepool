@@ -36,14 +36,6 @@ Usage:
 
 ~>  ogp.rb
 
-With shotgun:
--------------
-
-~> shotgun -p4567 ogp.rb
-
-This works quite well in linux.  If you are using macOS, it should work similarly.  If you use
-windows, god help you.
-
 To test https, I suggest setting up an https-capable web forwarding server/daemon (I use NGINX)
 and have it point to http://localhost:4567/, ogp is then served from https://localhost/
 

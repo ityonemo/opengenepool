@@ -4,31 +4,20 @@ var sequence = new editor.Plugin("sequence",
   // OVERLOADING FUNCTIONS
 
   //short bits of strings which represent the textual content of each line
-  chunks:[],
+  chunks: undefined,
 
-  _ready:function()
+  _resize: function(token)
   {
-    sequence._newsequence();
-    sequence.isready = true;
+    var zoomlevel = graphics.settings.zoomlevel;
+    sequence.chunks = [];
+    if (graphics.settings.textsequence)
+    for (var i = 0; i * zoomlevel < editor.sequence.length; i ++)  //assign the appropriate array index to the corresponding chunk.
+      sequence.chunks[i] = editor.sequence.slice(i*zoomlevel, (i + 1) * zoomlevel);
   },
 
-  _newsequence:function(token)
+  _zoomed: function(token)
   {
-    if ((!token) || (!token.initial))
-    {
-      var zoomlevel = graphics.settings.zoomlevel;
-      sequence.chunks = [];
-      if (graphics.settings.textsequence)
-      for (var i = 0; i * zoomlevel < editor.sequence.length; i ++)  //assign the appropriate array index to the corresponding chunk.
-        sequence.chunks[i] = editor.sequence.slice(i*zoomlevel, (i + 1) * zoomlevel);
-    }
-  },
-
-  _zoomed: function()
-  {
-    //these two functions should basically be identical.
-    //NB in the future this might change.
-    sequence.newsequence();
+    sequence._resize();
   },
 
   _contextmenu : function (token)
@@ -51,7 +40,7 @@ var sequence = new editor.Plugin("sequence",
 
   _redraw: function(token)
   {
-    var sequencecontainer = graphics.newcontainer(token.line, "sequence_" + token.line, true)
+    var sequencecontainer = graphics.newcontainer(token.line, "sequence_" + token.line, true);
     var sequenceobject = {};
 
     if (graphics.settings.textsequence)

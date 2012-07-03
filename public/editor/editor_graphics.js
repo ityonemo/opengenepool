@@ -3,11 +3,13 @@ graphics = new editor.Plugin("graphics",
 {
   //various variables that we'll be keeping track of.
   //NB: these cannot remain zero, will be set in initialize method.
-  metrics: {linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0, box:{}},
-  settings: {vmargin: 0, lmargin:0, rmargin: 0, zoomlevel: 0, linepadding: 0, contentpadding: 0, textsequence: false},  
+  metrics: new Hash({linewidth: 0, lineheight: 0, charwidth: 0, blockwidth: 0, fullwidth: 0, fullheight: 0, box:undefined}),
+  settings: undefined,
+  //settings contains the following variables, and comes from the JSON query.
+  //  vmargin, lmargin, rmargin, zoomlevel, linepadding, contentpadding, textsequence
+
   linecount: 0,
   invalid: false,
-  initstate: {settings: false, sequence: false, resize: false},
 
   //editor is the dali.js generated DOM object.
   editor: undefined,
@@ -34,13 +36,15 @@ graphics = new editor.Plugin("graphics",
 
     //initialize the graphics layers in back-to-front order.
     graphics.mainlayer = graphics.editor.group("mainlayer");
+    //reassign graphics.line object
+    graphics.line = graphics.mainlayer.childNodes;
 
     //register the onresize() function
     graphics.editor.parentNode.onresize = graphics.onresize;
 
     ////////////////////////////////////
     // GENERATE THE GRAPHICS TOOLBAR
-    graphics.maketool();
+    graphics.maketoolbar();
     graphics.toolbardom.innerHTML +=
       "<select id='zoomer'></select><br><button id='getsvg' type='button' onclick='graphics.getsvg()'>get svg</button>";
     //now assign the zoomer object.
@@ -48,39 +52,50 @@ graphics = new editor.Plugin("graphics",
 
     //set the callback function for changing the zoomer.
     graphics.zoomer.onchange = function()
-    {
+    { 
       graphics.zoom(graphics.zoomarray[graphics.zoomer.selectedIndex]);
-    }
+    };
 
     ////////////////////////////////////
     // OTHER INITIALIZATION
 
-    graphics.initstate.sequence = true;
-
     //pull the settings data from the database.  This should be formatted as json.
     //then execute the callback function.
-    $.getJSON("/settings/graphics_settings.js", function(json)
-    {
-      graphics.settings = json;
-      graphics.initstate.settings = true;
-      graphics.onresize(true);
-    });
+    $.getJSON("/settings/graphics_settings.js", function(json){graphics.settings = new Hash(json);});
+  },
+
+  _ready: function()
+  {
+    if (!graphics.settings)
+    { //make sure we wait till the settings have come in.
+      window.setTimeout(graphics._ready, 10);
+      return;
+    }
+
+    //if we've set the zoom option, enact that in the zoom button.
+    if (editor.options.z && (editor.sequence.length >= editor.options.z))
+      graphics.settings.zoomlevel = parseInt(editor.options.z);
+    else if (editor.sequence.length >= 100)
+      graphics.settings.zoomlevel = 100;
+    else
+      graphics.setting.zoomlevel = graphics.zoomvalues[graphics.zoomvalues.length - 1];
+
+    graphics._newsequence();
+
+    graphics.zoomer.value = graphics.zoomstrings[graphics.zoomvalues.indexOf(graphics.settings.zoomlevel)];
+
+    graphics.isready = true;
   },
 
   _newsequence: function()
   {
-    //block until the graphics settings have arrived.
-    if (graphics.initstate.settings)
-      graphics.newsequence_wait();
-    else
-      window.setTimeout(graphics.newsequence, 100);
-  },
+    if (!(editor.stateflags & editor.readyflag)) return;
 
-  newsequence_wait: function()
-  {
     //first set the linescount based on the sequence and the characters per line.
     graphics.linecount = Math.ceil(editor.sequence.length / graphics.settings.zoomlevel);
 
+    //nuke the old objects.
+    graphics.mainlayer.clear();
     //create the lines objects.
     for (var i = 0; i < graphics.linecount; i++)
       graphics.newline(i);
@@ -103,6 +118,8 @@ graphics = new editor.Plugin("graphics",
     selection.innerHTML = 'full';
     graphics.zoomarray.push(editor.sequence.length);
     graphics.zoomer.appendChild(selection);
+
+    graphics.onresize();
   },
 
   _allsystemsgo: function()
@@ -114,19 +131,19 @@ graphics = new editor.Plugin("graphics",
   //invalidate all of the lines.
   {
     for (var i = 0; i < graphics.linecount; i++)
-      graphics.line(i).invalidate;
+      graphics._invalidate(i);
   },
 
   _invalidate: function(token)
   //basically a function that invalidates any given single line.
   {
-    graphics.line((isNaN(token) ? token.line : token)).invalid = true;
+    graphics.line[(isNaN(token) ? token.line : token)].invalid = true;
     if (!graphics.invalid)
     {
       graphics.invalid = true;
       //send a command to render, with a delay of 10 ms to allow for other commands to post invalidations.
       //10 ms ~ 100 fps, far better than really necessary.
-      window.setTimeout(graphics.render, 10);
+      window.setTimeout(graphics._render, 10);
     }
   },
 
@@ -137,10 +154,11 @@ graphics = new editor.Plugin("graphics",
   { 
     if (!graphics.invalid) return;
     graphics.invalid = false; //flag the invalidation to false.
+
     //iterate over the lines array
     for (var i = 0; i < graphics.linecount; i++)
       //check to see if this line has been invalidated.
-      if (graphics.line(i).invalid)
+      if (graphics.line[i].invalid)
       {
         graphics.clearline(i);
 
@@ -156,7 +174,7 @@ graphics = new editor.Plugin("graphics",
       };
     
     var lastline = graphics.mainlayer.lastChild;
-    var fullheight = lastline.bottom + graphics.settings.vmargin;
+    var fullheight = lastline._tbottom + graphics.settings.vmargin;
 
     graphics.editor.height = fullheight;
 
@@ -167,9 +185,7 @@ graphics = new editor.Plugin("graphics",
   ////////////////////////////////////////////////////////////////////////////////////////
   // non-token helper functions.
 
-  line: function(i) { return graphics.mainlayer.childNodes[i];},
-
-  onresize: function(isinitializing)
+  onresize: function()
   {
     //do this resize because it may not actually happen.
     graphics.metrics.fullheight = graphics.editor.parentNode.clientHeight;
@@ -178,11 +194,9 @@ graphics = new editor.Plugin("graphics",
     if (graphics.metrics.fullwidth != graphics.editor.parentNode.clientWidth)
     {
       graphics.calculatemetrics();
-      if (!isinitializing)
-        graphics.broadcast("invalidateall");
-        
-      graphics.broadcast("resize", {initial: isinitializing});
-      graphics.initstate.resize = true;
+
+      graphics.broadcast("invalidateall");  
+      graphics.broadcast("resize");
     };
   },
 
@@ -251,14 +265,17 @@ graphics = new editor.Plugin("graphics",
     for (var i = 0; i < graphics.linecount; i++)
       graphics.newline(i);
 
+    //invalidate all.
+    graphics.broadcast("invalidateall");
     //inform the plugins that we have rezoomed.
-    graphics.broadcast("zoomed");
+    graphics.broadcast("zoomed",{level: level});
+    //trigger a render event.
     graphics.broadcast("render");
   },
 
   clearline: function(line)
   {
-    line = (isNaN(line) ? line : graphics.line(line)); //set it to the element if we've not got it set that way yet.
+    line = (isNaN(line) ? line : graphics.line[line]); //set it to the element if we've not got it set that way yet.
     line.clear();
   },
 
@@ -277,7 +294,7 @@ graphics = new editor.Plugin("graphics",
   layout: function(line)
   {
     //fix the line variable
-    line = (isNaN(line) ? line : graphics.line(line)); 
+    line = (isNaN(line) ? line : graphics.line[line]); 
     //reset the line to (0,0).
     line.currenttransform = undefined;
 
@@ -330,11 +347,13 @@ graphics = new editor.Plugin("graphics",
     }
 
     //find how much we need to move the line.  First the bounds of the previous box.
-    var prevy = (line.index == 0) ? graphics.settings.vmargin : graphics.line(line.index - 1).bottom;
+    var prevy = (line.index == 0) ? graphics.settings.vmargin : graphics.line[line.index - 1]._tbottom;
     var translatey = prevy + graphics.settings.linepadding + line.height - line.bottom;
+    //some SVG-renderers delay performing transformation actions, so you have to precalculate the new bottom
+    line._tbottom = line.bottom + translatey;
 
     //then translate the entire line.
-    line.applytransform(dali.translate(graphics.settings.lmargin, translatey), true);
+    line.applytransform(dali.translate(graphics.settings.lmargin, translatey));
   },
 
   sort: function(line) //specialized sorting function which orders the line graphics elements by width.
@@ -431,7 +450,6 @@ graphics = new editor.Plugin("graphics",
   //export the image as svg:
   getsvg: function()
   {
-    //TODO: check to see if raphael is in svg mode.
     mywindow = window.open("","svg output");
     mywindow.document.write("<code>");  //flank the output with code to make it look nice.
     mywindow.document.write(graphics.editor.toString().split("&").join("&amp;").split( "<").join("&lt;").split(">").join("&gt;").split("\n").join("<br>").split(" ").join("&nbsp;"));
@@ -462,12 +480,12 @@ graphics.newline = function(index)
 };
 
 //styling container.
-graphics.newcontainer = function(line, _name, anchored)
+graphics.newcontainer = function(line, name, anchored)
 {
   //if we've passed it a line number, replace it with the actual object.
-  line = (isNaN(line) ? line : graphics.line(line)); 
+  line = (isNaN(line) ? line : graphics.line[line]); 
   
-  container = line.group(_name);
+  container = line.group(name);
   $.extend(container,
   {
     anchored: (anchored ? true : false), //looks silly but makes it an explicit bool instead of a "false type"
@@ -481,28 +499,34 @@ graphics.newcontainer = function(line, _name, anchored)
   return container;
 };
 
-//generalized fragment
+//generalized fragment object. Keeps track of line, start, end, and orientation.
 
-graphics.Fragment = function(_line, _start, _end, _orientation)
+graphics.Fragment = function(line, start, end, orientation)
 {
-  $.extend(this,
-  {
-    line: _line,
-    start: _start,
-    end: _end,
-    orientation: _orientation,
-  });
+  this.line = line;
+  this.start = start;
+  this.end = end;
+  this.orientation = orientation;
 };
+
+graphics.Fragment.prototype =
+{
+  overlaps: function(otherfragment)
+  {
+    if (this.line != otherfragment.line) return false;
+    if ((this.end < otherfragment.start) || (this.start > otherfragment.end)) return false;
+    return true;
+  }
+}
+
+//generalized span.
 
 graphics.Span = function(range)
 {
-  $.extend(this,
-  {
-    start_l: Math.floor((range.start)/graphics.settings.zoomlevel),
-    start_p: (range.start)%graphics.settings.zoomlevel, 
-    end_l: Math.floor((range.end)/graphics.settings.zoomlevel),
-    end_p: (range.end)%graphics.settings.zoomlevel,
-  });
+  this.start_l = Math.floor((range.start)/graphics.settings.zoomlevel);
+  this.start_p = (range.start)%graphics.settings.zoomlevel;
+  this.end_l = Math.floor((range.end)/graphics.settings.zoomlevel);
+  this.end_p = (range.end)%graphics.settings.zoomlevel;
 
   //adjust it so that it's flush with the end of the line instead of the beginning.
   if ((this.end_p == 0) && (range.start != range.end))

@@ -94,8 +94,7 @@ $.extend(Span.prototype,
         ranges = arguments[i].split("+")
         for (var j = 0; j < ranges.length; j++)
         {
-          ranges[j].replace(/^\s+|\s+$/g,"")
-          try {this._push(new Range(ranges[j]));}
+          try {this._push(new Range(ranges[j].trim()));}
           catch (e) {throw new Error("cannot push a malformed rangestring: " + ranges[j] + "; " + e.toString())}
         }
       } else
@@ -143,7 +142,7 @@ Range = function() //parameters analyzed via arguments array.
   switch(arguments.length)
   {
     case 0:
-      throw new Error("insufficient arguments to Range object constructor");
+      this.start = this.end = 0;
     case 1:
       if (typeof arguments[0] == "string")
       {
@@ -374,7 +373,10 @@ Range.prototype =
     if (typeof(string) != "string") throw new Error("data supplied to extract is not a string");
     if (string.length < end) throw new Error("sequence provided does not over lap range; end " + this.end + " too far");
 
-    return string.slice(start, end);
+    if (this.orientation >= 0)
+      return string.slice(start, end);
+    else
+      return reversecomplement(string.slice(start,end));
   }
 }
 
