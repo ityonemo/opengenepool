@@ -4,12 +4,12 @@ var annotations = new editor.Plugin("annotations",
   // MEMBER VARIABLES
 
   //list of annotations
-  annotations: [],
-  annotip: {},
-  fragments: [],
+  annotations: undefined,
+  fragments: undefined,
+  types: undefined,
 
-  //annotations typelist
-  types: [],
+  //DOM elements
+  annotip: undefined,
 
   ////////////////////////////////////////////////////////////////////////
   // OVERLOADING TOKEN FUNCTIONS
@@ -31,58 +31,42 @@ var annotations = new editor.Plugin("annotations",
 
     ////////////////////////////////////
     // GENERATE THE ANNOTATIONS TOOLBAR
-    annotations.maketool();
+    annotations.maketoolbar();
   },
 
   //temporary variable to store current annotation.
-  _newsequence: function(token)
+  _newdata: function(token)
   {
-    //re-initialize the annotation fragments list.
-    annotations.fragments = []; 
+    annotations.annotations = [];
+    annotations.types = [];
 
-    //a temporary variable.
-    var current_annotation = {};
+    for (var i = 0; i < editor.data.annotations.length; i++)
+    {
+      //add the annotation to the annotations array.
+      var annotation = new annotations.Annotation(editor.data.annotations[i]);
+      var type = annotation.type;
 
-    //use the xml jQuery object to find the sequence tag and use it.
-    $queriedxml.find("annotation").each(
-      function()
+      if(annotations.types.indexOf(type) < 0)
       {
-        var myannotation = new annotations.Annotation($(this).attr("caption"),
-                                                      $(this).attr("type"),
-                                                      $(this).attr("domain"),
-                                                      $(this).attr("id"));
-
-        //add the type to the type list.
-        var type = $(this).attr("type");
-        if (annotations.types.indexOf(type) < 0)
-        {
-          annotations.types.push(type);
-          //populate the toolbar with this information.
-          annotations.toolbardom.innerHTML += "<div class='annotoolbar' id='tb_" + type + "'>" + type + "</div>"
-        }
-
-        current_annotation = myannotation;
-
-        $(this).children().each(
-          function()
-          {
-            current_annotation.data[$(this).attr("type")] = new AnnoData($(this).text(), $(this).attr("id"));
-          }
-        );
-      });
+        //add it to the type list, and then to the tool bar.
+        annotations.types.push(type);
+        annotations.toolbardom.innerHTML += "<div class='annotoolbar' id='tb_" + type + "'>" + type + "</div>";
+      }
+    }
 
     //parse over the annotations array and split into graphically digestible
     //elements which will go into the "annofragments" array.
 
-    if (!token.initial)  //we can't be guaranteed that the graphics have been initialized because this is asynchronous.
-      for (var i = 0; i < annotations.annotations.length; i++)
-        annotations.generatefragments(i);
+    //if (!token.initial)  //we can't be guaranteed that the graphics have been initialized because this is asynchronous.
+    //  for (var i = 0; i < annotations.annotations.length; i++)
+    //    annotations.generatefragments(i);
   },
-
+});
+/*
   _ready: function()
   {
-    for (var i = 0; i < annotations.annotations.length; i++)
-      annotations.generatefragments(i);
+//    for (var i = 0; i < annotations.annotations.length; i++)
+//      annotations.generatefragments(i);
     annotations.isready = true;
   },
 
@@ -96,7 +80,7 @@ var annotations = new editor.Plugin("annotations",
     for (var i = 0; i < annotations.annotations.length; i++)
       annotations.generatefragments(i);
   },
-
+/*
   _redraw: function(token)
   {
     //this is a really kludgey array parsing function.  Possibly consider
@@ -137,10 +121,11 @@ var annotations = new editor.Plugin("annotations",
       }
     }
   },
+});
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   // NONTOKEN HELPER FUNCTIONS
-
+/*
   generatefragments: function(i)
   {
     //set the reference variable.
@@ -457,43 +442,21 @@ annotations.filldialog = function(start, end, orientation, caption, type)
 ////////////////////////////////////////////////////////////////////////
 // HELPER OBJECTS
 
-annotations.Annotation = function(_caption, _type, _domain, _id)
+annotations.Annotation = function(hash)
 {
-  $.extend(this,new Domain(_domain));
-  $.extend(this,
+  $.extend(this, hash);
+  annotations.annotations.push(this);
+}
+
+annotations.Annotation.prototype = new Span();
+$.extend(annotations.Annotation.prototype, 
+{
+  cssclass: function()
   {
-    //further information.
-    caption: _caption,
-    type: _type,
-    id: _id,
-    data: {},
+    return "annotation " + this.type + " " + "annotation_" + this.id;
+  },
+});
 
-    cssclass: function()
-    {
-      return "annotation " + this.type + " " + "annotation_" + this.id;
-    },
-
-    deleteme: function()
-    {
-      //remove from the annotations array.
-      annotations.annotations.splice(annotation.annotations.indexOf(annotation),1);
-      //remove fragments from the fragments array
-      //count down to avoid stupid decrement tricks.
-      for (var i = annotations.fragments.length - 1; i >= 0; i--)
-        if ((i < annotations.fragments.length) && (annotations.fragments[i].ref == this)) //check if it corresponds
-        {
-          graphics.invalidate(annotations.fragments[i].line); //post the invalidation.
-          annotations.fragments.splice(i,1); //delete it!
-        }
-    },
-  });
-
-  annotations.annotations.push(this);  //push on construction.
-}
-
-AnnoData = function (_data, _id){
-  return { id:_id, data:$.trim(_data) } //use jQuery because we can.
-}
 /*
 ////////////////////////////////////////////////////////////
 // DIALOG GENERATION

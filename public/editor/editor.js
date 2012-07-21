@@ -5,7 +5,7 @@ Editor = function ()
     //generally important editor information:
     query: undefined,
     user_loggedin: undefined,
-    sequence_data: undefined,
+    data: undefined,
     sequence: undefined,
     //options passed in the URL
     options: undefined,
@@ -68,16 +68,16 @@ Editor.prototype =
   ondata:function(data)
   {
     //use the xml jQuery object to find the sequence tag and use it.
-    editor.sequence_data = new Hash(data);
+    editor.data = new Hash(data);
     //link the sequence directly so it's a first-class citizen of "editor"
-    editor.sequence = editor.sequence_data.sequence;
+    editor.sequence = editor.data.sequence;
   
     if (editor.stateflags & editor.readyflag)
       //means that we are in a post-initialization state.
       //submit this information to the infobox.
-      editor.titlebox.innerHTML = "<h2>" + editor.sequence_data.title + "</h2>" + editor.sequence.length + "bp";
+      editor.titlebox.innerHTML = "<h2>" + editor.data.title + "</h2>" + editor.sequence.length + "bp";
 
-    editor.broadcast("newsequence");
+    editor.broadcast("newdata");
 
     editor.stateflags |= editor.dataflag;
   },
@@ -85,7 +85,7 @@ Editor.prototype =
   ready:function()
   //these are things that have to have both the initial data and the DOM set.
   {
-    editor.titlebox.innerHTML = "<h2>" + editor.sequence_data.title + "</h2>" + editor.sequence.length + "bp";
+    editor.titlebox.innerHTML = "<h2>" + editor.data.title + "</h2>" + editor.sequence.length + "bp";
 
     //set the state flag and announce to the other plugins. 
     editor.stateflags |= editor.readyflag;

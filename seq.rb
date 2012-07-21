@@ -38,8 +38,14 @@ begin
   annotations = $DB["SELECT * FROM tann;"].all
 
   annotations.each do |a|
+    #create a hash called "data"
+    a[:data] = {}
+    #retrieve the data from the database
     annodata = $DB["SELECT * FROM annotationdata WHERE annotation = #{a[:id]}"].all
-    a[:data] = annodata
+    #for each data key, store it into the data hash.
+    annodata.each do |d|
+      a[:data].store(d[:infokey], d[:value])
+    end
   end
 
   res[:annotations] = annotations

@@ -35,7 +35,7 @@ graphics = new editor.Plugin("graphics",
     graphics.editor = dali.SVG(editordiv, "editorsvg");
 
     //initialize the graphics layers in back-to-front order.
-    graphics.mainlayer = graphics.editor.group("mainlayer");
+    graphics.mainlayer = graphics.editor.group({id:"mainlayer"});
     //reassign graphics.line object
     graphics.line = graphics.mainlayer.childNodes;
 
@@ -80,14 +80,14 @@ graphics = new editor.Plugin("graphics",
     else
       graphics.setting.zoomlevel = graphics.zoomvalues[graphics.zoomvalues.length - 1];
 
-    graphics._newsequence();
+    graphics._newdata();
 
     graphics.zoomer.value = graphics.zoomstrings[graphics.zoomvalues.indexOf(graphics.settings.zoomlevel)];
 
     graphics.isready = true;
   },
 
-  _newsequence: function()
+  _newdata: function()
   {
     if (!(editor.stateflags & editor.readyflag)) return;
 
@@ -465,7 +465,7 @@ graphics = new editor.Plugin("graphics",
 
 graphics.newline = function(index)
 {
-  var line = graphics.mainlayer.group("line_" + index);
+  var line = graphics.mainlayer.group({id:"line_" + index});
 
   $.extend(line,
   {
@@ -485,7 +485,7 @@ graphics.newcontainer = function(line, name, anchored)
   //if we've passed it a line number, replace it with the actual object.
   line = (isNaN(line) ? line : graphics.line[line]); 
   
-  container = line.group(name);
+  container = line.group({id:name});
   $.extend(container,
   {
     anchored: (anchored ? true : false), //looks silly but makes it an explicit bool instead of a "false type"
