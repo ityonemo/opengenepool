@@ -1,6 +1,24 @@
 OpenGenePool README
 ===================
 
+
+NOTE
+----
+
+OpenGenePool is currently on hiatus, it is going to evolve
+into a plugin for "labstream" which is my new open-source project.
+
+
+
+
+
+
+
+
+
+
+
+
 Requires:
 ---------
 
