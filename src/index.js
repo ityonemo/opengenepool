@@ -5,6 +5,11 @@
 
 // Components
 export { default as SequenceViewer } from './components/SequenceViewer.vue'
+export { default as SequenceEditor } from './components/SequenceEditor.vue'
+
+// Composables
+export { useEditorState } from './composables/useEditorState.js'
+export { useGraphics } from './composables/useGraphics.js'
 
 // Utilities
 export {
