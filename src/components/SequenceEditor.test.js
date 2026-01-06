@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test'
 import { mount } from '@vue/test-utils'
 import SequenceEditor from './SequenceEditor.vue'
+import { Annotation } from '../utils/annotation.js'
 
 describe('SequenceEditor', () => {
   describe('initial state', () => {
@@ -190,6 +191,210 @@ describe('SequenceEditor', () => {
       const wrapper = mount(SequenceEditor)
       expect(wrapper.vm.graphics).toBeDefined()
       expect(wrapper.vm.graphics.metrics).toBeDefined()
+    })
+  })
+
+  describe('keyboard input', () => {
+    it('inserts DNA bases on keypress', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(2)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'G' })
+      expect(wrapper.vm.getSequence()).toBe('ATGCG')
+    })
+
+    it('handles backspace', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(2)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'Backspace' })
+      expect(wrapper.vm.getSequence()).toBe('ACG')
+    })
+
+    it('handles delete key', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(1)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'Delete' })
+      expect(wrapper.vm.getSequence()).toBe('ACG')
+    })
+
+    it('moves cursor left with ArrowLeft', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(3)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'ArrowLeft' })
+      expect(wrapper.vm.editorState.cursor.value).toBe(2)
+    })
+
+    it('moves cursor right with ArrowRight', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(1)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'ArrowRight' })
+      expect(wrapper.vm.editorState.cursor.value).toBe(2)
+    })
+
+    it('ignores non-DNA characters', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(2)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'X' })
+      expect(wrapper.vm.getSequence()).toBe('ATCG') // unchanged
+    })
+
+    it('emits edit event when sequence changes', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCG')
+      wrapper.vm.editorState.setCursor(2)
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'G' })
+      expect(wrapper.emitted('edit')).toBeTruthy()
+    })
+  })
+
+  describe('cursor rendering', () => {
+    it('renders cursor element when sequence exists', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      const cursor = wrapper.find('.cursor')
+      expect(cursor.exists()).toBe(true)
+    })
+
+    it('positions cursor at correct line', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 50 }
+      })
+      wrapper.vm.setSequence('A'.repeat(150))
+      wrapper.vm.editorState.setCursor(75) // middle of second line
+      await wrapper.vm.$nextTick()
+
+      // Cursor should be on line 1 (75 / 50 = 1.5 -> line 1)
+      const cursor = wrapper.find('.cursor')
+      expect(cursor.exists()).toBe(true)
+    })
+
+    it('does not render cursor when no sequence', () => {
+      const wrapper = mount(SequenceEditor)
+      const cursor = wrapper.find('.cursor')
+      expect(cursor.exists()).toBe(false)
+    })
+  })
+
+  describe('annotations', () => {
+    it('renders AnnotationLayer when annotations provided', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '10..50'
+      })
+
+      await wrapper.setProps({ annotations: [annotation] })
+      await wrapper.vm.$nextTick()
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.exists()).toBe(true)
+    })
+
+    it('does not render AnnotationLayer when no annotations', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: []
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.exists()).toBe(false)
+    })
+
+    it('passes showAnnotationCaptions prop to AnnotationLayer', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '10..60'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation],
+          showAnnotationCaptions: false
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('showCaptions')).toBe(false)
+    })
+
+    it('emits annotation-click event', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '10..50'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      layer.vm.$emit('click', { annotation, fragment: {} })
+
+      expect(wrapper.emitted('annotation-click')).toBeTruthy()
     })
   })
 })

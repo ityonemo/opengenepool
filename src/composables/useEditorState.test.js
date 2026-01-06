@@ -223,4 +223,299 @@ describe('useEditorState', () => {
       expect(editor.lineToPosition(2, 25)).toBe(225)
     })
   })
+
+  describe('cursor', () => {
+    it('starts at position 0', () => {
+      const editor = useEditorState()
+      expect(editor.cursor.value).toBe(0)
+    })
+
+    it('setCursor sets cursor position', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setCursor(5)
+      expect(editor.cursor.value).toBe(5)
+    })
+
+    it('clamps cursor to sequence bounds', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(10)
+      expect(editor.cursor.value).toBe(4) // end of sequence
+
+      editor.setCursor(-5)
+      expect(editor.cursor.value).toBe(0)
+    })
+
+    it('adjusts cursor when sequence changes', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setCursor(6)
+      expect(editor.cursor.value).toBe(6)
+
+      editor.setSequence('AT') // shorter
+      expect(editor.cursor.value).toBe(2) // clamped to new length
+    })
+  })
+
+  describe('insertAt', () => {
+    it('inserts text at position', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.insertAt(2, 'GGG')
+      expect(editor.sequence.value).toBe('ATGGGCG')
+    })
+
+    it('inserts at beginning', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.insertAt(0, 'TTT')
+      expect(editor.sequence.value).toBe('TTTATCG')
+    })
+
+    it('inserts at end', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.insertAt(4, 'AAA')
+      expect(editor.sequence.value).toBe('ATCGAAA')
+    })
+
+    it('moves cursor after inserted text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(2)
+      editor.insertAt(2, 'GGG')
+      expect(editor.cursor.value).toBe(5) // 2 + 3
+    })
+
+    it('returns the inserted text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      const result = editor.insertAt(2, 'GGG')
+      expect(result).toBe('GGG')
+    })
+  })
+
+  describe('deleteRange', () => {
+    it('deletes bases between start and end', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.deleteRange(2, 5)
+      expect(editor.sequence.value).toBe('ATTCG')
+    })
+
+    it('deletes from beginning', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.deleteRange(0, 3)
+      expect(editor.sequence.value).toBe('GATCG')
+    })
+
+    it('deletes to end', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.deleteRange(5, 8)
+      expect(editor.sequence.value).toBe('ATCGA')
+    })
+
+    it('moves cursor to start of deleted range', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setCursor(6)
+      editor.deleteRange(2, 5)
+      expect(editor.cursor.value).toBe(3) // cursor was after deletion, adjusted
+    })
+
+    it('returns the deleted text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      const result = editor.deleteRange(2, 5)
+      expect(result).toBe('CGA')
+    })
+
+    it('handles empty deletion', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.deleteRange(2, 2)
+      expect(editor.sequence.value).toBe('ATCG')
+    })
+  })
+
+  describe('replaceRange', () => {
+    it('replaces range with new text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.replaceRange(2, 5, 'XXX')
+      expect(editor.sequence.value).toBe('ATXXXTCG')
+    })
+
+    it('can replace with shorter text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.replaceRange(2, 6, 'X')
+      expect(editor.sequence.value).toBe('ATXCG')
+    })
+
+    it('can replace with longer text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.replaceRange(2, 3, 'XXXXX')
+      expect(editor.sequence.value).toBe('ATXXXXXGATCG')
+    })
+
+    it('moves cursor to end of replacement', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setCursor(2)
+      editor.replaceRange(2, 5, 'XXX')
+      expect(editor.cursor.value).toBe(5) // 2 + 3
+    })
+
+    it('returns the replaced text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      const result = editor.replaceRange(2, 5, 'XXX')
+      expect(result).toBe('CGA')
+    })
+  })
+
+  describe('deleteSelection', () => {
+    it('deletes the current selection', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.deleteSelection()
+      expect(editor.sequence.value).toBe('ATTCG')
+    })
+
+    it('clears the selection after delete', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.deleteSelection()
+      expect(editor.selection.value).toBe(null)
+    })
+
+    it('sets cursor to start of deleted range', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.deleteSelection()
+      expect(editor.cursor.value).toBe(2)
+    })
+
+    it('does nothing if no selection', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.deleteSelection()
+      expect(editor.sequence.value).toBe('ATCGATCG')
+    })
+
+    it('returns the deleted text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      const result = editor.deleteSelection()
+      expect(result).toBe('CGA')
+    })
+  })
+
+  describe('replaceSelection', () => {
+    it('replaces the current selection with text', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.replaceSelection('XXX')
+      expect(editor.sequence.value).toBe('ATXXXTCG')
+    })
+
+    it('inserts at cursor if no selection', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setCursor(4)
+      editor.replaceSelection('XXX')
+      expect(editor.sequence.value).toBe('ATCGXXXATCG')
+    })
+
+    it('clears selection after replace', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.replaceSelection('XXX')
+      expect(editor.selection.value).toBe(null)
+    })
+  })
+
+  describe('insertAtCursor', () => {
+    it('inserts text at cursor position', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(2)
+      editor.insertAtCursor('GGG')
+      expect(editor.sequence.value).toBe('ATGGGCG')
+    })
+
+    it('replaces selection if one exists', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.insertAtCursor('X')
+      expect(editor.sequence.value).toBe('ATXTCG')
+    })
+  })
+
+  describe('backspace', () => {
+    it('deletes character before cursor', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(2)
+      editor.backspace()
+      expect(editor.sequence.value).toBe('ACG')
+      expect(editor.cursor.value).toBe(1)
+    })
+
+    it('does nothing at position 0', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(0)
+      editor.backspace()
+      expect(editor.sequence.value).toBe('ATCG')
+      expect(editor.cursor.value).toBe(0)
+    })
+
+    it('deletes selection if one exists', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.backspace()
+      expect(editor.sequence.value).toBe('ATTCG')
+    })
+  })
+
+  describe('delete (forward)', () => {
+    it('deletes character after cursor', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(1)
+      editor.delete()
+      expect(editor.sequence.value).toBe('ACG')
+      expect(editor.cursor.value).toBe(1)
+    })
+
+    it('does nothing at end of sequence', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCG')
+      editor.setCursor(4)
+      editor.delete()
+      expect(editor.sequence.value).toBe('ATCG')
+    })
+
+    it('deletes selection if one exists', () => {
+      const editor = useEditorState()
+      editor.setSequence('ATCGATCG')
+      editor.setSelection(2, 5)
+      editor.delete()
+      expect(editor.sequence.value).toBe('ATTCG')
+    })
+  })
 })

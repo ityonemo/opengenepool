@@ -68,9 +68,11 @@ export class Range {
    * Parse a range from string notation.
    * Formats: "10..20", "(10..20)" (minus strand), "[10..20]" (both strands)
    * @param {string} str - The range string
+   * @param {Object} options - Parse options
+   * @param {boolean} options.genbank - If true, treat as GenBank 1-based (default: true)
    * @returns {Range}
    */
-  static parse(str) {
+  static parse(str, { genbank = true } = {}) {
     const trimmed = str.trim()
     let orientation = Orientation.PLUS
     let inner = trimmed
@@ -84,8 +86,18 @@ export class Range {
     }
 
     const parts = inner.split('..')
-    const start = parseInt(parts[0], 10)
-    const end = parts[1] !== undefined ? parseInt(parts[1], 10) : start
+    let start, end
+
+    if (genbank) {
+      // GenBank uses 1-based inclusive coordinates
+      // Convert to 0-based start, exclusive end (like array slicing)
+      start = parseInt(parts[0], 10) - 1  // Convert 1-based to 0-based
+      end = parts[1] !== undefined ? parseInt(parts[1], 10) : start + 1  // Keep as is (inclusive->exclusive)
+    } else {
+      // Raw 0-based coordinates (for internal use like selections)
+      start = parseInt(parts[0], 10)
+      end = parts[1] !== undefined ? parseInt(parts[1], 10) : start
+    }
 
     if (isNaN(start) || isNaN(end)) {
       throw new Error(`Invalid range string: ${str}`)
@@ -176,6 +188,12 @@ export class Range {
 
 /**
  * A Span is a collection of ranges (for complex annotations like joins).
+ *
+ * TODO: Consider adding support for GenBank location format parsing:
+ *   - complement(10..50) for minus strand (currently uses parentheses: "(10..50)")
+ *   - join(10..30,40..60) for multi-range (currently uses plus: "10..30 + 40..60")
+ *   - order(...) for unordered ranges
+ *   - <10..>50 for partial locations
  */
 export class Span {
   /**
@@ -189,11 +207,13 @@ export class Span {
    * Parse a span from string notation.
    * Format: "10..20 + 30..40" (multiple ranges joined)
    * @param {string} str - The span string
+   * @param {Object} options - Parse options
+   * @param {boolean} options.genbank - If true, treat as GenBank 1-based (default: true)
    * @returns {Span}
    */
-  static parse(str) {
+  static parse(str, { genbank = true } = {}) {
     const parts = str.split('+').map(s => s.trim()).filter(s => s)
-    const ranges = parts.map(Range.parse)
+    const ranges = parts.map(p => Range.parse(p, { genbank }))
     return new Span(ranges)
   }
 
@@ -249,6 +269,15 @@ export class Span {
     }
 
     return plusLength >= minusLength ? Orientation.PLUS : Orientation.MINUS
+  }
+
+  /**
+   * Check if a position is contained in any of the ranges.
+   * @param {number} position - The position to check
+   * @returns {boolean}
+   */
+  contains(position) {
+    return this.ranges.some(range => range.contains(position))
   }
 
   /**

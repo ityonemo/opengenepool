@@ -265,4 +265,24 @@ describe('Span', () => {
       expect(span.toGenBank()).toBe('join(1..10,21..30)')
     })
   })
+
+  describe('contains', () => {
+    it('returns true if position is in any range', () => {
+      const span = new Span([new Range(10, 20), new Range(30, 40)])
+      expect(span.contains(15)).toBe(true)
+      expect(span.contains(35)).toBe(true)
+    })
+
+    it('returns false if position is not in any range', () => {
+      const span = new Span([new Range(10, 20), new Range(30, 40)])
+      expect(span.contains(5)).toBe(false)
+      expect(span.contains(25)).toBe(false)
+      expect(span.contains(45)).toBe(false)
+    })
+
+    it('handles empty span', () => {
+      const span = new Span()
+      expect(span.contains(10)).toBe(false)
+    })
+  })
 })

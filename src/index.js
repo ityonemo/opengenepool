@@ -6,6 +6,7 @@
 // Components
 export { default as SequenceViewer } from './components/SequenceViewer.vue'
 export { default as SequenceEditor } from './components/SequenceEditor.vue'
+export { default as AnnotationLayer } from './components/AnnotationLayer.vue'
 
 // Composables
 export { useEditorState } from './composables/useEditorState.js'
@@ -18,3 +19,10 @@ export {
   Span,
   Orientation
 } from './utils/dna.js'
+
+export {
+  Annotation,
+  AnnotationFragment,
+  ANNOTATION_COLORS,
+  getAnnotationColor
+} from './utils/annotation.js'

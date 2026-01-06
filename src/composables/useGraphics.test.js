@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import { useEditorState } from './useEditorState.js'
-import { useGraphics } from './useGraphics.js'
+import { useGraphics, GraphicsSpan, Shell, layoutLine, sortByWidth } from './useGraphics.js'
+import { Range, Orientation } from '../utils/dna.js'
 
 describe('useGraphics', () => {
   function createGraphics() {
@@ -215,6 +216,393 @@ describe('useGraphics', () => {
 
       expect(graphics.charWidth.value).toBe(10)
       expect(graphics.lineHeight.value).toBe(20)
+    })
+  })
+})
+
+describe('GraphicsSpan', () => {
+  describe('single line range', () => {
+    it('creates one fragment for range within a single line', () => {
+      const range = new Range(10, 30)
+      const span = new GraphicsSpan(range, 100)  // zoom=100 bases/line
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(10)
+      expect(span.fragments[0].end).toBe(30)
+    })
+
+    it('preserves orientation from range', () => {
+      const range = new Range(10, 30, Orientation.MINUS)
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments[0].orientation).toBe(Orientation.MINUS)
+    })
+  })
+
+  describe('multi-line range', () => {
+    it('splits range spanning two lines', () => {
+      // Range from 80 to 120 at zoom=100 spans lines 0 and 1
+      const range = new Range(80, 120)
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(2)
+
+      // First fragment: positions 80-99 on line 0
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(80)
+      expect(span.fragments[0].end).toBe(100)
+
+      // Second fragment: positions 0-19 on line 1 (but these are positions 100-119)
+      expect(span.fragments[1].line).toBe(1)
+      expect(span.fragments[1].start).toBe(0)
+      expect(span.fragments[1].end).toBe(20)
+    })
+
+    it('splits range spanning three lines', () => {
+      // Range from 50 to 250 at zoom=100 spans lines 0, 1, and 2
+      const range = new Range(50, 250)
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(3)
+
+      // Line 0: 50-99 (positions 50-99)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(50)
+      expect(span.fragments[0].end).toBe(100)
+
+      // Line 1: 0-99 (full line, positions 100-199)
+      expect(span.fragments[1].line).toBe(1)
+      expect(span.fragments[1].start).toBe(0)
+      expect(span.fragments[1].end).toBe(100)
+
+      // Line 2: 0-49 (positions 200-249)
+      expect(span.fragments[2].line).toBe(2)
+      expect(span.fragments[2].start).toBe(0)
+      expect(span.fragments[2].end).toBe(50)
+    })
+  })
+
+  describe('edge cases', () => {
+    it('handles range starting at line boundary', () => {
+      const range = new Range(100, 150)  // starts at line 1
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(1)
+      expect(span.fragments[0].start).toBe(0)
+      expect(span.fragments[0].end).toBe(50)
+    })
+
+    it('handles range ending at line boundary', () => {
+      const range = new Range(50, 100)  // ends exactly at line boundary
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(50)
+      expect(span.fragments[0].end).toBe(100)
+    })
+
+    it('handles full line range', () => {
+      const range = new Range(0, 100)
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(0)
+      expect(span.fragments[0].end).toBe(100)
+    })
+
+    it('handles zero-length range', () => {
+      const range = new Range(50, 50)
+      const span = new GraphicsSpan(range, 100)
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(50)
+      expect(span.fragments[0].end).toBe(50)
+    })
+  })
+
+  describe('different zoom levels', () => {
+    it('works with zoom=50', () => {
+      const range = new Range(40, 80)  // spans lines 0 and 1 at zoom=50
+      const span = new GraphicsSpan(range, 50)
+
+      expect(span.fragments.length).toBe(2)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(40)
+      expect(span.fragments[0].end).toBe(50)
+      expect(span.fragments[1].line).toBe(1)
+      expect(span.fragments[1].start).toBe(0)
+      expect(span.fragments[1].end).toBe(30)
+    })
+
+    it('works with zoom=200', () => {
+      const range = new Range(150, 190)  // within line 0 at zoom=200
+      const span = new GraphicsSpan(range, 200)
+
+      expect(span.fragments.length).toBe(1)
+      expect(span.fragments[0].line).toBe(0)
+      expect(span.fragments[0].start).toBe(150)
+      expect(span.fragments[0].end).toBe(190)
+    })
+  })
+})
+
+describe('Shell', () => {
+  function mockElement(box, anchored = false, padding = {}) {
+    return {
+      left: box.left,
+      top: box.top,
+      right: box.right,
+      bottom: box.bottom,
+      width: box.right - box.left,
+      anchored,
+      leftpadding: padding.left || 0,
+      rightpadding: padding.right || 0,
+      toppadding: padding.top || 0,
+      bottompadding: padding.bottom || 0,
+      transform: null,
+      applyTransform(dx, dy) { this.transform = { dx, dy } }
+    }
+  }
+
+  describe('constructor', () => {
+    it('caches element bounding box', () => {
+      const el = mockElement({ left: 10, top: -20, right: 50, bottom: 0 })
+      const shell = new Shell(el)
+
+      expect(shell.left).toBe(10)
+      expect(shell.top).toBe(-20)
+      expect(shell.right).toBe(50)
+      expect(shell.bottom).toBe(0)
+    })
+
+    it('initializes delta to zero', () => {
+      const el = mockElement({ left: 10, top: -20, right: 50, bottom: 0 })
+      const shell = new Shell(el)
+
+      expect(shell.deltax).toBe(0)
+      expect(shell.deltay).toBe(0)
+    })
+
+    it('copies padding from element', () => {
+      const el = mockElement(
+        { left: 0, top: 0, right: 10, bottom: 10 },
+        false,
+        { left: 2, right: 3, top: 4, bottom: 5 }
+      )
+      const shell = new Shell(el)
+
+      expect(shell.leftpadding).toBe(2)
+      expect(shell.rightpadding).toBe(3)
+      expect(shell.toppadding).toBe(4)
+      expect(shell.bottompadding).toBe(5)
+    })
+  })
+
+  describe('bounding box with delta', () => {
+    it('applies deltay to top and bottom', () => {
+      const el = mockElement({ left: 0, top: -10, right: 20, bottom: 0 })
+      const shell = new Shell(el)
+      shell.deltay = -15  // moved up by 15
+
+      expect(shell.top).toBe(-25)  // -10 + (-15)
+      expect(shell.bottom).toBe(-15)  // 0 + (-15)
+    })
+
+    it('applies deltax to left and right', () => {
+      const el = mockElement({ left: 10, top: 0, right: 30, bottom: 10 })
+      const shell = new Shell(el)
+      shell.deltax = 5
+
+      expect(shell.left).toBe(15)
+      expect(shell.right).toBe(35)
+    })
+
+    it('applies padding to bounding box', () => {
+      const el = mockElement(
+        { left: 10, top: -10, right: 30, bottom: 0 },
+        false,
+        { left: 2, right: 3, top: 4, bottom: 5 }
+      )
+      const shell = new Shell(el)
+
+      // Padding expands the box
+      expect(shell.left).toBe(8)   // 10 - 2
+      expect(shell.right).toBe(33) // 30 + 3
+      expect(shell.top).toBe(-14)  // -10 - 4
+      expect(shell.bottom).toBe(5) // 0 + 5
+    })
+  })
+
+  describe('overlaps', () => {
+    it('detects overlapping boxes', () => {
+      const el1 = mockElement({ left: 0, top: -20, right: 30, bottom: 0 })
+      const el2 = mockElement({ left: 20, top: -15, right: 50, bottom: 5 })
+      const shell1 = new Shell(el1)
+      const shell2 = new Shell(el2)
+
+      expect(shell1.overlaps(shell2)).toBe(true)
+      expect(shell2.overlaps(shell1)).toBe(true)
+    })
+
+    it('detects non-overlapping boxes (horizontal gap)', () => {
+      const el1 = mockElement({ left: 0, top: -10, right: 20, bottom: 0 })
+      const el2 = mockElement({ left: 30, top: -10, right: 50, bottom: 0 })
+      const shell1 = new Shell(el1)
+      const shell2 = new Shell(el2)
+
+      expect(shell1.overlaps(shell2)).toBe(false)
+    })
+
+    it('detects non-overlapping boxes (vertical gap)', () => {
+      const el1 = mockElement({ left: 0, top: -30, right: 20, bottom: -20 })
+      const el2 = mockElement({ left: 0, top: -10, right: 20, bottom: 0 })
+      const shell1 = new Shell(el1)
+      const shell2 = new Shell(el2)
+
+      expect(shell1.overlaps(shell2)).toBe(false)
+    })
+
+    it('respects delta when checking overlap', () => {
+      const el1 = mockElement({ left: 0, top: -20, right: 20, bottom: 0 })
+      const el2 = mockElement({ left: 0, top: -20, right: 20, bottom: 0 })
+      const shell1 = new Shell(el1)
+      const shell2 = new Shell(el2)
+
+      // Initially they overlap
+      expect(shell1.overlaps(shell2)).toBe(true)
+
+      // Move shell2 up so it doesn't overlap
+      shell2.deltay = -25
+      expect(shell1.overlaps(shell2)).toBe(false)
+    })
+  })
+
+  describe('brand', () => {
+    it('applies delta transform to element', () => {
+      const el = mockElement({ left: 0, top: -10, right: 20, bottom: 0 })
+      const shell = new Shell(el)
+      shell.deltax = 5
+      shell.deltay = -15
+
+      shell.brand()
+
+      expect(el.transform).toEqual({ dx: 5, dy: -15 })
+    })
+  })
+})
+
+describe('layoutLine', () => {
+  function mockElement(box, anchored = false, padding = {}) {
+    return {
+      left: box.left,
+      top: box.top,
+      right: box.right,
+      bottom: box.bottom,
+      width: box.right - box.left,
+      anchored,
+      leftpadding: padding.left || 0,
+      rightpadding: padding.right || 0,
+      toppadding: padding.top || 0,
+      bottompadding: padding.bottom || 0,
+      transform: null,
+      applyTransform(dx, dy) { this.transform = { dx, dy } }
+    }
+  }
+
+  describe('sortByWidth', () => {
+    it('sorts elements by width descending', () => {
+      const elements = [
+        mockElement({ left: 0, top: -10, right: 20, bottom: 0 }),  // width 20
+        mockElement({ left: 0, top: -10, right: 50, bottom: 0 }),  // width 50
+        mockElement({ left: 0, top: -10, right: 30, bottom: 0 }),  // width 30
+      ]
+
+      const sorted = sortByWidth(elements)
+
+      expect(sorted[0].width).toBe(50)
+      expect(sorted[1].width).toBe(30)
+      expect(sorted[2].width).toBe(20)
+    })
+
+    it('handles empty array', () => {
+      expect(sortByWidth([])).toEqual([])
+    })
+
+    it('handles single element', () => {
+      const elements = [mockElement({ left: 0, top: 0, right: 10, bottom: 10 })]
+      expect(sortByWidth(elements).length).toBe(1)
+    })
+  })
+
+  describe('layoutLine', () => {
+    it('does not move anchored elements', () => {
+      const anchored = mockElement({ left: 0, top: -10, right: 50, bottom: 0 }, true)
+      const elements = [anchored]
+
+      layoutLine(elements, 5)  // contentPadding = 5
+
+      expect(anchored.transform).toBe(null)  // no transform applied
+    })
+
+    it('does not move non-overlapping unanchored elements', () => {
+      const el1 = mockElement({ left: 0, top: -10, right: 20, bottom: 0 })
+      const el2 = mockElement({ left: 30, top: -10, right: 50, bottom: 0 })  // no horizontal overlap
+      const elements = [el1, el2]
+
+      layoutLine(elements, 5)
+
+      expect(el1.transform).toEqual({ dx: 0, dy: 0 })
+      expect(el2.transform).toEqual({ dx: 0, dy: 0 })
+    })
+
+    it('pushes overlapping unanchored element up', () => {
+      // Two elements at same position - one must move up
+      const el1 = mockElement({ left: 0, top: -10, right: 30, bottom: 0 })
+      const el2 = mockElement({ left: 10, top: -10, right: 40, bottom: 0 })
+      const elements = [el1, el2]
+
+      layoutLine(elements, 5)  // contentPadding = 5
+
+      // el1 (wider, processed first) stays in place
+      expect(el1.transform).toEqual({ dx: 0, dy: 0 })
+      // el2 moves up: needs to clear el1's top (-10) minus padding (5)
+      // deltay = el1.top (-10) - el2.bottom (0) - padding (5) = -15
+      expect(el2.transform.dy).toBeLessThan(0)  // moved up (negative y)
+    })
+
+    it('respects anchored elements during collision detection', () => {
+      const anchored = mockElement({ left: 0, top: -10, right: 30, bottom: 0 }, true)
+      const unanchored = mockElement({ left: 10, top: -10, right: 40, bottom: 0 })
+      const elements = [anchored, unanchored]
+
+      layoutLine(elements, 5)
+
+      // Anchored doesn't move
+      expect(anchored.transform).toBe(null)
+      // Unanchored moves up to avoid anchored
+      expect(unanchored.transform.dy).toBeLessThan(0)
+    })
+
+    it('stacks multiple overlapping elements vertically', () => {
+      // Three elements at same position - stack up
+      const el1 = mockElement({ left: 0, top: -10, right: 50, bottom: 0 })  // widest
+      const el2 = mockElement({ left: 0, top: -10, right: 40, bottom: 0 })
+      const el3 = mockElement({ left: 0, top: -10, right: 30, bottom: 0 })
+      const elements = [el1, el2, el3]
+
+      layoutLine(elements, 5)
+
+      // el1 stays (widest, no collision)
+      expect(el1.transform.dy).toBe(0)
+      // el2 moves up above el1
+      expect(el2.transform.dy).toBeLessThan(0)
+      // el3 moves up above el2
+      expect(el3.transform.dy).toBeLessThan(el2.transform.dy)
     })
   })
 })
