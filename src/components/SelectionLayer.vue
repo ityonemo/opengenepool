@@ -12,7 +12,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select', 'contextmenu'])
+const emit = defineEmits(['select', 'contextmenu', 'merge'])
 
 // Inject from parent SequenceEditor
 const editorState = inject('editorState')
@@ -99,6 +99,82 @@ const selectionPaths = computed(() => {
 
   return paths
 })
+
+// Compute merge bubbles for touching range pairs
+const mergeBubbles = computed(() => {
+  if (!selection.isSelected.value || !selection.domain.value) return []
+
+  const ranges = selection.domain.value.ranges
+  if (ranges.length < 2) return []
+
+  const bubbles = []
+  const m = graphics.metrics.value
+  const zoom = editorState.zoomLevel.value
+  const topMargin = editorState.settings.value.linetopmargin || 0
+
+  // Scan pairwise for touching ends
+  for (let i = 0; i < ranges.length - 1; i++) {
+    for (let j = i + 1; j < ranges.length; j++) {
+      let touchPoint = null
+      let startRange = null
+      let endRange = null
+
+      if (ranges[i].start === ranges[j].end) {
+        // ranges[j] ends where ranges[i] starts
+        touchPoint = ranges[i].start
+        startRange = j
+        endRange = i
+      } else if (ranges[i].end === ranges[j].start) {
+        // ranges[i] ends where ranges[j] starts
+        touchPoint = ranges[i].end
+        startRange = i
+        endRange = j
+      }
+
+      if (touchPoint !== null) {
+        // Calculate position for bubble
+        const lineIndex = Math.floor(touchPoint / zoom)
+        const linePos = touchPoint % zoom
+        const x = m.lmargin + linePos * m.charWidth
+        const lineExtra = graphics.lineExtraHeight.value.get(lineIndex) || 0
+        const y = graphics.getLineY(lineIndex) - lineExtra - topMargin - 20  // Above the selection
+
+        bubbles.push({
+          x,
+          y,
+          startRangeIndex: startRange,
+          endRangeIndex: endRange
+        })
+      }
+    }
+  }
+
+  return bubbles
+})
+
+// Merge two touching ranges
+function handleMerge(bubble) {
+  const ranges = selection.domain.value.ranges
+  const startRange = ranges[bubble.startRangeIndex]
+  const endRange = ranges[bubble.endRangeIndex]
+
+  // Use orientation from the longer range
+  const newOrientation = startRange.length >= endRange.length
+    ? startRange.orientation
+    : endRange.orientation
+
+  // Extend the start range to cover both
+  startRange.end = endRange.end
+  startRange.orientation = newOrientation
+
+  // Remove the end range
+  ranges.splice(bubble.endRangeIndex, 1)
+
+  // Trigger reactivity
+  selection.domain.value = selection.domain.value
+
+  emit('merge', { ranges: selection.domain.value.ranges })
+}
 
 // CSS class based on orientation and range length
 function getCssClass(range) {
@@ -328,6 +404,33 @@ defineExpose({
         </text>
       </g>
     </g>
+
+    <!-- Merge bubbles for touching ranges -->
+    <g
+      v-for="(bubble, idx) in mergeBubbles"
+      :key="`merge-${idx}`"
+      :transform="`translate(${bubble.x}, ${bubble.y})`"
+      class="merge_bubble"
+      @click="handleMerge(bubble)"
+    >
+      <rect
+        x="-24"
+        y="-10"
+        width="48"
+        height="20"
+        rx="4"
+        class="merge_bubble_box"
+      />
+      <text
+        x="0"
+        y="0"
+        dominant-baseline="middle"
+        text-anchor="middle"
+        class="merge_bubble_text"
+      >
+        merge?
+      </text>
+    </g>
   </g>
 </template>
 
@@ -421,5 +524,29 @@ defineExpose({
   font-family: "Lucida Console", Monaco, monospace;
   font-size: 10px;
   fill: black;
+}
+
+/* Merge bubbles */
+.merge_bubble {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.merge_bubble_box {
+  fill: #ffffcc;
+  stroke: #666;
+  stroke-width: 1px;
+  transition: fill 0.15s;
+}
+
+.merge_bubble:hover .merge_bubble_box {
+  fill: #ffff99;
+}
+
+.merge_bubble_text {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  fill: #333;
+  pointer-events: none;
 }
 </style>

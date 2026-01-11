@@ -139,10 +139,13 @@ describe('useGraphics', () => {
       const { editorState, graphics } = createGraphics()
       editorState.setSequence('A'.repeat(500))
 
-      // vmargin = 10, lineHeight = 16, linepadding = 5
-      expect(graphics.getLineY(0)).toBe(10)
-      expect(graphics.getLineY(1)).toBe(10 + 16 + 5)  // 31
-      expect(graphics.getLineY(2)).toBe(10 + 2 * (16 + 5))  // 52
+      // vmargin = 10, linetopmargin = 4, lineHeight = 16, linepadding = 5
+      // Line 0: vmargin(10) + topmargin(4) = 14
+      // Line 1: vmargin(10) + (topmargin(4) + lineHeight(16) + linepadding(5)) + topmargin(4) = 39
+      // Line 2: vmargin(10) + 2*(topmargin(4) + lineHeight(16) + linepadding(5)) + topmargin(4) = 64
+      expect(graphics.getLineY(0)).toBe(14)
+      expect(graphics.getLineY(1)).toBe(39)
+      expect(graphics.getLineY(2)).toBe(64)
     })
   })
 
@@ -154,12 +157,12 @@ describe('useGraphics', () => {
 
     it('calculates total height for lines', () => {
       const { graphics } = createGraphics()
-      // vmargin = 10, lineHeight = 16, linepadding = 5
-      // 1 line: 10 + 16 + 10 = 36
-      expect(graphics.getTotalHeight(1)).toBe(36)
+      // vmargin = 10, linetopmargin = 4, lineHeight = 16, linepadding = 5
+      // 1 line: vmargin(10) + topmargin(4) + lineHeight(16) + vmargin(10) = 40
+      expect(graphics.getTotalHeight(1)).toBe(40)
 
-      // 3 lines: 10 + 3*16 + 2*5 + 10 = 78
-      expect(graphics.getTotalHeight(3)).toBe(78)
+      // 3 lines: vmargin(10) + 3*(topmargin(4) + lineHeight(16)) + 2*linepadding(5) + vmargin(10) = 90
+      expect(graphics.getTotalHeight(3)).toBe(90)
     })
   })
 

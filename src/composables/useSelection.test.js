@@ -349,5 +349,97 @@ describe('useSelection', () => {
 
       expect(sel.isSelected.value).toBe(false)
     })
+
+    it('responds to extendselect event by adding range to existing selection', () => {
+      const sel = createSelection()
+      sel.select('10..50')
+      eventBus.emit('extendselect', { domain: '100..150' })
+
+      expect(sel.domain.value.ranges.length).toBe(2)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(50)
+      expect(sel.domain.value.ranges[1].start).toBe(100)
+      expect(sel.domain.value.ranges[1].end).toBe(150)
+    })
+
+    it('responds to extendselect by creating new selection if none exists', () => {
+      const sel = createSelection()
+      eventBus.emit('extendselect', { domain: '100..150' })
+
+      expect(sel.isSelected.value).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(100)
+      expect(sel.domain.value.ranges[0].end).toBe(150)
+    })
+
+    it('merges overlapping ranges when extending selection', () => {
+      const sel = createSelection()
+      sel.select('10..50')
+      eventBus.emit('extendselect', { domain: '30..70' })
+
+      // Should merge into single range
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+    })
+
+    it('merges fully contained range when extending selection', () => {
+      const sel = createSelection()
+      sel.select('10..100')
+      eventBus.emit('extendselect', { domain: '30..50' })
+
+      // New range is fully contained - should stay as original
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(100)
+    })
+
+    it('merges when new range fully contains existing', () => {
+      const sel = createSelection()
+      sel.select('30..50')
+      eventBus.emit('extendselect', { domain: '10..100' })
+
+      // New range contains existing - should expand to new range
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(100)
+    })
+
+    it('converts all ranges to new orientation when extending with opposite direction', () => {
+      const sel = createSelection()
+      sel.select('10..50')  // plus strand
+      eventBus.emit('extendselect', { domain: '(30..70)' })  // minus strand, overlapping
+
+      // Should merge and adopt the new orientation
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+      expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.MINUS)
+    })
+
+    it('converts multiple existing ranges to new orientation', () => {
+      const sel = createSelection()
+      sel.select('10..30 + 50..70')  // two plus strand ranges
+      eventBus.emit('extendselect', { domain: '(20..60)' })  // minus strand, overlaps both
+
+      // Should merge all into one minus strand range
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+      expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.MINUS)
+    })
+
+    it('keeps non-overlapping ranges separate', () => {
+      const sel = createSelection()
+      sel.select('10..30')
+      eventBus.emit('extendselect', { domain: '50..70' })
+
+      // No overlap - should have two separate ranges
+      expect(sel.domain.value.ranges.length).toBe(2)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(30)
+      expect(sel.domain.value.ranges[1].start).toBe(50)
+      expect(sel.domain.value.ranges[1].end).toBe(70)
+    })
   })
 })

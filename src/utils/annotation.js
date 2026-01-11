@@ -138,19 +138,6 @@ export class Annotation {
     return fragments
   }
 
-  /**
-   * Create annotation from GenBank-style data
-   */
-  static fromGenBank({ type, location, qualifiers = {} }) {
-    return new Annotation({
-      id: qualifiers.id || Date.now(),
-      caption: qualifiers.gene || qualifiers.label || qualifiers.product || type,
-      type,
-      span: location,
-      data: qualifiers
-    })
-  }
-
   toString() {
     return `${this.caption} (${this.type}): ${this.span.toString()}`
   }

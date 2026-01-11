@@ -291,8 +291,9 @@ export function useAnnotations(editorState, graphics, eventBus) {
         event
       })
 
-      // Also emit select event to select the annotation's span
-      eventBus.emit('select', {
+      // Shift-click extends the existing selection, regular click replaces it
+      const eventType = event.shiftKey ? 'extendselect' : 'select'
+      eventBus.emit(eventType, {
         domain: annotation.span.toString()
       })
     }

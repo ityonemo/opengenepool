@@ -6,6 +6,32 @@ import {
   Orientation
 } from './dna.js'
 
+/**
+ * FENCED COORDINATE SYSTEM
+ *
+ * This module uses a fenced (0-based, half-open) coordinate system:
+ *
+ *   Sequence:    A  T  C  G  A  T
+ *   Position:   0  1  2  3  4  5  6
+ *               |  |  |  |  |  |  |
+ *               └──┴──┴──┴──┴──┴──┘
+ *
+ * - Positions are "fences" between bases (or at the edges)
+ * - Range [start, end) includes bases from position `start` up to but NOT including `end`
+ * - A cursor is represented as Range(pos, pos) with length 0
+ *
+ * Examples for a sequence of length 6:
+ *   0..0   → cursor at start (length 0)
+ *   0..1   → first base only (length 1)
+ *   0..6   → full sequence (length 6)
+ *   6..6   → cursor at end (length 0)
+ *   2..4   → bases at positions 2 and 3 (length 2)
+ *   (0..6) → full sequence, minus strand
+ *
+ * GenBank (1-based) conversion is handled by the LiveView interface,
+ * NOT by this module. All coordinates here are fenced/0-based.
+ */
+
 describe('reverseComplement', () => {
   it('complements standard bases', () => {
     expect(reverseComplement('A')).toBe('T')
@@ -61,33 +87,67 @@ describe('Range', () => {
   })
 
   describe('parse', () => {
-    it('parses simple range notation', () => {
+    it('parses fenced range notation', () => {
       const range = Range.parse('10..20')
       expect(range.start).toBe(10)
       expect(range.end).toBe(20)
       expect(range.orientation).toBe(Orientation.PLUS)
     })
 
-    it('parses minus strand notation', () => {
-      const range = Range.parse('(10..20)')
-      expect(range.orientation).toBe(Orientation.MINUS)
+    it('parses cursor position (start equals end)', () => {
+      const range = Range.parse('15..15')
+      expect(range.start).toBe(15)
+      expect(range.end).toBe(15)
+      expect(range.length).toBe(0)
     })
 
-    it('parses unoriented notation', () => {
-      const range = Range.parse('[10..20]')
-      expect(range.orientation).toBe(Orientation.NONE)
-    })
-
-    it('parses single position', () => {
+    it('parses single number as cursor position', () => {
       const range = Range.parse('15')
       expect(range.start).toBe(15)
       expect(range.end).toBe(15)
+      expect(range.length).toBe(0)
+    })
+
+    it('parses minus strand notation with parentheses', () => {
+      const range = Range.parse('(10..20)')
+      expect(range.start).toBe(10)
+      expect(range.end).toBe(20)
+      expect(range.orientation).toBe(Orientation.MINUS)
+    })
+
+    it('parses unoriented notation with brackets', () => {
+      const range = Range.parse('[10..20]')
+      expect(range.start).toBe(10)
+      expect(range.end).toBe(20)
+      expect(range.orientation).toBe(Orientation.NONE)
     })
 
     it('handles whitespace', () => {
       const range = Range.parse('  10..20  ')
       expect(range.start).toBe(10)
       expect(range.end).toBe(20)
+    })
+
+    // Document fenced coordinate semantics
+    it('correctly represents full sequence selection', () => {
+      // For a sequence of length 100, full selection is 0..100
+      const range = Range.parse('0..100')
+      expect(range.start).toBe(0)
+      expect(range.end).toBe(100)
+      expect(range.length).toBe(100)
+    })
+
+    it('correctly represents single base selection', () => {
+      // First base is 0..1, second base is 1..2, etc.
+      const first = Range.parse('0..1')
+      expect(first.length).toBe(1)
+      expect(first.contains(0)).toBe(true)
+      expect(first.contains(1)).toBe(false)
+
+      const second = Range.parse('1..2')
+      expect(second.length).toBe(1)
+      expect(second.contains(0)).toBe(false)
+      expect(second.contains(1)).toBe(true)
     })
   })
 
@@ -188,15 +248,6 @@ describe('Range', () => {
     })
   })
 
-  describe('toGenBank', () => {
-    it('outputs 1-based coordinates', () => {
-      expect(new Range(0, 10).toGenBank()).toBe('1..10')
-    })
-
-    it('wraps minus strand in complement()', () => {
-      expect(new Range(0, 10, Orientation.MINUS).toGenBank()).toBe('complement(1..10)')
-    })
-  })
 })
 
 describe('Span', () => {
@@ -213,11 +264,27 @@ describe('Span', () => {
   })
 
   describe('parse', () => {
+    it('parses single fenced range', () => {
+      const span = Span.parse('10..20')
+      expect(span.length).toBe(1)
+      expect(span.ranges[0].start).toBe(10)
+      expect(span.ranges[0].end).toBe(20)
+    })
+
     it('parses multiple ranges joined with +', () => {
       const span = Span.parse('10..20 + 30..40')
       expect(span.length).toBe(2)
       expect(span.ranges[0].start).toBe(10)
+      expect(span.ranges[0].end).toBe(20)
       expect(span.ranges[1].start).toBe(30)
+      expect(span.ranges[1].end).toBe(40)
+    })
+
+    it('parses mixed orientations', () => {
+      const span = Span.parse('0..10 + (20..30)')
+      expect(span.length).toBe(2)
+      expect(span.ranges[0].orientation).toBe(Orientation.PLUS)
+      expect(span.ranges[1].orientation).toBe(Orientation.MINUS)
     })
   })
 
@@ -251,18 +318,6 @@ describe('Span', () => {
         new Range(200, 210, Orientation.MINUS)
       ])
       expect(span.orientation).toBe(Orientation.PLUS)
-    })
-  })
-
-  describe('toGenBank', () => {
-    it('outputs single range without join', () => {
-      const span = new Span([new Range(0, 10)])
-      expect(span.toGenBank()).toBe('1..10')
-    })
-
-    it('wraps multiple ranges in join()', () => {
-      const span = new Span([new Range(0, 10), new Range(20, 30)])
-      expect(span.toGenBank()).toBe('join(1..10,21..30)')
     })
   })
 

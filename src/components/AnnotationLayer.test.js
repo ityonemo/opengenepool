@@ -83,14 +83,13 @@ describe('AnnotationLayer', () => {
         id: 'ann1',
         caption: 'Test',
         type: 'gene',
-        span: '20..40' // starts at position 20
+        span: '20..40' // Fenced: start=20
       })
 
       const wrapper = mountWithProviders({ annotations: [annotation] })
       const path = wrapper.find('.annotation-fragment path')
 
       // x = lmargin(60) + start(20) * charWidth(8) = 60 + 160 = 220
-      // Path should contain M 220 or reference to x position 220
       expect(path.attributes('d')).toContain('220')
     })
 
@@ -99,7 +98,7 @@ describe('AnnotationLayer', () => {
         id: 'ann1',
         caption: 'Test',
         type: 'gene',
-        span: '10..30' // 20 bases wide
+        span: '10..30' // Fenced: start=10, end=30
       })
 
       const wrapper = mountWithProviders({ annotations: [annotation] })
@@ -107,7 +106,6 @@ describe('AnnotationLayer', () => {
 
       // left = lmargin(60) + start(10) * charWidth(8) = 60 + 80 = 140
       // right = lmargin(60) + end(30) * charWidth(8) = 60 + 240 = 300
-      // Path should contain both values
       expect(path.attributes('d')).toContain('140')
       expect(path.attributes('d')).toContain('300')
     })
@@ -140,7 +138,7 @@ describe('AnnotationLayer', () => {
     it('positions line with one annotation at correct Y', () => {
       const annotation = new Annotation({
         id: 'ann1',
-        span: '10..50',
+        span: '10..50', // Fenced: start=10
         type: 'gene'
       })
 
@@ -159,8 +157,8 @@ describe('AnnotationLayer', () => {
 
     it('positions two non-overlapping annotations on same line', () => {
       const annotations = [
-        new Annotation({ id: 'ann1', span: '10..30', type: 'gene' }),
-        new Annotation({ id: 'ann2', span: '50..70', type: 'promoter' })
+        new Annotation({ id: 'ann1', span: '10..30', type: 'gene' }),     // Fenced: 10..30
+        new Annotation({ id: 'ann2', span: '50..70', type: 'promoter' })  // Fenced: 50..70
       ]
 
       const wrapper = mountWithProviders({ annotations })
@@ -171,7 +169,7 @@ describe('AnnotationLayer', () => {
       const lineGroups = wrapper.findAll('.annotation-layer > g')
       expect(lineGroups).toHaveLength(1)
 
-      // Check X positions:
+      // Check X positions (fenced coordinates):
       // ann1: left = 60 + 10*8 = 140, right = 60 + 30*8 = 300
       // ann2: left = 60 + 50*8 = 460, right = 60 + 70*8 = 620
       const paths = wrapper.findAll('.annotation-fragment path')
@@ -229,7 +227,7 @@ describe('AnnotationLayer', () => {
 
     it('handles two lines with annotation only on second line', () => {
       const annotations = [
-        new Annotation({ id: 'ann1', span: '110..130', type: 'gene' }) // line 1 only
+        new Annotation({ id: 'ann1', span: '110..130', type: 'gene' }) // Fenced: line 1
       ]
 
       const wrapper = mountWithProviders({ annotations }, { sequenceLength: 200 })
@@ -242,7 +240,7 @@ describe('AnnotationLayer', () => {
       expect(lineGroups[0].attributes('transform')).toBe('translate(0, 30)')
 
       // Annotation X position: lmargin(60) + start(10) * charWidth(8) = 140
-      // (position 110 is position 10 on line 1)
+      // (fenced 110, position 110 is position 10 on line 1)
       const path = wrapper.find('.annotation-fragment path')
       expect(path.attributes('d')).toContain('140')
     })
@@ -469,12 +467,13 @@ describe('AnnotationLayer', () => {
         annotations: [annotation]
       })
 
-      // Path coordinates include height values from composable (16px default)
-      // The path uses negative y coordinates based on height
+      // Path coordinates include height values from composable (18px default)
+      // The path uses negative y coordinates based on height:
+      // halfHeight = 9, height = 18, arrowEdge = 2
       const path = wrapper.find('.annotation-fragment path')
-      // Path should contain -16 (full height) and -8 (half height)
-      expect(path.attributes('d')).toContain('-16')
-      expect(path.attributes('d')).toContain('-8')
+      // Path should contain -9 (half height), -18 (full height), -16 (height-arrowEdge)
+      expect(path.attributes('d')).toContain('-9')
+      expect(path.attributes('d')).toContain('-18')
     })
   })
 

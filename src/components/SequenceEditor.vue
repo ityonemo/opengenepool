@@ -367,13 +367,18 @@ function handleSelectionContextMenu(data) {
 
 // Annotation click handler - select the annotation's span with its orientation
 function handleAnnotationClick(data) {
-  const { annotation } = data
+  const { annotation, event } = data
 
   // Create a selection from the annotation's span
   const selection = selectionLayerRef.value?.selection
   if (selection && annotation.span) {
-    // Use the annotation's span directly - it already has the correct orientation
-    selection.select(new SelectionDomain(annotation.span))
+    const newDomain = new SelectionDomain(annotation.span)
+    // Shift-click extends the existing selection, regular click replaces it
+    if (event?.shiftKey) {
+      selection.extendSelection(newDomain)
+    } else {
+      selection.select(newDomain)
+    }
   }
 
   // Also emit for parent components
@@ -595,6 +600,7 @@ defineExpose({
         @keydown="handleKeyDown"
         @selectstart.prevent
         @dragstart.prevent
+        @contextmenu.prevent
         onselectstart="return false"
         ondragstart="return false"
       >

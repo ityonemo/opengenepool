@@ -286,6 +286,52 @@ describe('useAnnotations', () => {
       expect(emittedData).toBeDefined()
       expect(emittedData.annotation).toBe(testAnnotation)
     })
+
+    it('emits extendselect on shift-click to add annotation to existing selection', () => {
+      const ann = createAnnotations()
+      const testAnnotation = new Annotation({ id: '1', caption: 'Gene A', type: 'gene', span: '100..150' })
+      ann.setAnnotations([testAnnotation])
+
+      let selectEvent = null
+      let extendEvent = null
+      eventBus.on('select', (data) => {
+        selectEvent = data
+      })
+      eventBus.on('extendselect', (data) => {
+        extendEvent = data
+      })
+
+      // Shift-click on annotation
+      ann.handleClick(testAnnotation, { shiftKey: true })
+
+      // Should emit extendselect, not select
+      expect(extendEvent).toBeDefined()
+      expect(extendEvent.domain).toBe('100..150')
+      expect(selectEvent).toBe(null)
+    })
+
+    it('emits select on regular click (no shift)', () => {
+      const ann = createAnnotations()
+      const testAnnotation = new Annotation({ id: '1', caption: 'Gene A', type: 'gene', span: '100..150' })
+      ann.setAnnotations([testAnnotation])
+
+      let selectEvent = null
+      let extendEvent = null
+      eventBus.on('select', (data) => {
+        selectEvent = data
+      })
+      eventBus.on('extendselect', (data) => {
+        extendEvent = data
+      })
+
+      // Regular click on annotation (no shift)
+      ann.handleClick(testAnnotation, { shiftKey: false })
+
+      // Should emit select, not extendselect
+      expect(selectEvent).toBeDefined()
+      expect(selectEvent.domain).toBe('100..150')
+      expect(extendEvent).toBe(null)
+    })
   })
 
   describe('getAnnotationAtPosition', () => {

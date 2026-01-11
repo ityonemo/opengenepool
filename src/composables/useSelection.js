@@ -352,6 +352,78 @@ export function useSelection(editorState, graphics, eventBus) {
     return classes[orientation + 1]
   }
 
+  /**
+   * Check if two ranges overlap (touching edges don't count as overlap).
+   * @param {Range} a
+   * @param {Range} b
+   * @returns {boolean}
+   */
+  function rangesOverlap(a, b) {
+    return a.start < b.end && b.start < a.end
+  }
+
+  /**
+   * Merge a new range into the existing selection, combining any overlapping ranges.
+   * The new range's orientation is applied to the merged result.
+   * @param {Range} newRange
+   */
+  function mergeRangeIntoSelection(newRange) {
+    const existingRanges = domain.value.ranges
+    const overlappingIndices = []
+
+    // Find all ranges that overlap with the new range
+    for (let i = 0; i < existingRanges.length; i++) {
+      if (rangesOverlap(existingRanges[i], newRange)) {
+        overlappingIndices.push(i)
+      }
+    }
+
+    if (overlappingIndices.length === 0) {
+      // No overlap, just add the new range
+      domain.value.addRange(newRange)
+    } else {
+      // Merge all overlapping ranges with the new range
+      let mergedStart = newRange.start
+      let mergedEnd = newRange.end
+      const newOrientation = newRange.orientation
+
+      // Expand bounds to include all overlapping ranges
+      for (const idx of overlappingIndices) {
+        const existing = existingRanges[idx]
+        mergedStart = Math.min(mergedStart, existing.start)
+        mergedEnd = Math.max(mergedEnd, existing.end)
+      }
+
+      // Remove overlapping ranges (in reverse order to preserve indices)
+      for (let i = overlappingIndices.length - 1; i >= 0; i--) {
+        existingRanges.splice(overlappingIndices[i], 1)
+      }
+
+      // Add the merged range with the new orientation
+      domain.value.addRange(new Range(mergedStart, mergedEnd, newOrientation))
+    }
+  }
+
+  /**
+   * Extend the selection by adding ranges from a domain specification.
+   * Overlapping ranges are merged, with the new range's orientation applied.
+   * If no selection exists, creates a new one.
+   * @param {string|SelectionDomain} spec
+   */
+  function extendSelection(spec) {
+    const newDomain = spec instanceof SelectionDomain ? spec : new SelectionDomain(spec)
+
+    if (!isSelected.value || !domain.value) {
+      // No existing selection, just create new one
+      select(spec)
+    } else {
+      // Merge each new range into existing selection
+      for (const range of newDomain.ranges) {
+        mergeRangeIntoSelection(range)
+      }
+    }
+  }
+
   // Event bus integration
   if (eventBus) {
     eventBus.on('startselect', (data) => {
@@ -360,6 +432,10 @@ export function useSelection(editorState, graphics, eventBus) {
 
     eventBus.on('select', (data) => {
       select(data.domain)
+    })
+
+    eventBus.on('extendselect', (data) => {
+      extendSelection(data.domain)
     })
 
     eventBus.on('unselect', () => {
@@ -383,6 +459,7 @@ export function useSelection(editorState, graphics, eventBus) {
     updateSelection,
     endSelection,
     select,
+    extendSelection,
     unselect,
     selectAll,
 

@@ -1,6 +1,31 @@
 /**
  * DNA utility functions and classes.
  * Ported from OpenGenePool DNA.js to ES6 modules.
+ *
+ * FENCED COORDINATE SYSTEM
+ * ========================
+ * This module uses a fenced (0-based, half-open) coordinate system.
+ *
+ * Think of positions as "fences" between bases:
+ *
+ *   Sequence:    A  T  C  G  A  T
+ *   Position:   0  1  2  3  4  5  6
+ *               |  |  |  |  |  |  |
+ *               └──┴──┴──┴──┴──┴──┘
+ *
+ * A Range [start, end) includes bases from position `start` up to but
+ * NOT including `end`. This is identical to JavaScript's slice() behavior.
+ *
+ * Examples for a sequence of length N:
+ *   0..0   → cursor at start (length 0, no bases selected)
+ *   0..1   → first base only (length 1)
+ *   0..N   → full sequence (length N)
+ *   N..N   → cursor at end (length 0, no bases selected)
+ *   (0..N) → full sequence, minus strand (reverse complement)
+ *
+ * IMPORTANT: This module does NOT handle GenBank (1-based) coordinate
+ * conversion. Callers are responsible for converting GenBank coordinates
+ * to fenced coordinates before using this API.
  */
 
 /**
@@ -65,14 +90,18 @@ export class Range {
   }
 
   /**
-   * Parse a range from string notation.
-   * Formats: "10..20", "(10..20)" (minus strand), "[10..20]" (both strands)
-   * @param {string} str - The range string
-   * @param {Object} options - Parse options
-   * @param {boolean} options.genbank - If true, treat as GenBank 1-based (default: true)
+   * Parse a range from fenced coordinate notation.
+   *
+   * Formats:
+   *   "10..20"   → Range from 10 to 20 (plus strand)
+   *   "(10..20)" → Range from 10 to 20 (minus strand)
+   *   "[10..20]" → Range from 10 to 20 (unoriented)
+   *   "15"       → Cursor at position 15 (same as "15..15")
+   *
+   * @param {string} str - The range string in fenced coordinates
    * @returns {Range}
    */
-  static parse(str, { genbank = true } = {}) {
+  static parse(str) {
     const trimmed = str.trim()
     let orientation = Orientation.PLUS
     let inner = trimmed
@@ -86,18 +115,9 @@ export class Range {
     }
 
     const parts = inner.split('..')
-    let start, end
-
-    if (genbank) {
-      // GenBank uses 1-based inclusive coordinates
-      // Convert to 0-based start, exclusive end (like array slicing)
-      start = parseInt(parts[0], 10) - 1  // Convert 1-based to 0-based
-      end = parts[1] !== undefined ? parseInt(parts[1], 10) : start + 1  // Keep as is (inclusive->exclusive)
-    } else {
-      // Raw 0-based coordinates (for internal use like selections)
-      start = parseInt(parts[0], 10)
-      end = parts[1] !== undefined ? parseInt(parts[1], 10) : start
-    }
+    const start = parseInt(parts[0], 10)
+    // Single number means cursor position (start == end)
+    const end = parts[1] !== undefined ? parseInt(parts[1], 10) : start
 
     if (isNaN(start) || isNaN(end)) {
       throw new Error(`Invalid range string: ${str}`)
@@ -162,7 +182,7 @@ export class Range {
   }
 
   /**
-   * String representation
+   * String representation (fenced coordinates)
    */
   toString() {
     const content = this.start === this.end ?
@@ -174,15 +194,6 @@ export class Range {
       case Orientation.NONE: return `[${content}]`
       default: return content
     }
-  }
-
-  /**
-   * GenBank-style representation (1-based)
-   */
-  toGenBank() {
-    const content = `${this.start + 1}..${this.end}`
-    return this.orientation === Orientation.MINUS ?
-      `complement(${content})` : content
   }
 }
 
@@ -204,16 +215,19 @@ export class Span {
   }
 
   /**
-   * Parse a span from string notation.
-   * Format: "10..20 + 30..40" (multiple ranges joined)
-   * @param {string} str - The span string
-   * @param {Object} options - Parse options
-   * @param {boolean} options.genbank - If true, treat as GenBank 1-based (default: true)
+   * Parse a span from fenced coordinate notation.
+   *
+   * Format: "10..20 + 30..40" (multiple ranges joined with +)
+   *
+   * Each range can have its own orientation:
+   *   "0..10 + (20..30)" → first range plus strand, second minus strand
+   *
+   * @param {string} str - The span string in fenced coordinates
    * @returns {Span}
    */
-  static parse(str, { genbank = true } = {}) {
+  static parse(str) {
     const parts = str.split('+').map(s => s.trim()).filter(s => s)
-    const ranges = parts.map(p => Range.parse(p, { genbank }))
+    const ranges = parts.map(p => Range.parse(p))
     return new Span(ranges)
   }
 
@@ -281,19 +295,9 @@ export class Span {
   }
 
   /**
-   * String representation
+   * String representation (fenced coordinates)
    */
   toString() {
     return this.ranges.map(r => r.toString()).join(' + ')
-  }
-
-  /**
-   * GenBank-style representation
-   */
-  toGenBank() {
-    if (this.ranges.length === 1) {
-      return this.ranges[0].toGenBank()
-    }
-    return `join(${this.ranges.map(r => r.toGenBank()).join(',')})`
   }
 }

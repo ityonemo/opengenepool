@@ -2,6 +2,14 @@ import { describe, it, expect } from 'bun:test'
 import { Annotation, AnnotationFragment, ANNOTATION_COLORS, getAnnotationColor } from './annotation.js'
 import { Span, Range, Orientation } from './dna.js'
 
+/**
+ * Annotation tests use FENCED coordinates (0-based, half-open).
+ * See dna.test.js for coordinate system documentation.
+ *
+ * When creating annotations with string spans, use fenced notation:
+ *   '10..50' = positions 10 through 49 (40 bases)
+ */
+
 describe('Annotation', () => {
   describe('constructor', () => {
     it('creates annotation with all properties', () => {
@@ -29,10 +37,10 @@ describe('Annotation', () => {
       expect(ann.data).toEqual({})
     })
 
-    it('parses span from string', () => {
+    it('parses span from string (fenced coordinates)', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..50'
+        span: '10..50'  // Fenced: positions 10-49
       })
 
       expect(ann.span.ranges).toHaveLength(1)
@@ -47,6 +55,8 @@ describe('Annotation', () => {
       })
 
       expect(ann.span.ranges).toHaveLength(2)
+      expect(ann.span.ranges[0].start).toBe(10)
+      expect(ann.span.ranges[1].start).toBe(40)
     })
 
     it('accepts array of Range objects', () => {
@@ -90,7 +100,7 @@ describe('Annotation', () => {
     it('returns total length of annotation', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..50'
+        span: '10..50'  // Fenced: 40 bases (positions 10-49)
       })
       expect(ann.length).toBe(40)
     })
@@ -98,9 +108,9 @@ describe('Annotation', () => {
     it('returns combined length for multi-range annotation', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..30 + 40..60' // + joins multiple ranges
+        span: '10..30 + 40..60'  // Fenced: 20 + 20 = 40 bases
       })
-      expect(ann.length).toBe(40) // 20 + 20
+      expect(ann.length).toBe(40)
     })
   })
 
@@ -118,7 +128,7 @@ describe('Annotation', () => {
     it('returns bounding range', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..30 + 50..70'
+        span: '10..30 + 50..70'  // Fenced coordinates
       })
       const bounds = ann.bounds
       expect(bounds.start).toBe(10)
@@ -155,7 +165,7 @@ describe('Annotation', () => {
     it('creates single fragment for annotation within one line', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..40'
+        span: '10..40'  // Fenced: positions 10-39 on line 0
       })
       const fragments = ann.toFragments(100)
 
@@ -170,7 +180,7 @@ describe('Annotation', () => {
     it('creates multiple fragments for multi-line annotation', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '80..170' // spans lines 0, 1 at zoom 100
+        span: '80..170'  // Fenced: spans lines 0, 1 at zoom 100
       })
       const fragments = ann.toFragments(100)
 
@@ -194,7 +204,7 @@ describe('Annotation', () => {
     it('creates fragment for each line in long annotation', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '50..350' // spans 4 lines at zoom 100
+        span: '50..350'  // Fenced: spans 4 lines at zoom 100
       })
       const fragments = ann.toFragments(100)
 
@@ -214,7 +224,7 @@ describe('Annotation', () => {
     it('handles multi-range annotations', () => {
       const ann = new Annotation({
         id: 'ann1',
-        span: '10..30 + 60..80'
+        span: '10..30 + 60..80'  // Fenced: two separate regions
       })
       const fragments = ann.toFragments(100)
 
@@ -226,52 +236,13 @@ describe('Annotation', () => {
     })
   })
 
-  describe('fromGenBank', () => {
-    it('creates annotation from GenBank-style data', () => {
-      const ann = Annotation.fromGenBank({
-        type: 'CDS',
-        location: '100..500',
-        qualifiers: {
-          gene: 'lacZ',
-          product: 'beta-galactosidase'
-        }
-      })
-
-      expect(ann.type).toBe('CDS')
-      expect(ann.caption).toBe('lacZ')
-      expect(ann.span.ranges[0].start).toBe(100)
-      expect(ann.data.product).toBe('beta-galactosidase')
-    })
-
-    it('uses product as caption if gene not present', () => {
-      const ann = Annotation.fromGenBank({
-        type: 'CDS',
-        location: '100..500',
-        qualifiers: {
-          product: 'some protein'
-        }
-      })
-
-      expect(ann.caption).toBe('some protein')
-    })
-
-    it('uses type as caption if no gene/product', () => {
-      const ann = Annotation.fromGenBank({
-        type: 'promoter',
-        location: '100..150'
-      })
-
-      expect(ann.caption).toBe('promoter')
-    })
-  })
-
   describe('toString', () => {
     it('returns readable string representation', () => {
       const ann = new Annotation({
         id: 'ann1',
         caption: 'GFP',
         type: 'gene',
-        span: '100..500'
+        span: '100..500'  // Fenced coordinates
       })
 
       expect(ann.toString()).toBe('GFP (gene): 100..500')
