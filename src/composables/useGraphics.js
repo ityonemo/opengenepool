@@ -288,12 +288,15 @@ export function useGraphics(editorState) {
     }
   }
 
+  // Extra space at top for tooltips (merge button, segment indices) on first line
+  const tooltipMargin = 20
+
   // Get the y position of a line (top of the line content area)
   // This accounts for extra height needed by previous lines' annotations
   function getLineY(lineIndex) {
     const s = settings.value
     const topMargin = s.linetopmargin || 0
-    let y = s.vmargin
+    let y = s.vmargin + tooltipMargin
 
     for (let i = 0; i < lineIndex; i++) {
       const extra = lineExtraHeight.value.get(i) || 0
@@ -313,7 +316,7 @@ export function useGraphics(editorState) {
     const s = settings.value
     const topMargin = s.linetopmargin || 0
 
-    let total = s.vmargin
+    let total = s.vmargin + tooltipMargin
     for (let i = 0; i < lineCount; i++) {
       const extra = lineExtraHeight.value.get(i) || 0
       total += topMargin + extra + lineHeight.value
@@ -330,7 +333,7 @@ export function useGraphics(editorState) {
     const topMargin = s.linetopmargin || 0
 
     // Walk through lines to find which one contains this y
-    let currentY = s.vmargin
+    let currentY = s.vmargin + tooltipMargin
     for (let i = 0; i < lineCount; i++) {
       const extra = lineExtraHeight.value.get(i) || 0
       const lineTop = currentY + topMargin + extra

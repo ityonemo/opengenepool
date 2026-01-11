@@ -137,7 +137,7 @@ const mergeBubbles = computed(() => {
         const linePos = touchPoint % zoom
         const x = m.lmargin + linePos * m.charWidth
         const lineExtra = graphics.lineExtraHeight.value.get(lineIndex) || 0
-        const y = graphics.getLineY(lineIndex) - lineExtra - topMargin - 20  // Above the selection
+        const y = graphics.getLineY(lineIndex) - lineExtra - topMargin - 12  // Above the selection
 
         bubbles.push({
           x,
@@ -201,19 +201,27 @@ function getHandleCssClass(range) {
   }
 }
 
-// Generate a soft triangle path pointing down
-// x, y is the top-center of the triangle
+// Generate a "post-it tab arrow" path - rounded rectangle on top, triangle pointing down
+// x, y is the junction between the rectangle and triangle
 function getTrianglePath(x, y, width = 10, height = 8) {
   const halfWidth = width / 2
-  const radius = 2  // Corner radius for soft edges
+  const radius = 2  // Corner radius for rounded top
+  const rectHeight = width  // Square: height equals width
 
-  // Simple triangle with slightly rounded appearance
-  return `M ${x - halfWidth + radius},${y} ` +
-         `Q ${x - halfWidth},${y} ${x - halfWidth + radius},${y + radius} ` +
-         `L ${x - radius},${y + height - radius} ` +
-         `Q ${x},${y + height} ${x + radius},${y + height - radius} ` +
-         `L ${x + halfWidth - radius},${y + radius} ` +
-         `Q ${x + halfWidth},${y} ${x + halfWidth - radius},${y} ` +
+  // Start at top-left corner (after radius), go clockwise
+  const top = y - rectHeight
+  const left = x - halfWidth
+  const right = x + halfWidth
+  const bottom = y + height  // Triangle tip
+
+  return `M ${left + radius},${top} ` +           // Start after top-left radius
+         `H ${right - radius} ` +                  // Top edge
+         `Q ${right},${top} ${right},${top + radius} ` +  // Top-right corner
+         `V ${y} ` +                               // Right edge down to triangle junction
+         `L ${x},${bottom} ` +                     // Right side of triangle to tip
+         `L ${left},${y} ` +                       // Left side of triangle from tip
+         `V ${top + radius} ` +                    // Left edge up to corner
+         `Q ${left},${top} ${left + radius},${top} ` +  // Top-left corner
          `Z`
 }
 
@@ -415,10 +423,10 @@ defineExpose({
     >
       <rect
         x="-24"
-        y="-10"
+        y="-8"
         width="48"
-        height="20"
-        rx="4"
+        height="16"
+        rx="2"
         class="merge_bubble_box"
       />
       <text

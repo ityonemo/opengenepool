@@ -21,7 +21,7 @@ export function useEditorState() {
     vmargin: 10,      // vertical margin
     lmargin: 60,      // left margin (for position numbers)
     rmargin: 20,      // right margin
-    linepadding: 5,   // padding between lines
+    linepadding: 20,  // padding between lines
     linetopmargin: 4, // margin above each line (for selection handles)
     contentpadding: 2 // padding between overlapping elements
   })
