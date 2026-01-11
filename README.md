@@ -46,15 +46,15 @@ const annotations = [
 </script>
 ```
 
-### SequenceViewer
+### Read-Only Mode
 
-Read-only viewer for displaying sequences:
+Use the `readonly` prop to disable editing while keeping selection and copy functionality:
 
 ```vue
 <template>
-  <SequenceViewer
+  <SequenceEditor
     :sequence="dnaSequence"
-    :initial-zoom="100"
+    :readonly="true"
   />
 </template>
 ```
@@ -99,8 +99,7 @@ bun test --watch
 ```
 src/
 ├── components/
-│   ├── SequenceEditor.vue   # Main editor component
-│   ├── SequenceViewer.vue   # Read-only viewer
+│   ├── SequenceEditor.vue   # Main editor component (supports readonly mode)
 │   ├── AnnotationLayer.vue  # Annotation rendering
 │   ├── SelectionLayer.vue   # Selection handling
 │   └── ContextMenu.vue      # Right-click menus

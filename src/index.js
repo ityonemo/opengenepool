@@ -4,7 +4,6 @@
  */
 
 // Components
-export { default as SequenceViewer } from './components/SequenceViewer.vue'
 export { default as SequenceEditor } from './components/SequenceEditor.vue'
 export { default as AnnotationLayer } from './components/AnnotationLayer.vue'
 

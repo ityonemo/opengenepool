@@ -36,6 +36,11 @@ const props = defineProps({
   showAnnotationCaptions: {
     type: Boolean,
     default: true
+  },
+  /** Whether the editor is read-only (disables editing, allows selection/copy) */
+  readonly: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -502,6 +507,7 @@ function handleKeyDown(event) {
         handleCopy()
         return
       case 'x':
+        if (props.readonly) return
         event.preventDefault()
         handleCut()
         return
@@ -513,17 +519,18 @@ function handleKeyDown(event) {
     }
   }
 
-  // DNA base input
-  if (DNA_BASES.has(key)) {
+  // DNA base input (disabled in readonly mode)
+  if (DNA_BASES.has(key) && !props.readonly) {
     event.preventDefault()
     editorState.insertAtCursor(key.toUpperCase())
     emit('edit', { type: 'insert', text: key.toUpperCase() })
     return
   }
 
-  // Editing keys
+  // Editing keys (disabled in readonly mode)
   switch (key) {
     case 'Backspace':
+      if (props.readonly) break
       event.preventDefault()
       if (editorState.cursor.value > 0 || editorState.selection.value) {
         editorState.backspace()
@@ -532,6 +539,7 @@ function handleKeyDown(event) {
       break
 
     case 'Delete':
+      if (props.readonly) break
       event.preventDefault()
       if (editorState.cursor.value < editorState.sequenceLength.value || editorState.selection.value) {
         editorState.delete()
