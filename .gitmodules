@@ -1,3 +1,0 @@
-[submodule "public/dali"]
-	path = public/dali
-	url = git://github.com/ityonemo/dali.js.git

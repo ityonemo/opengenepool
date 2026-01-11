@@ -1,100 +1,120 @@
-OpenGenePool README
-===================
+# OpenGenePool
 
+A Vue.js DNA sequence editor component library for viewing and editing genetic sequences.
 
-NOTE
-----
+## Features
 
-OpenGenePool is currently on hiatus, it is going to evolve
-into a plugin for "labstream" which is my new open-source project.
+- **Sequence Display** - View DNA sequences with configurable zoom levels (text or compressed bar view)
+- **Multi-Range Selection** - Select multiple non-contiguous regions with orientation support
+- **Annotations** - Display gene annotations with automatic stacking for overlapping features
+- **Keyboard Shortcuts** - Full support for copy (Ctrl+C), cut (Ctrl+X), select all (Ctrl+A)
+- **Selection Operations** - Shift-click to extend, Ctrl-click to add ranges, merge overlapping selections
+- **Context Menus** - Right-click menus for selection and annotation operations
+- **Fenced Coordinates** - Uses 0-based, half-open coordinate system (like JavaScript slice)
 
+## Installation
 
+```bash
+bun install
+```
 
+## Usage
 
+### SequenceEditor
 
+Full-featured editor with selection, annotations, and editing capabilities:
 
+```vue
+<template>
+  <SequenceEditor
+    :sequence="dnaSequence"
+    :annotations="annotations"
+    :initial-zoom="100"
+    @edit="handleEdit"
+    @annotation-click="handleAnnotationClick"
+  />
+</template>
 
+<script setup>
+import { SequenceEditor } from 'opengenepool'
 
+const dnaSequence = 'ATCGATCG...'
+const annotations = [
+  { id: '1', caption: 'Gene A', type: 'gene', span: '0..500' },
+  { id: '2', caption: 'Promoter', type: 'promoter', span: '(500..600)' }
+]
+</script>
+```
 
+### SequenceViewer
 
+Read-only viewer for displaying sequences:
 
+```vue
+<template>
+  <SequenceViewer
+    :sequence="dnaSequence"
+    :initial-zoom="100"
+  />
+</template>
+```
 
-Requires:
----------
+## Coordinate System
 
-Ruby
+OpenGenePool uses a **fenced coordinate system** (0-based, half-open intervals):
 
-MySql
+```
+Sequence:    A  T  C  G  A  T
+Position:   0  1  2  3  4  5  6
+            |  |  |  |  |  |  |
+```
 
-Following Rubygems:
--------------------
+- `0..1` = first base (length 1)
+- `0..6` = full sequence (length 6)
+- `0..0` = cursor at start (length 0)
+- `(0..6)` = full sequence, minus strand (reverse complement)
 
-sinatra
+## Keyboard Shortcuts
 
-haml
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+C | Copy selection |
+| Ctrl+X | Cut selection |
+| Ctrl+A | Select all |
+| Shift+Click | Extend selection to position |
+| Ctrl+Click | Add new range to selection |
 
-json
+## Development
 
-sequel
+```bash
+# Run tests
+bun test
 
-Recommended for developers:
----------------------------
+# Run tests in watch mode
+bun test --watch
+```
 
-shotgun
+## Project Structure
 
+```
+src/
+├── components/
+│   ├── SequenceEditor.vue   # Main editor component
+│   ├── SequenceViewer.vue   # Read-only viewer
+│   ├── AnnotationLayer.vue  # Annotation rendering
+│   ├── SelectionLayer.vue   # Selection handling
+│   └── ContextMenu.vue      # Right-click menus
+├── composables/
+│   ├── useEditorState.js    # Sequence state management
+│   ├── useSelection.js      # Multi-range selection logic
+│   ├── useAnnotations.js    # Annotation layout
+│   ├── useGraphics.js       # Coordinate calculations
+│   └── useEventBus.js       # Component communication
+└── utils/
+    ├── dna.js               # DNA utilities (Range, Span, reverseComplement)
+    └── annotation.js        # Annotation model
+```
 
-Database setup:
----------------
+## License
 
-create a database on your mysql server called 'ogp'.  GRANT ALL privileges to 'www-data'@localhost
-
-
-Usage:
-------
-
-~>  ogp.rb
-
-To test https, I suggest setting up an https-capable web forwarding server/daemon (I use NGINX)
-and have it point to http://localhost:4567/, ogp is then served from https://localhost/
-
-Getting started:
-----------------
-
-1) point your web browser to http://localhost:4567/initialize/
-
-this will allow you to initialize the databases and set up a superuser account
-
-2) login using the superuser
-
-3) find test genbank files that are in the ./testfile/ directory.
-
-4) upload them using the applet at http://localhost:4567/upload/
-
-
-VERSION 0.16
-============
-
-features:
-*	Initialization pages.
-*	Upload of genbank files.
-*	fork() button.
-*	full-featured sequence selection, including unusual join()s.
-*	user-modified graphics settings.
-*	modification of annotations.
-*	zero, indexed gap sequence annotation.
-*	some workspace support.
-*	"nuke" button for admin reset databases.
-
-VERSION 0.17 (Mid-April) intended milestones
-*	set user access and restrict functions in the interface.
-*	find and highlight subsequences in both forward and RC directions.
-*	restriction sites plugin
-*	find ORF plugin.
-*	primers plugin.
-*	output to genbank.
-
-VERSION 0.2-alpha (End of April) intended milestones
-*	capability to edit sequences with appropriate cloning tools.
-*	cut-splice-stitch-gibson operation demonstration
-*	release on a public website
-  
+See [LICENCE.txt](LICENCE.txt)
