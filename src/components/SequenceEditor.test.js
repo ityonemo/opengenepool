@@ -719,4 +719,62 @@ describe('SequenceEditor', () => {
       expect(path.attributes('fill')).toBe('#607D8B')
     })
   })
+
+  describe('selection deselect behavior', () => {
+    it('Escape key clears selection', async () => {
+      const wrapper = mount(SequenceEditor)
+      wrapper.vm.setSequence('ATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Create a selection via the selection layer
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+      selection.select('2..5')
+      await wrapper.vm.$nextTick()
+
+      expect(selection.isSelected.value).toBe(true)
+
+      // Press Escape on the SVG
+      const svg = wrapper.find('svg.editor-svg')
+      await svg.trigger('keydown', { key: 'Escape' })
+
+      expect(selection.isSelected.value).toBe(false)
+    })
+
+    it('clicking on SVG background clears selection', async () => {
+      const wrapper = mount(SequenceEditor)
+      wrapper.vm.setSequence('ATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Create a selection
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+      selection.select('2..5')
+      await wrapper.vm.$nextTick()
+
+      expect(selection.isSelected.value).toBe(true)
+
+      // Click on the background rect (null space)
+      const background = wrapper.find('.svg-background')
+      await background.trigger('mousedown', { button: 0 })
+
+      expect(selection.isSelected.value).toBe(false)
+    })
+
+    it('help button renders with tooltip', () => {
+      const wrapper = mount(SequenceEditor)
+      wrapper.vm.setSequence('ATCG')
+
+      const helpButton = wrapper.find('.help-button')
+      expect(helpButton.exists()).toBe(true)
+      expect(helpButton.text()).toBe('?')
+
+      // Check tooltip content
+      const title = helpButton.attributes('title')
+      expect(title).toContain('Click')
+      expect(title).toContain('Escape')
+      expect(title).toContain('Shift+Click')
+      expect(title).toContain('Ctrl+Click')
+    })
+  })
 })

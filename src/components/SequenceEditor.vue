@@ -382,6 +382,15 @@ function hideContextMenu() {
   contextMenuVisible.value = false
 }
 
+// Handle clicks on SVG background (null space) - clears selection
+function handleBackgroundClick(event) {
+  if (event.button !== 0) return // Left click only
+  const selection = selectionLayerRef.value?.selection
+  if (selection) {
+    selection.unselect()
+  }
+}
+
 function handleMouseDown(event, lineIndex) {
   if (event.button !== 0) return // Left click only
 
@@ -685,6 +694,15 @@ function handleKeyDown(event) {
         editorState.clearSelection()
       }
       break
+
+    case 'Escape':
+      event.preventDefault()
+      // Clear selection when Escape is pressed
+      const escSelection = selectionLayerRef.value?.selection
+      if (escSelection) {
+        escSelection.unselect()
+      }
+      break
   }
 }
 
@@ -797,6 +815,18 @@ defineExpose({
       <!-- Spacer to push config to right -->
       <div class="toolbar-spacer"></div>
 
+      <!-- Help button with selection instructions tooltip -->
+      <button
+        class="help-button"
+        title="Selection Controls:
+• Click: Set cursor / clear selection
+• Click+Drag: Select range
+• Shift+Click: Extend selection
+• Ctrl+Click: Add range
+• Escape: Clear selection
+• Drag handles: Resize selection"
+      >?</button>
+
       <!-- Config gear -->
       <div class="config-container">
         <button class="config-button" @click.stop="configPanelOpen = !configPanelOpen" title="Settings">
@@ -847,6 +877,16 @@ defineExpose({
         onselectstart="return false"
         ondragstart="return false"
       >
+        <!-- Background rect to capture clicks on null space (clears selection) -->
+        <rect
+          x="0"
+          y="0"
+          :width="graphics.metrics.value.fullWidth"
+          :height="svgHeight"
+          class="svg-background"
+          @mousedown="handleBackgroundClick"
+        />
+
         <!-- Hidden text for measuring font metrics (50 chars like OGP) -->
         <text
           ref="measureRef"
@@ -1025,6 +1065,12 @@ defineExpose({
   -moz-user-select: none;
 }
 
+/* Invisible background to capture clicks on null space */
+.svg-background {
+  fill: transparent;
+  pointer-events: all;
+}
+
 /* Prevent any SVG text from being selected by the browser */
 .editor-svg text {
   user-select: none;
@@ -1173,6 +1219,27 @@ defineExpose({
 /* Config panel styles */
 .toolbar-spacer {
   flex: 1;
+}
+
+.help-button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: help;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-weight: bold;
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.help-button:hover {
+  background: #eee;
+  color: #333;
 }
 
 .config-container {
