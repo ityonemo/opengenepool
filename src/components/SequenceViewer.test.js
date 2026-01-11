@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it, expect, beforeEach } from 'bun:test'
 import { mount } from '@vue/test-utils'
 import SequenceViewer from './SequenceViewer.vue'
+import { STORAGE_KEY } from '../composables/usePersistedZoom.js'
 
 describe('SequenceViewer', () => {
+  // Clear persisted zoom before each test so initialZoom prop takes effect
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEY)
+  })
   describe('initial state', () => {
     it('renders empty state when no sequence', () => {
       const wrapper = mount(SequenceViewer)

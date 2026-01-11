@@ -2,8 +2,13 @@ import { describe, it, expect, beforeEach } from 'bun:test'
 import { mount } from '@vue/test-utils'
 import SequenceEditor from './SequenceEditor.vue'
 import { Annotation } from '../utils/annotation.js'
+import { STORAGE_KEY } from '../composables/usePersistedZoom.js'
 
 describe('SequenceEditor', () => {
+  // Clear persisted zoom before each test so initialZoom prop takes effect
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEY)
+  })
   describe('initial state', () => {
     it('renders empty state when no sequence', () => {
       const wrapper = mount(SequenceEditor)

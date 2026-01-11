@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import { useEditorState } from '../composables/useEditorState.js'
 import { useGraphics } from '../composables/useGraphics.js'
 import { createEventBus } from '../composables/useEventBus.js'
+import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 import { SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
 import { reverseComplement } from '../utils/dna.js'
@@ -56,13 +57,21 @@ const editorState = useEditorState()
 const graphics = useGraphics(editorState)
 const eventBus = createEventBus()
 
-// Set initial zoom
-editorState.setZoom(props.initialZoom)
+// Set initial zoom from localStorage (fallback to prop)
+const { getInitialZoom, saveZoom } = usePersistedZoom(props.initialZoom)
+editorState.setZoom(getInitialZoom())
+
+// Persist zoom changes to localStorage
+watch(editorState.zoomLevel, (newZoom) => {
+  saveZoom(newZoom)
+})
 
 // Watch for sequence prop changes to initialize/update the editor
 watch(() => props.sequence, (newSeq) => {
   if (newSeq) {
     editorState.setSequence(newSeq, props.title)
+    // Re-apply persisted zoom now that sequence is loaded (setZoom clamps based on length)
+    editorState.setZoom(getInitialZoom())
   }
 }, { immediate: true })
 

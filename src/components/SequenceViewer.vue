@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 
 const props = defineProps({
   /** Initial zoom level (bases per line) */
@@ -13,7 +14,15 @@ const emit = defineEmits(['select', 'contextmenu'])
 
 // Sequence is set via setSequence method, not props (for large sequences)
 const sequence = ref('')
-const zoomLevel = ref(props.initialZoom)
+
+// Set initial zoom from localStorage (fallback to prop)
+const { getInitialZoom, saveZoom } = usePersistedZoom(props.initialZoom)
+const zoomLevel = ref(getInitialZoom())
+
+// Persist zoom changes to localStorage
+watch(zoomLevel, (newZoom) => {
+  saveZoom(newZoom)
+})
 
 // Available zoom levels
 const zoomLevels = [50, 75, 100, 200, 500, 1000, 2000, 5000, 10000]
