@@ -8,14 +8,14 @@ import { Span, Range, Orientation } from './dna.js'
  * - caption: short name/label
  * - type: feature type (gene, promoter, terminator, etc.)
  * - span: location on the sequence (can span multiple ranges)
- * - data: additional key-value metadata
+ * - attributes: additional key-value metadata (Quill.js convention)
  */
 export class Annotation {
-  constructor({ id, caption, type, span, data = {} }) {
+  constructor({ id, caption, type, span, attributes = {} }) {
     this.id = id
     this.caption = caption || ''
     this.type = type || 'misc_feature'
-    this.data = data
+    this.attributes = attributes
 
     // Parse span if it's a string, otherwise use directly
     if (typeof span === 'string') {

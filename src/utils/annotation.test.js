@@ -19,14 +19,14 @@ describe('Annotation', () => {
         caption: 'GFP',
         type: 'gene',
         span,
-        data: { color: 'green' }
+        attributes: { color: 'green' }
       })
 
       expect(ann.id).toBe('ann1')
       expect(ann.caption).toBe('GFP')
       expect(ann.type).toBe('gene')
       expect(ann.span).toBe(span)
-      expect(ann.data).toEqual({ color: 'green' })
+      expect(ann.attributes).toEqual({ color: 'green' })
     })
 
     it('uses defaults for optional properties', () => {
@@ -34,7 +34,7 @@ describe('Annotation', () => {
 
       expect(ann.caption).toBe('')
       expect(ann.type).toBe('misc_feature')
-      expect(ann.data).toEqual({})
+      expect(ann.attributes).toEqual({})
     })
 
     it('parses span from string (fenced coordinates)', () => {
