@@ -5,6 +5,7 @@ import { useGraphics } from '../composables/useGraphics.js'
 import { createEventBus } from '../composables/useEventBus.js'
 import { SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
+import { reverseComplement } from '../utils/dna.js'
 import AnnotationLayer from './AnnotationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
@@ -170,8 +171,7 @@ function buildContextMenuItems(context) {
     items.push({
       label: 'Copy selection',
       action: () => {
-        const sequence = selection.getSelectedSequence ? selection.getSelectedSequence() : editorState.getSelectedSequence()
-        navigator.clipboard.writeText(sequence)
+        handleCopy()
       }
     })
     items.push({
@@ -442,9 +442,67 @@ function clearNativeSelection() {
   }
 }
 
+// Copy/Cut handlers
+function getSelectedSequenceText() {
+  // Get selection from SelectionLayer's domain
+  const selection = selectionLayerRef.value?.selection
+  const domain = selection?.domain?.value
+
+  if (domain && domain.ranges && domain.ranges.length > 0) {
+    const seq = editorState.sequence.value
+    // Extract sequence for each range and concatenate
+    return domain.ranges.map(range => {
+      const slice = seq.slice(range.start, range.end)
+      // Reverse complement if minus strand
+      if (range.orientation === -1) {
+        return reverseComplement(slice)
+      }
+      return slice
+    }).join('')
+  }
+
+  // Fall back to editorState's simple selection
+  return editorState.getSelectedSequence()
+}
+
+function handleCopy() {
+  const selectedSeq = getSelectedSequenceText()
+  if (selectedSeq) {
+    navigator.clipboard.writeText(selectedSeq)
+  }
+}
+
+function handleCut() {
+  const selectedSeq = getSelectedSequenceText()
+  if (selectedSeq) {
+    navigator.clipboard.writeText(selectedSeq)
+    editorState.deleteSelection()
+    emit('edit', { type: 'cut', text: selectedSeq })
+  }
+}
+
 // Keyboard handling
 function handleKeyDown(event) {
   const key = event.key
+
+  // Handle Ctrl/Cmd shortcuts first
+  if (event.ctrlKey || event.metaKey) {
+    switch (key.toLowerCase()) {
+      case 'c':
+        event.preventDefault()
+        handleCopy()
+        return
+      case 'x':
+        event.preventDefault()
+        handleCut()
+        return
+      case 'a':
+        event.preventDefault()
+        const selection = selectionLayerRef.value?.selection
+        if (selection) selection.selectAll()
+        return
+    }
+  }
 
   // DNA base input
   if (DNA_BASES.has(key)) {
