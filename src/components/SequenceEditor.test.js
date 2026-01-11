@@ -616,13 +616,107 @@ describe('SequenceEditor', () => {
       const swatch = wrapper.find('.type-swatch')
       expect(swatch.exists()).toBe(true)
 
-      // Check that the SVG structure is correct for CSS coloring
-      const rect = swatch.find('rect.annotation-path')
+      // Check that the rect has inline fill from persisted colors
+      const rect = swatch.find('rect')
       expect(rect.exists()).toBe(true)
 
-      // Check that the parent g has the annotation type class
-      const group = swatch.find('g.annotation-promoter')
-      expect(group.exists()).toBe(true)
+      // Promoter color should be orange (#FF9800)
+      expect(rect.attributes('fill')).toBe('#FF9800')
+    })
+  })
+
+  describe('color persistence', () => {
+    const COLORS_KEY = 'opengenepool-annotation-colors'
+
+    beforeEach(() => {
+      localStorage.removeItem(COLORS_KEY)
+    })
+
+    it('saves default colors to localStorage on first load', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' })
+      ]
+
+      // No colors in localStorage yet
+      expect(localStorage.getItem(COLORS_KEY)).toBeNull()
+
+      mount(SequenceEditor, {
+        props: { annotations }
+      })
+
+      // After mount, defaults should be saved to localStorage
+      const stored = JSON.parse(localStorage.getItem(COLORS_KEY))
+      expect(stored).not.toBeNull()
+      expect(stored.gene).toBe('#4CAF50')
+      expect(stored.CDS).toBe('#2196F3')
+      expect(stored.promoter).toBe('#FF9800')
+      expect(stored._default).toBe('#607D8B')
+    })
+
+    it('loads colors from localStorage if present', async () => {
+      // Pre-set custom colors in localStorage
+      const customColors = {
+        gene: '#FF0000',  // Red instead of green
+        CDS: '#00FF00',   // Green instead of blue
+        _default: '#000000'
+      }
+      localStorage.setItem(COLORS_KEY, JSON.stringify(customColors))
+
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Check that annotation uses the custom color
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      const path = layer.find('.annotation-fragment path')
+      expect(path.attributes('fill')).toBe('#FF0000')
+    })
+
+    it('merges stored colors with defaults for new types', async () => {
+      // Pre-set only some colors (simulating an older version)
+      const partialColors = {
+        gene: '#FF0000'
+        // Missing other types
+      }
+      localStorage.setItem(COLORS_KEY, JSON.stringify(partialColors))
+
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'promoter', span: '10..50' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Promoter should use default color since it wasn't in stored colors
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      const path = layer.find('.annotation-fragment path')
+      expect(path.attributes('fill')).toBe('#FF9800')
+    })
+
+    it('annotation layer uses default colors for unknown types', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'unknown_custom_type', span: '10..50' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Unknown type should use _default color
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      const path = layer.find('.annotation-fragment path')
+      expect(path.attributes('fill')).toBe('#607D8B')
     })
   })
 })

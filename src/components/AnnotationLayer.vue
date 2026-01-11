@@ -32,6 +32,30 @@ const emit = defineEmits(['click', 'contextmenu', 'hover'])
 const editorState = inject('editorState')
 const graphics = inject('graphics')
 const eventBus = inject('eventBus', null)
+// Annotation colors from localStorage (provided by SequenceEditor)
+const annotationColors = inject('annotationColors', null)
+
+// Default colors used when not provided via inject (e.g., in tests)
+const DEFAULT_COLORS = {
+  gene: '#4CAF50',
+  CDS: '#2196F3',
+  promoter: '#FF9800',
+  terminator: '#F44336',
+  misc_feature: '#9E9E9E',
+  rep_origin: '#9C27B0',
+  origin: '#9C27B0',
+  primer_bind: '#00BCD4',
+  protein_bind: '#795548',
+  regulatory: '#FFEB3B',
+  source: '#B0BEC5',
+  _default: '#607D8B'
+}
+
+// Get color for an annotation type from persisted colors or defaults
+function getTypeColor(type) {
+  const colors = annotationColors?.value || DEFAULT_COLORS
+  return colors[type] || colors._default
+}
 
 // Use annotations composable for layout calculations
 const annotationsComposable = useAnnotations(editorState, graphics, eventBus)
@@ -245,9 +269,10 @@ defineExpose({
         <!-- Tooltip via SVG title element -->
         <title>{{ getTooltipText(element.fragment) }}</title>
 
-        <!-- Use pre-computed arrow path from layout -->
+        <!-- Use pre-computed arrow path from layout, color from localStorage -->
         <path
           :d="element.path"
+          :fill="getTypeColor(element.fragment.type)"
           :opacity="0.7"
           class="annotation-path"
         />
@@ -281,9 +306,8 @@ defineExpose({
   opacity: 0.9;
 }
 
-/* Default annotation style - matches original */
+/* Annotation path style - fill color comes from inline style (persisted to localStorage) */
 .annotation-path {
-  fill: #607D8B;  /* default blue-gray for unknown types */
   stroke: black;
   stroke-width: 1px;
 }
@@ -296,47 +320,5 @@ defineExpose({
   pointer-events: none;
   text-anchor: start;
   user-select: none;
-}
-
-/* Type-specific colors - matches annotation.js ANNOTATION_COLORS */
-.annotation-gene .annotation-path {
-  fill: #4CAF50;  /* green */
-}
-
-.annotation-CDS .annotation-path {
-  fill: #2196F3;  /* blue */
-}
-
-.annotation-promoter .annotation-path {
-  fill: #FF9800;  /* orange */
-}
-
-.annotation-terminator .annotation-path {
-  fill: #F44336;  /* red */
-}
-
-.annotation-misc_feature .annotation-path {
-  fill: #9E9E9E;  /* gray */
-}
-
-.annotation-rep_origin .annotation-path,
-.annotation-origin .annotation-path {
-  fill: #9C27B0;  /* purple */
-}
-
-.annotation-primer_bind .annotation-path {
-  fill: #00BCD4;  /* cyan */
-}
-
-.annotation-protein_bind .annotation-path {
-  fill: #795548;  /* brown */
-}
-
-.annotation-regulatory .annotation-path {
-  fill: #FFEB3B;  /* yellow */
-}
-
-.annotation-source .annotation-path {
-  fill: #B0BEC5;  /* light blue-gray */
 }
 </style>

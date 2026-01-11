@@ -91,6 +91,26 @@ watch(() => props.title, (newTitle) => {
 const HIDDEN_TYPES_KEY = 'opengenepool-hidden-annotation-types'
 const DEFAULT_HIDDEN_TYPES = ['source']  // Hide source annotations by default
 
+// Annotation colors with localStorage persistence
+// These default colors match annotation.js ANNOTATION_COLORS.
+// Colors are saved to localStorage so users can customize them in the future.
+// When first loaded, defaults are written to localStorage if not present.
+const COLORS_KEY = 'opengenepool-annotation-colors'
+const DEFAULT_ANNOTATION_COLORS = {
+  gene: '#4CAF50',           // green
+  CDS: '#2196F3',            // blue
+  promoter: '#FF9800',       // orange
+  terminator: '#F44336',     // red
+  misc_feature: '#9E9E9E',   // gray
+  rep_origin: '#9C27B0',     // purple
+  origin: '#9C27B0',         // purple (alias)
+  primer_bind: '#00BCD4',    // cyan
+  protein_bind: '#795548',   // brown
+  regulatory: '#FFEB3B',     // yellow
+  source: '#B0BEC5',         // light blue-gray
+  _default: '#607D8B'        // default blue-gray for unknown types
+}
+
 function loadHiddenTypes() {
   const stored = localStorage.getItem(HIDDEN_TYPES_KEY)
   if (stored) {
@@ -103,8 +123,39 @@ function loadHiddenTypes() {
   return new Set(DEFAULT_HIDDEN_TYPES)
 }
 
+// Load annotation colors from localStorage.
+// If no colors are stored, save the defaults to localStorage and return them.
+// This ensures users always have a baseline that can be customized later.
+function loadAnnotationColors() {
+  const stored = localStorage.getItem(COLORS_KEY)
+  if (stored) {
+    try {
+      // Merge with defaults to handle any new types added in future versions
+      return { ...DEFAULT_ANNOTATION_COLORS, ...JSON.parse(stored) }
+    } catch {
+      // Corrupted data - reset to defaults
+      localStorage.setItem(COLORS_KEY, JSON.stringify(DEFAULT_ANNOTATION_COLORS))
+      return { ...DEFAULT_ANNOTATION_COLORS }
+    }
+  }
+  // First load - save defaults to localStorage
+  localStorage.setItem(COLORS_KEY, JSON.stringify(DEFAULT_ANNOTATION_COLORS))
+  return { ...DEFAULT_ANNOTATION_COLORS }
+}
+
 const hiddenTypes = ref(loadHiddenTypes())
+const annotationColors = ref(loadAnnotationColors())
 const configPanelOpen = ref(false)
+
+// Save colors to localStorage whenever they change
+watch(annotationColors, (newColors) => {
+  localStorage.setItem(COLORS_KEY, JSON.stringify(newColors))
+}, { deep: true })
+
+// Get color for an annotation type, falling back to default
+function getTypeColor(type) {
+  return annotationColors.value[type] || annotationColors.value._default
+}
 
 // Save to localStorage whenever hiddenTypes changes
 watch(hiddenTypes, (newValue) => {
@@ -156,6 +207,7 @@ function isTypeHidden(type) {
 provide('editorState', editorState)
 provide('graphics', graphics)
 provide('eventBus', eventBus)
+provide('annotationColors', annotationColors)  // Colors persisted to localStorage
 
 // Template refs
 const containerRef = ref(null)
@@ -759,10 +811,14 @@ defineExpose({
           <div v-if="annotationTypes.length > 0" class="config-types">
             <label v-for="type in annotationTypes" :key="type" class="type-row">
               <input type="checkbox" :checked="!isTypeHidden(type)" @change="toggleAnnotationType(type)">
+              <!-- Color swatch uses persisted colors from localStorage -->
               <svg class="type-swatch" viewBox="0 0 14 14" width="14" height="14">
-                <g :class="`annotation-${type}`">
-                  <rect class="annotation-path" x="0" y="0" width="14" height="14" rx="2" />
-                </g>
+                <rect
+                  x="0" y="0" width="14" height="14" rx="2"
+                  :fill="getTypeColor(type)"
+                  stroke="black"
+                  stroke-width="1"
+                />
               </svg>
               <span class="type-name">{{ type }}</span>
             </label>
@@ -1182,58 +1238,11 @@ defineExpose({
   margin: 0;
 }
 
+/* Color swatch - fill color comes from inline style (persisted to localStorage) */
 .type-swatch {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-}
-
-.type-swatch .annotation-path {
-  fill: #607D8B;  /* default blue-gray for unknown types */
-  stroke: black;
-  stroke-width: 1px;
-}
-
-/* Annotation type colors - matches annotation.js ANNOTATION_COLORS */
-.type-swatch .annotation-gene .annotation-path {
-  fill: #4CAF50;  /* green */
-}
-
-.type-swatch .annotation-CDS .annotation-path {
-  fill: #2196F3;  /* blue */
-}
-
-.type-swatch .annotation-promoter .annotation-path {
-  fill: #FF9800;  /* orange */
-}
-
-.type-swatch .annotation-terminator .annotation-path {
-  fill: #F44336;  /* red */
-}
-
-.type-swatch .annotation-misc_feature .annotation-path {
-  fill: #9E9E9E;  /* gray */
-}
-
-.type-swatch .annotation-rep_origin .annotation-path,
-.type-swatch .annotation-origin .annotation-path {
-  fill: #9C27B0;  /* purple */
-}
-
-.type-swatch .annotation-primer_bind .annotation-path {
-  fill: #00BCD4;  /* cyan */
-}
-
-.type-swatch .annotation-protein_bind .annotation-path {
-  fill: #795548;  /* brown */
-}
-
-.type-swatch .annotation-regulatory .annotation-path {
-  fill: #FFEB3B;  /* yellow */
-}
-
-.type-swatch .annotation-source .annotation-path {
-  fill: #B0BEC5;  /* light blue-gray */
 }
 
 .type-name {
