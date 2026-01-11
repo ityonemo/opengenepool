@@ -1,7 +1,6 @@
 <script setup>
 import { computed, inject, watch } from 'vue'
 import { Orientation } from '../utils/dna.js'
-import { getAnnotationColor } from '../utils/annotation.js'
 import { useAnnotations, generateArrowPath } from '../composables/useAnnotations.js'
 
 const props = defineProps({
@@ -120,11 +119,6 @@ function getFragmentWidth(fragment) {
 // Get y position for a line
 function getLineY(lineIndex) {
   return graphics.getLineY(lineIndex)
-}
-
-// Get color for an annotation fragment
-function getColor(fragment) {
-  return getAnnotationColor(fragment.type)
 }
 
 // Generate tooltip text for an annotation fragment
@@ -254,7 +248,6 @@ defineExpose({
         <!-- Use pre-computed arrow path from layout -->
         <path
           :d="element.path"
-          :fill="getColor(element.fragment)"
           :opacity="0.7"
           class="annotation-path"
         />
@@ -290,6 +283,7 @@ defineExpose({
 
 /* Default annotation style - matches original */
 .annotation-path {
+  fill: #607D8B;  /* default blue-gray for unknown types */
   stroke: black;
   stroke-width: 1px;
 }
@@ -304,24 +298,45 @@ defineExpose({
   user-select: none;
 }
 
-/* Type-specific colors - matches original plugin_annotations.css */
-.annotation-CDS .annotation-path,
-.annotation-orf .annotation-path,
-.annotation-ORF .annotation-path,
+/* Type-specific colors - matches annotation.js ANNOTATION_COLORS */
 .annotation-gene .annotation-path {
-  fill: yellow;
+  fill: #4CAF50;  /* green */
 }
 
-.annotation-RNA .annotation-path,
-.annotation-rna .annotation-path {
-  fill: orange;
+.annotation-CDS .annotation-path {
+  fill: #2196F3;  /* blue */
 }
 
 .annotation-promoter .annotation-path {
-  fill: blue;
+  fill: #FF9800;  /* orange */
 }
 
+.annotation-terminator .annotation-path {
+  fill: #F44336;  /* red */
+}
+
+.annotation-misc_feature .annotation-path {
+  fill: #9E9E9E;  /* gray */
+}
+
+.annotation-rep_origin .annotation-path,
 .annotation-origin .annotation-path {
-  fill: green;
+  fill: #9C27B0;  /* purple */
+}
+
+.annotation-primer_bind .annotation-path {
+  fill: #00BCD4;  /* cyan */
+}
+
+.annotation-protein_bind .annotation-path {
+  fill: #795548;  /* brown */
+}
+
+.annotation-regulatory .annotation-path {
+  fill: #FFEB3B;  /* yellow */
+}
+
+.annotation-source .annotation-path {
+  fill: #B0BEC5;  /* light blue-gray */
 }
 </style>

@@ -360,7 +360,7 @@ describe('AnnotationLayer', () => {
   })
 
   describe('colors', () => {
-    it('uses type-based coloring', () => {
+    it('uses type-based CSS class for coloring', () => {
       const annotation = new Annotation({
         id: 'ann1',
         type: 'gene',
@@ -368,13 +368,13 @@ describe('AnnotationLayer', () => {
       })
 
       const wrapper = mountWithProviders({ annotations: [annotation] })
-      const path = wrapper.find('.annotation-fragment path')
+      const fragment = wrapper.find('.annotation-fragment')
 
-      // Gene color is #4CAF50
-      expect(path.attributes('fill')).toBe('#4CAF50')
+      // Gene type gets annotation-gene class, CSS applies #4CAF50
+      expect(fragment.classes()).toContain('annotation-gene')
     })
 
-    it('uses default color for unknown type', () => {
+    it('uses type CSS class for unknown types (default color via CSS)', () => {
       const annotation = new Annotation({
         id: 'ann1',
         type: 'unknown_type',
@@ -382,10 +382,10 @@ describe('AnnotationLayer', () => {
       })
 
       const wrapper = mountWithProviders({ annotations: [annotation] })
-      const path = wrapper.find('.annotation-fragment path')
+      const fragment = wrapper.find('.annotation-fragment')
 
-      // Default color is #607D8B
-      expect(path.attributes('fill')).toBe('#607D8B')
+      // Unknown type gets annotation-unknown_type class, CSS fallback applies #607D8B
+      expect(fragment.classes()).toContain('annotation-unknown_type')
     })
   })
 

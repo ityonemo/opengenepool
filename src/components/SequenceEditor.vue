@@ -1189,29 +1189,51 @@ defineExpose({
 }
 
 .type-swatch .annotation-path {
+  fill: #607D8B;  /* default blue-gray for unknown types */
   stroke: black;
   stroke-width: 1px;
 }
 
-/* Annotation type colors - shared with AnnotationLayer */
-.type-swatch .annotation-CDS .annotation-path,
-.type-swatch .annotation-orf .annotation-path,
-.type-swatch .annotation-ORF .annotation-path,
+/* Annotation type colors - matches annotation.js ANNOTATION_COLORS */
 .type-swatch .annotation-gene .annotation-path {
-  fill: yellow;
+  fill: #4CAF50;  /* green */
 }
 
-.type-swatch .annotation-RNA .annotation-path,
-.type-swatch .annotation-rna .annotation-path {
-  fill: orange;
+.type-swatch .annotation-CDS .annotation-path {
+  fill: #2196F3;  /* blue */
 }
 
 .type-swatch .annotation-promoter .annotation-path {
-  fill: blue;
+  fill: #FF9800;  /* orange */
 }
 
+.type-swatch .annotation-terminator .annotation-path {
+  fill: #F44336;  /* red */
+}
+
+.type-swatch .annotation-misc_feature .annotation-path {
+  fill: #9E9E9E;  /* gray */
+}
+
+.type-swatch .annotation-rep_origin .annotation-path,
 .type-swatch .annotation-origin .annotation-path {
-  fill: green;
+  fill: #9C27B0;  /* purple */
+}
+
+.type-swatch .annotation-primer_bind .annotation-path {
+  fill: #00BCD4;  /* cyan */
+}
+
+.type-swatch .annotation-protein_bind .annotation-path {
+  fill: #795548;  /* brown */
+}
+
+.type-swatch .annotation-regulatory .annotation-path {
+  fill: #FFEB3B;  /* yellow */
+}
+
+.type-swatch .annotation-source .annotation-path {
+  fill: #B0BEC5;  /* light blue-gray */
 }
 
 .type-name {
