@@ -1,0 +1,17 @@
+{
+  "name": "opengenepool",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^15.0.0",
+    "@vue/compiler-sfc": "^3.5.26",
+    "@vue/test-utils": "^2.4.0"
+  }
+}
