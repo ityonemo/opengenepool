@@ -165,11 +165,19 @@ function getTooltipText(fragment) {
     parts.push(ann.span.toString())
   }
 
-  // Add description from GenBank qualifiers if available
+  // Add all metadata from annotation data
   if (ann && ann.data) {
-    const note = ann.data.note || ann.data.product || ann.data.function
-    if (note) {
-      parts.push(note)
+    const entries = Object.entries(ann.data)
+    if (entries.length > 0) {
+      parts.push('') // blank line before metadata
+      for (const [key, value] of entries) {
+        // Format the value (handle arrays, truncate long values)
+        let displayValue = Array.isArray(value) ? value.join(', ') : String(value)
+        if (displayValue.length > 100) {
+          displayValue = displayValue.substring(0, 100) + '...'
+        }
+        parts.push(`${key}: ${displayValue}`)
+      }
     }
   }
 
