@@ -402,4 +402,227 @@ describe('SequenceEditor', () => {
       expect(wrapper.emitted('annotation-click')).toBeTruthy()
     })
   })
+
+  describe('config panel', () => {
+    const HIDDEN_TYPES_KEY = 'opengenepool-hidden-annotation-types'
+
+    beforeEach(() => {
+      localStorage.removeItem(HIDDEN_TYPES_KEY)
+    })
+
+    it('renders config gear button', () => {
+      const wrapper = mount(SequenceEditor)
+      expect(wrapper.find('.config-button').exists()).toBe(true)
+    })
+
+    it('config panel is hidden by default', () => {
+      const wrapper = mount(SequenceEditor)
+      expect(wrapper.find('.config-panel').exists()).toBe(false)
+    })
+
+    it('opens config panel when clicking gear button', async () => {
+      const wrapper = mount(SequenceEditor)
+      await wrapper.find('.config-button').trigger('click')
+      expect(wrapper.find('.config-panel').exists()).toBe(true)
+    })
+
+    it('closes config panel when clicking gear button again', async () => {
+      const wrapper = mount(SequenceEditor)
+      await wrapper.find('.config-button').trigger('click')
+      expect(wrapper.find('.config-panel').exists()).toBe(true)
+
+      await wrapper.find('.config-button').trigger('click')
+      expect(wrapper.find('.config-panel').exists()).toBe(false)
+    })
+
+    it('shows annotation types when annotations exist', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.config-button').trigger('click')
+
+      const typeNames = wrapper.findAll('.type-name')
+      expect(typeNames.length).toBe(2)
+      expect(typeNames.map(t => t.text()).sort()).toEqual(['gene', 'promoter'])
+    })
+
+    it('shows "No annotations" when no annotations exist', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations: [] }
+      })
+      await wrapper.find('.config-button').trigger('click')
+      expect(wrapper.find('.config-empty').text()).toBe('No annotations')
+    })
+
+    it('hides annotations when type is unchecked', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Initially both visible
+      let layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('annotations').length).toBe(2)
+
+      // Open config and uncheck 'gene'
+      await wrapper.find('.config-button').trigger('click')
+      const checkboxes = wrapper.findAll('.type-row input[type="checkbox"]')
+      const geneRow = wrapper.findAll('.type-row').find(r => r.text().includes('gene'))
+      await geneRow.find('input[type="checkbox"]').trigger('change')
+
+      await wrapper.vm.$nextTick()
+
+      // Now only promoter should be visible
+      layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('annotations').length).toBe(1)
+      expect(layer.props('annotations')[0].type).toBe('promoter')
+    })
+
+    it('Hide All button hides all annotation types', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.config-button').trigger('click')
+      await wrapper.find('.config-actions button:last-child').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // AnnotationLayer should not render when all types hidden
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.exists()).toBe(false)
+    })
+
+    it('Show All button shows all annotation types', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Hide all first
+      await wrapper.find('.config-button').trigger('click')
+      await wrapper.find('.config-actions button:last-child').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      // Now show all
+      await wrapper.find('.config-actions button:first-child').trigger('click')
+      await wrapper.vm.$nextTick()
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('annotations').length).toBe(2)
+    })
+
+    it('hides source type by default', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'source', span: '1..500' }),
+        new Annotation({ id: 'ann2', type: 'gene', span: '10..50' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // source should be hidden by default, only gene visible
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('annotations').length).toBe(1)
+      expect(layer.props('annotations')[0].type).toBe('gene')
+    })
+
+    it('persists hidden types to localStorage', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Hide gene type
+      await wrapper.find('.config-button').trigger('click')
+      const geneRow = wrapper.findAll('.type-row').find(r => r.text().includes('gene'))
+      await geneRow.find('input[type="checkbox"]').trigger('change')
+      await wrapper.vm.$nextTick()
+
+      // Check localStorage
+      const stored = JSON.parse(localStorage.getItem(HIDDEN_TYPES_KEY))
+      expect(stored).toContain('gene')
+    })
+
+    it('loads hidden types from localStorage', async () => {
+      // Pre-set localStorage to hide 'gene'
+      localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify(['gene']))
+
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
+        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations, initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      // Gene should be hidden based on localStorage
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      expect(layer.props('annotations').length).toBe(1)
+      expect(layer.props('annotations')[0].type).toBe('promoter')
+    })
+
+    it('renders color swatch for each annotation type', async () => {
+      const annotations = [
+        new Annotation({ id: 'ann1', type: 'promoter', span: '10..50' })
+      ]
+
+      const wrapper = mount(SequenceEditor, {
+        props: { annotations }
+      })
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      await wrapper.find('.config-button').trigger('click')
+
+      const swatch = wrapper.find('.type-swatch')
+      expect(swatch.exists()).toBe(true)
+
+      // Check that the SVG structure is correct for CSS coloring
+      const rect = swatch.find('rect.annotation-path')
+      expect(rect.exists()).toBe(true)
+
+      // Check that the parent g has the annotation type class
+      const group = swatch.find('g.annotation-promoter')
+      expect(group.exists()).toBe(true)
+    })
+  })
 })

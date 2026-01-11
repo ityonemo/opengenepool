@@ -87,15 +87,70 @@ watch(() => props.title, (newTitle) => {
   }
 })
 
-// Convert plain annotation objects to Annotation class instances
-const annotationInstances = computed(() => {
-  return props.annotations.map(ann => {
-    // If already an Annotation instance, return as-is
-    if (ann instanceof Annotation) return ann
-    // Convert plain object to Annotation
-    return new Annotation(ann)
-  })
+// Annotation filtering state with localStorage persistence
+const HIDDEN_TYPES_KEY = 'opengenepool-hidden-annotation-types'
+const DEFAULT_HIDDEN_TYPES = ['source']  // Hide source annotations by default
+
+function loadHiddenTypes() {
+  const stored = localStorage.getItem(HIDDEN_TYPES_KEY)
+  if (stored) {
+    try {
+      return new Set(JSON.parse(stored))
+    } catch {
+      return new Set(DEFAULT_HIDDEN_TYPES)
+    }
+  }
+  return new Set(DEFAULT_HIDDEN_TYPES)
+}
+
+const hiddenTypes = ref(loadHiddenTypes())
+const configPanelOpen = ref(false)
+
+// Save to localStorage whenever hiddenTypes changes
+watch(hiddenTypes, (newValue) => {
+  localStorage.setItem(HIDDEN_TYPES_KEY, JSON.stringify([...newValue]))
+}, { deep: true })
+
+// Extract unique types from annotations for the filter UI
+const annotationTypes = computed(() => {
+  const types = new Set(props.annotations.map(a => a.type || 'misc_feature'))
+  return [...types].sort()
 })
+
+// Convert plain annotation objects to Annotation class instances, filtering hidden types
+const annotationInstances = computed(() => {
+  return props.annotations
+    .filter(ann => !hiddenTypes.value.has(ann.type || 'misc_feature'))
+    .map(ann => {
+      // If already an Annotation instance, return as-is
+      if (ann instanceof Annotation) return ann
+      // Convert plain object to Annotation
+      return new Annotation(ann)
+    })
+})
+
+// Annotation filter handlers
+function toggleAnnotationType(type) {
+  const newSet = new Set(hiddenTypes.value)
+  if (newSet.has(type)) {
+    newSet.delete(type)
+  } else {
+    newSet.add(type)
+  }
+  hiddenTypes.value = newSet
+}
+
+function showAllTypes() {
+  hiddenTypes.value = new Set()
+}
+
+function hideAllTypes() {
+  hiddenTypes.value = new Set(annotationTypes.value)
+}
+
+function isTypeHidden(type) {
+  return hiddenTypes.value.has(type)
+}
 
 // Provide state to child components
 provide('editorState', editorState)
@@ -598,6 +653,16 @@ function getSelection() {
   return editorState.selection.value
 }
 
+// Click outside handler for config panel
+function handleClickOutside(event) {
+  if (configPanelOpen.value) {
+    const container = containerRef.value?.querySelector('.config-container')
+    if (container && !container.contains(event.target)) {
+      configPanelOpen.value = false
+    }
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   handleResize()
@@ -609,10 +674,14 @@ onMounted(() => {
     resizeObserver.observe(containerRef.value)
   }
 
+  // Set up click-outside handler for config panel
+  document.addEventListener('click', handleClickOutside)
+
   emit('ready')
 
   onUnmounted(() => {
     resizeObserver.disconnect()
+    document.removeEventListener('click', handleClickOutside)
   })
 })
 
@@ -672,6 +741,39 @@ defineExpose({
         <strong>{{ editorState.title.value || 'Untitled' }}</strong>
         &mdash; {{ editorState.sequenceLength.value.toLocaleString() }} bp
       </span>
+
+      <!-- Spacer to push config to right -->
+      <div class="toolbar-spacer"></div>
+
+      <!-- Config gear -->
+      <div class="config-container">
+        <button class="config-button" @click.stop="configPanelOpen = !configPanelOpen" title="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z" fill="currentColor"/>
+          </svg>
+        </button>
+
+        <!-- Dropdown panel -->
+        <div v-if="configPanelOpen" class="config-panel" @click.stop>
+          <div class="config-header">Annotations</div>
+          <div v-if="annotationTypes.length > 0" class="config-types">
+            <label v-for="type in annotationTypes" :key="type" class="type-row">
+              <input type="checkbox" :checked="!isTypeHidden(type)" @change="toggleAnnotationType(type)">
+              <svg class="type-swatch" viewBox="0 0 14 14" width="14" height="14">
+                <g :class="`annotation-${type}`">
+                  <rect class="annotation-path" x="0" y="0" width="14" height="14" rx="2" />
+                </g>
+              </svg>
+              <span class="type-name">{{ type }}</span>
+            </label>
+          </div>
+          <div v-else class="config-empty">No annotations</div>
+          <div v-if="annotationTypes.length > 0" class="config-actions">
+            <button @click="showAllTypes">Show All</button>
+            <button @click="hideAllTypes">Hide All</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- SVG Editor -->
@@ -1010,5 +1112,131 @@ defineExpose({
 .editor-svg:focus {
   outline: 2px solid #4285f4;
   outline-offset: -2px;
+}
+
+/* Config panel styles */
+.toolbar-spacer {
+  flex: 1;
+}
+
+.config-container {
+  position: relative;
+}
+
+.config-button {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.config-button:hover {
+  background: #eee;
+  color: #333;
+}
+
+.config-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  min-width: 180px;
+  z-index: 100;
+}
+
+.config-header {
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+}
+
+.config-types {
+  padding: 8px 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.config-empty {
+  padding: 8px 12px;
+  color: #999;
+  font-size: 13px;
+}
+
+.type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.type-row input[type="checkbox"] {
+  margin: 0;
+}
+
+.type-swatch {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.type-swatch .annotation-path {
+  stroke: black;
+  stroke-width: 1px;
+}
+
+/* Annotation type colors - shared with AnnotationLayer */
+.type-swatch .annotation-CDS .annotation-path,
+.type-swatch .annotation-orf .annotation-path,
+.type-swatch .annotation-ORF .annotation-path,
+.type-swatch .annotation-gene .annotation-path {
+  fill: yellow;
+}
+
+.type-swatch .annotation-RNA .annotation-path,
+.type-swatch .annotation-rna .annotation-path {
+  fill: orange;
+}
+
+.type-swatch .annotation-promoter .annotation-path {
+  fill: blue;
+}
+
+.type-swatch .annotation-origin .annotation-path {
+  fill: green;
+}
+
+.type-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.config-actions {
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+}
+
+.config-actions button {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.config-actions button:hover {
+  background: #eee;
 }
 </style>
