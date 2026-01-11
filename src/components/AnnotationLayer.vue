@@ -165,9 +165,9 @@ function getTooltipText(fragment) {
     parts.push(ann.span.toString())
   }
 
-  // Add all metadata from annotation data
+  // Add all metadata from annotation data (except translation which is too long)
   if (ann && ann.data) {
-    const entries = Object.entries(ann.data)
+    const entries = Object.entries(ann.data).filter(([key]) => key !== 'translation')
     if (entries.length > 0) {
       parts.push('') // blank line before metadata
       for (const [key, value] of entries) {
