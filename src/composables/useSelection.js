@@ -424,6 +424,33 @@ export function useSelection(editorState, graphics, eventBus) {
     }
   }
 
+  /**
+   * Extend the single existing range to include a new position.
+   * Preserves the original orientation (doesn't flip based on direction).
+   * Only works when exactly one range is selected.
+   * @param {number} pos - Position to extend to
+   * @returns {boolean} - True if operation was valid, false if preconditions not met
+   */
+  function extendToPosition(pos) {
+    // Only works with exactly one range
+    if (!isSelected.value || !domain.value || domain.value.ranges.length !== 1) {
+      return false
+    }
+
+    const range = domain.value.ranges[0]
+
+    if (pos < range.start) {
+      // Extending backwards - update start, keep original orientation
+      range.start = pos
+    } else if (pos > range.end) {
+      // Extending forwards - update end, keep original orientation
+      range.end = pos
+    }
+    // If pos is within range, do nothing (but still return true)
+
+    return true
+  }
+
   // Event bus integration
   if (eventBus) {
     eventBus.on('startselect', (data) => {
@@ -436,6 +463,10 @@ export function useSelection(editorState, graphics, eventBus) {
 
     eventBus.on('extendselect', (data) => {
       extendSelection(data.domain)
+    })
+
+    eventBus.on('extendtoposition', (data) => {
+      extendToPosition(data.pos)
     })
 
     eventBus.on('unselect', () => {
@@ -460,6 +491,7 @@ export function useSelection(editorState, graphics, eventBus) {
     endSelection,
     select,
     extendSelection,
+    extendToPosition,
     unselect,
     selectAll,
 

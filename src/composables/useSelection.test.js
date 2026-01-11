@@ -442,4 +442,90 @@ describe('useSelection', () => {
       expect(sel.domain.value.ranges[1].end).toBe(70)
     })
   })
+
+  describe('extendToPosition', () => {
+    it('extends range end when clicking beyond current end', () => {
+      const sel = createSelection()
+      sel.select('10..50')
+
+      const result = sel.extendToPosition(80)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(80)
+    })
+
+    it('extends range start when clicking before current start', () => {
+      const sel = createSelection()
+      sel.select('50..100')
+
+      const result = sel.extendToPosition(20)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(20)
+      expect(sel.domain.value.ranges[0].end).toBe(100)
+    })
+
+    it('preserves plus orientation when extending backwards', () => {
+      const sel = createSelection()
+      sel.select('50..100')  // plus strand by default
+
+      sel.extendToPosition(20)
+
+      expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.PLUS)
+    })
+
+    it('preserves minus orientation when extending forwards', () => {
+      const sel = createSelection()
+      sel.select('(50..100)')  // minus strand
+
+      sel.extendToPosition(150)
+
+      expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.MINUS)
+    })
+
+    it('does nothing if multiple ranges exist', () => {
+      const sel = createSelection()
+      sel.select('10..30 + 50..70')
+
+      const result = sel.extendToPosition(100)
+
+      expect(result).toBe(false)
+      expect(sel.domain.value.ranges.length).toBe(2)
+      // Ranges unchanged
+      expect(sel.domain.value.ranges[0].end).toBe(30)
+      expect(sel.domain.value.ranges[1].end).toBe(70)
+    })
+
+    it('does nothing if no selection exists', () => {
+      const sel = createSelection()
+
+      const result = sel.extendToPosition(50)
+
+      expect(result).toBe(false)
+      expect(sel.isSelected.value).toBe(false)
+    })
+
+    it('does nothing if position is within existing range', () => {
+      const sel = createSelection()
+      sel.select('10..100')
+
+      const result = sel.extendToPosition(50)
+
+      expect(result).toBe(true)  // Returns true but no change
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(100)
+    })
+
+    it('responds to extendtoposition event', () => {
+      const sel = createSelection()
+      sel.select('10..50')
+
+      eventBus.emit('extendtoposition', { pos: 80 })
+
+      expect(sel.domain.value.ranges[0].end).toBe(80)
+    })
+  })
 })
