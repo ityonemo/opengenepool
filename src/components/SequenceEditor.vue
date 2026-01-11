@@ -41,6 +41,11 @@ const props = defineProps({
   readonly: {
     type: Boolean,
     default: false
+  },
+  /** Sequence metadata (molecule_type, definition, etc.) */
+  metadata: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -179,6 +184,22 @@ const annotationInstances = computed(() => {
       return new Annotation(ann)
     })
 })
+
+// Metadata display helpers
+const hasMetadata = computed(() => {
+  const m = props.metadata
+  return m && (m.molecule_type || m.definition)
+})
+
+const metadataModalOpen = ref(false)
+
+function openMetadataModal() {
+  metadataModalOpen.value = true
+}
+
+function closeMetadataModal() {
+  metadataModalOpen.value = false
+}
 
 // Annotation filter handlers
 function toggleAnnotationType(type) {
@@ -810,6 +831,16 @@ defineExpose({
       <span v-if="editorState.sequenceLength.value > 0" class="info">
         <strong>{{ editorState.title.value || 'Untitled' }}</strong>
         &mdash; {{ editorState.sequenceLength.value.toLocaleString() }} bp
+        <button
+          v-if="hasMetadata"
+          class="info-button"
+          @click="openMetadataModal"
+          title="Sequence info"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
+          </svg>
+        </button>
       </span>
 
       <!-- Spacer to push config to right -->
@@ -1009,6 +1040,85 @@ defineExpose({
       :items="contextMenuItems"
       @close="hideContextMenu"
     />
+
+    <!-- Metadata Modal -->
+    <div v-if="metadataModalOpen" class="modal-overlay" @click="closeMetadataModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Sequence Information</h3>
+          <button class="modal-close" @click="closeMetadataModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <dl class="metadata-list">
+            <template v-if="props.metadata?.molecule_type">
+              <dt>Type</dt>
+              <dd>{{ props.metadata.molecule_type }}<template v-if="props.metadata?.circular !== undefined"> — {{ props.metadata.circular ? 'circular' : 'linear' }}</template></dd>
+            </template>
+            <template v-if="props.metadata?.definition">
+              <dt>Definition</dt>
+              <dd>{{ props.metadata.definition }}</dd>
+            </template>
+            <template v-if="props.metadata?.accession">
+              <dt>Accession</dt>
+              <dd>{{ props.metadata.accession }}</dd>
+            </template>
+            <template v-if="props.metadata?.version">
+              <dt>Version</dt>
+              <dd>{{ props.metadata.version }}</dd>
+            </template>
+            <template v-if="props.metadata?.organism">
+              <dt>Organism</dt>
+              <dd>{{ props.metadata.organism }}</dd>
+            </template>
+            <template v-if="props.metadata?.source">
+              <dt>Source</dt>
+              <dd>{{ props.metadata.source }}</dd>
+            </template>
+            <template v-if="props.metadata?.locus_name">
+              <dt>Locus</dt>
+              <dd>{{ props.metadata.locus_name }}</dd>
+            </template>
+          </dl>
+          <!-- References section -->
+          <template v-if="props.metadata?.references && props.metadata.references.length > 0">
+            <h4 class="references-header">References</h4>
+            <!-- Complete references (have authors, title, journal, and pubmed) -->
+            <div class="references-list">
+              <template v-for="(ref, index) in props.metadata.references" :key="index">
+                <div v-if="ref.authors && ref.title && ref.journal && ref.pubmed" class="reference-item">
+                  <div class="ref-title">{{ ref.title }}</div>
+                  <div class="ref-authors">{{ ref.authors }}</div>
+                  <div class="ref-journal">{{ ref.journal }}</div>
+                  <div class="ref-pubmed">
+                    <a :href="`https://pubmed.ncbi.nlm.nih.gov/${ref.pubmed}/`" target="_blank" rel="noopener noreferrer">
+                      PubMed: {{ ref.pubmed }}
+                    </a>
+                  </div>
+                </div>
+              </template>
+            </div>
+            <!-- Incomplete references in collapsible "more" section -->
+            <details v-if="props.metadata.references.some(ref => !(ref.authors && ref.title && ref.journal && ref.pubmed))" class="references-more">
+              <summary>more</summary>
+              <div class="references-list">
+                <template v-for="(ref, index) in props.metadata.references" :key="'more-' + index">
+                  <div v-if="!(ref.authors && ref.title && ref.journal && ref.pubmed)" class="reference-item">
+                    <div v-if="ref.title" class="ref-title">{{ ref.title }}</div>
+                    <div v-if="ref.authors" class="ref-authors">{{ ref.authors }}</div>
+                    <div v-if="ref.journal" class="ref-journal">{{ ref.journal }}</div>
+                    <div v-if="ref.pubmed" class="ref-pubmed">
+                      <a :href="`https://pubmed.ncbi.nlm.nih.gov/${ref.pubmed}/`" target="_blank" rel="noopener noreferrer">
+                        PubMed: {{ ref.pubmed }}
+                      </a>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </details>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1336,5 +1446,168 @@ defineExpose({
 
 .config-actions button:hover {
   background: #eee;
+}
+
+/* Info button in toolbar */
+.info-button {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.info-button:hover {
+  color: #333;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.metadata-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+}
+
+.metadata-list dt {
+  font-weight: 600;
+  color: #555;
+}
+
+.metadata-list dd {
+  margin: 0;
+  color: #333;
+  word-break: break-word;
+}
+
+/* References styles */
+.references-header {
+  margin: 20px 0 12px 0;
+  font-size: 16px;
+  color: #333;
+  border-top: 1px solid #eee;
+  padding-top: 16px;
+}
+
+.references-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reference-item {
+  padding: 12px;
+  background: #f8f8f8;
+  border-radius: 6px;
+}
+
+.ref-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.ref-authors {
+  color: #555;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.ref-journal {
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.ref-pubmed {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.ref-pubmed a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.ref-pubmed a:hover {
+  text-decoration: underline;
+}
+
+.references-more {
+  margin-top: 12px;
+}
+
+.references-more summary {
+  cursor: pointer;
+  color: #666;
+  font-size: 13px;
+}
+
+.references-more summary:hover {
+  color: #333;
+}
+
+.references-more .references-list {
+  margin-top: 12px;
 }
 </style>
