@@ -26,6 +26,9 @@ const selection = useSelection(editorState, graphics, eventBus)
 const draggedHandle = ref(null) // { rangeIndex, type: 'start'|'end' }
 const dragLimits = ref({ low: 0, high: 0 })
 
+// Pending drag for overlapping handles (direction-based selection)
+const pendingDrag = ref(null) // { startX, touchPoint, handles: [{rangeIndex, type}, ...] }
+
 // Compute selection paths for rendering
 const selectionPaths = computed(() => {
   if (!selection.isSelected.value || !selection.domain.value) return []
@@ -231,6 +234,87 @@ function startHandleDrag(event, rangeIndex, handleType) {
   event.preventDefault()
   event.stopPropagation()
 
+  const range = selection.domain.value.ranges[rangeIndex]
+  const handlePos = handleType === 'start' ? range.start : range.end
+
+  // Check for other handles at the same position (touching ranges)
+  const ranges = selection.domain.value.ranges
+  const overlappingHandles = [{ rangeIndex, type: handleType }]
+
+  for (let i = 0; i < ranges.length; i++) {
+    if (i === rangeIndex) continue
+    const r = ranges[i]
+    if (r.start === handlePos) {
+      overlappingHandles.push({ rangeIndex: i, type: 'start' })
+    }
+    if (r.end === handlePos) {
+      overlappingHandles.push({ rangeIndex: i, type: 'end' })
+    }
+  }
+
+  if (overlappingHandles.length > 1) {
+    // Multiple handles at same position - wait for direction
+    pendingDrag.value = {
+      startX: event.clientX,
+      touchPoint: handlePos,
+      handles: overlappingHandles
+    }
+    window.addEventListener('mousemove', handlePendingDragMove)
+    window.addEventListener('mouseup', handlePendingDragEnd)
+  } else {
+    // Single handle - proceed normally
+    beginDrag(rangeIndex, handleType)
+  }
+}
+
+// Handle pending drag to determine direction for overlapping handles
+function handlePendingDragMove(event) {
+  if (!pendingDrag.value) return
+
+  const deltaX = event.clientX - pendingDrag.value.startX
+  const threshold = 3 // pixels before deciding direction
+
+  if (Math.abs(deltaX) < threshold) return
+
+  const draggingLeft = deltaX < 0
+  const { handles, touchPoint } = pendingDrag.value
+  const ranges = selection.domain.value.ranges
+
+  let chosenHandle
+  if (draggingLeft) {
+    // Dragging left: use the end handle of the left range
+    chosenHandle = handles.find(h => {
+      const r = ranges[h.rangeIndex]
+      return h.type === 'end' && r.end === touchPoint
+    })
+  } else {
+    // Dragging right: use the start handle of the right range
+    chosenHandle = handles.find(h => {
+      const r = ranges[h.rangeIndex]
+      return h.type === 'start' && r.start === touchPoint
+    })
+  }
+
+  if (!chosenHandle) chosenHandle = handles[0]
+
+  // Clean up pending state
+  window.removeEventListener('mousemove', handlePendingDragMove)
+  window.removeEventListener('mouseup', handlePendingDragEnd)
+  pendingDrag.value = null
+
+  // Begin actual drag and process this move
+  beginDrag(chosenHandle.rangeIndex, chosenHandle.type)
+  handleDragMove(event)
+}
+
+function handlePendingDragEnd() {
+  window.removeEventListener('mousemove', handlePendingDragMove)
+  window.removeEventListener('mouseup', handlePendingDragEnd)
+  pendingDrag.value = null
+}
+
+// Begin the actual drag operation
+function beginDrag(rangeIndex, handleType) {
   const range = selection.domain.value.ranges[rangeIndex]
   const seqLen = editorState.sequenceLength.value
 

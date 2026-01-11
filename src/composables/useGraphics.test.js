@@ -139,13 +139,13 @@ describe('useGraphics', () => {
       const { editorState, graphics } = createGraphics()
       editorState.setSequence('A'.repeat(500))
 
-      // vmargin = 10, linetopmargin = 4, lineHeight = 16, linepadding = 5
-      // Line 0: vmargin(10) + topmargin(4) = 14
-      // Line 1: vmargin(10) + (topmargin(4) + lineHeight(16) + linepadding(5)) + topmargin(4) = 39
-      // Line 2: vmargin(10) + 2*(topmargin(4) + lineHeight(16) + linepadding(5)) + topmargin(4) = 64
-      expect(graphics.getLineY(0)).toBe(14)
-      expect(graphics.getLineY(1)).toBe(39)
-      expect(graphics.getLineY(2)).toBe(64)
+      // vmargin = 10, tooltipMargin = 20, linetopmargin = 4, lineHeight = 16, linepadding = 20
+      // Line 0: vmargin(10) + tooltipMargin(20) + topmargin(4) = 34
+      // Line 1: vmargin(10) + tooltipMargin(20) + (topmargin(4) + lineHeight(16) + linepadding(20)) + topmargin(4) = 74
+      // Line 2: vmargin(10) + tooltipMargin(20) + 2*(topmargin(4) + lineHeight(16) + linepadding(20)) + topmargin(4) = 114
+      expect(graphics.getLineY(0)).toBe(34)
+      expect(graphics.getLineY(1)).toBe(74)
+      expect(graphics.getLineY(2)).toBe(114)
     })
   })
 
@@ -157,23 +157,26 @@ describe('useGraphics', () => {
 
     it('calculates total height for lines', () => {
       const { graphics } = createGraphics()
-      // vmargin = 10, linetopmargin = 4, lineHeight = 16, linepadding = 5
-      // 1 line: vmargin(10) + topmargin(4) + lineHeight(16) + vmargin(10) = 40
-      expect(graphics.getTotalHeight(1)).toBe(40)
+      // vmargin = 10, tooltipMargin = 20, linetopmargin = 4, lineHeight = 16, linepadding = 20
+      // 1 line: vmargin(10) + tooltipMargin(20) + topmargin(4) + lineHeight(16) + vmargin(10) = 60
+      expect(graphics.getTotalHeight(1)).toBe(60)
 
-      // 3 lines: vmargin(10) + 3*(topmargin(4) + lineHeight(16)) + 2*linepadding(5) + vmargin(10) = 90
-      expect(graphics.getTotalHeight(3)).toBe(90)
+      // 3 lines: vmargin(10) + tooltipMargin(20) + 3*(topmargin(4) + lineHeight(16)) + 2*linepadding(20) + vmargin(10) = 140
+      expect(graphics.getTotalHeight(3)).toBe(140)
     })
   })
 
   describe('pixelToLineIndex', () => {
     it('finds line index from y position', () => {
       const { graphics } = createGraphics()
-      // vmargin = 10, lineHeight = 16, linepadding = 5
+      // vmargin = 10, tooltipMargin = 20, lineHeight = 16, linepadding = 20
+      // Line 0: top=34, bottom=50
+      // Line 1: top=74, bottom=90
+      // Line 2: top=114, bottom=130
 
-      expect(graphics.pixelToLineIndex(15, 5)).toBe(0)
-      expect(graphics.pixelToLineIndex(35, 5)).toBe(1)  // after first line
-      expect(graphics.pixelToLineIndex(56, 5)).toBe(2)
+      expect(graphics.pixelToLineIndex(35, 5)).toBe(0)  // within first line (< 50)
+      expect(graphics.pixelToLineIndex(55, 5)).toBe(1)  // after first line, in/before second
+      expect(graphics.pixelToLineIndex(95, 5)).toBe(2)  // after second line (>= 90)
     })
 
     it('clamps to valid range', () => {
@@ -192,11 +195,11 @@ describe('useGraphics', () => {
       graphics.setContainerSize(800, 600)
       graphics.setFontMetrics(8, 16)
 
-      // Line 0, position 5 = absolute position 5
-      expect(graphics.pixelToSequencePosition(60 + 40, 15, 10)).toBe(5)
+      // Line 0, position 5 = absolute position 5 (y=35 is within first line with tooltipMargin)
+      expect(graphics.pixelToSequencePosition(60 + 40, 35, 10)).toBe(5)
 
-      // Line 1, position 10 = absolute position 60 (50 + 10)
-      expect(graphics.pixelToSequencePosition(60 + 80, 35, 10)).toBe(60)
+      // Line 1, position 10 = absolute position 60 (50 + 10) (y=55 is within second line)
+      expect(graphics.pixelToSequencePosition(60 + 80, 55, 10)).toBe(60)
     })
   })
 
