@@ -245,10 +245,7 @@ describe('AnnotationLayer', () => {
       expect(path.attributes('d')).toContain('140')
     })
 
-    // TODO: Overlapping annotations should stack vertically
-    // Currently annotations that overlap just render on top of each other
-    // This test documents the expected behavior once stacking is implemented
-    it.skip('stacks overlapping annotations vertically', () => {
+    it('stacks overlapping annotations vertically', () => {
       const annotations = [
         new Annotation({ id: 'ann1', span: '10..50', type: 'gene' }),
         new Annotation({ id: 'ann2', span: '20..60', type: 'promoter' }) // overlaps with ann1
@@ -259,8 +256,12 @@ describe('AnnotationLayer', () => {
       expect(fragments).toHaveLength(2)
 
       // The two fragments should have different Y offsets due to collision detection
-      // This requires useAnnotations layoutLine() to be integrated
-      // For now, they will render at the same Y position (both at y=0 in the group)
+      // Extract transform attributes to check deltaY values
+      const transforms = fragments.map(f => f.attributes('transform'))
+
+      // Both should have translate transforms with deltaY
+      // One should be at deltaY=0, the other pushed up (negative deltaY)
+      expect(transforms[0]).not.toBe(transforms[1])
     })
   })
 

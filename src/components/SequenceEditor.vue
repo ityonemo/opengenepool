@@ -277,17 +277,17 @@ function handleMouseDown(event, lineIndex) {
   // Get the SelectionLayer's selection composable
   const selection = selectionLayerRef.value?.selection
 
-  // Control-click extends single-range selection to position
-  if (event.ctrlKey && selection?.isSelected.value) {
+  // Shift-click extends existing selection to position
+  if (event.shiftKey && selection?.isSelected.value) {
     selection.extendToPosition(pos)
     return  // Don't start a new drag
-  } else if (event.shiftKey && selection?.isSelected.value) {
-    // Shift-click extends selection from current anchor
+  } else if (event.ctrlKey && selection?.isSelected.value) {
+    // Ctrl-click adds new range from current anchor
     selection.updateSelection(pos)
   } else {
     // Start new selection
     if (selection) {
-      selection.startSelection(pos, event.shiftKey)
+      selection.startSelection(pos, event.ctrlKey)
     }
   }
 
@@ -375,13 +375,13 @@ function handleAnnotationClick(data) {
   // Create a selection from the annotation's span
   const selection = selectionLayerRef.value?.selection
   if (selection && annotation.span) {
-    if (event?.ctrlKey) {
-      // Control-click extends single-range selection to include annotation bounds
+    if (event?.shiftKey) {
+      // Shift-click extends existing selection to include annotation bounds
       const bounds = annotation.span.bounds
       selection.extendToPosition(bounds.start)
       selection.extendToPosition(bounds.end)
-    } else if (event?.shiftKey) {
-      // Shift-click adds/merges annotation to existing selection
+    } else if (event?.ctrlKey) {
+      // Ctrl-click adds/merges annotation to existing selection
       const newDomain = new SelectionDomain(annotation.span)
       selection.extendSelection(newDomain)
     } else {

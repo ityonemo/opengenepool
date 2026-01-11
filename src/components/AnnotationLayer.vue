@@ -202,6 +202,7 @@ function getArrowPath(fragment) {
 
 // Event handlers
 function handleClick(event, fragment) {
+  event.stopPropagation()  // Prevent bubbling to SVG mousedown
   emit('click', { event, annotation: fragment.annotation, fragment })
 }
 

@@ -16,9 +16,11 @@ export class SelectionDomain {
     if (!spec) {
       this.ranges = []
     } else if (Array.isArray(spec)) {
-      this.ranges = [...spec]
+      // Deep copy ranges to avoid mutating originals
+      this.ranges = spec.map(r => new Range(r.start, r.end, r.orientation))
     } else if (spec instanceof Span) {
-      this.ranges = [...spec.ranges]
+      // Deep copy ranges to avoid mutating originals
+      this.ranges = spec.ranges.map(r => new Range(r.start, r.end, r.orientation))
     } else if (typeof spec === 'string') {
       // Selections use 0-based coordinates by default
       const span = Span.parse(spec, { genbank })
@@ -425,28 +427,71 @@ export function useSelection(editorState, graphics, eventBus) {
   }
 
   /**
-   * Extend the single existing range to include a new position.
+   * Extend an existing range to include a new position.
    * Preserves the original orientation (doesn't flip based on direction).
-   * Only works when exactly one range is selected.
+   *
+   * For single range: extends start or end to include position.
+   * For multiple ranges:
+   *   - If pos is before all ranges: extend leftmost range's start
+   *   - If pos is after all ranges: extend rightmost range's end
+   *   - If pos is between two ranges: merge those two ranges
+   *
    * @param {number} pos - Position to extend to
    * @returns {boolean} - True if operation was valid, false if preconditions not met
    */
   function extendToPosition(pos) {
-    // Only works with exactly one range
-    if (!isSelected.value || !domain.value || domain.value.ranges.length !== 1) {
+    if (!isSelected.value || !domain.value || domain.value.ranges.length === 0) {
       return false
     }
 
-    const range = domain.value.ranges[0]
+    const ranges = domain.value.ranges
 
-    if (pos < range.start) {
-      // Extending backwards - update start, keep original orientation
-      range.start = pos
-    } else if (pos > range.end) {
-      // Extending forwards - update end, keep original orientation
-      range.end = pos
+    // Sort ranges by start position to find leftmost/rightmost
+    const sortedIndices = ranges
+      .map((r, i) => ({ start: r.start, end: r.end, index: i }))
+      .sort((a, b) => a.start - b.start)
+
+    const leftmost = sortedIndices[0]
+    const rightmost = sortedIndices[sortedIndices.length - 1]
+
+    // Check if pos is within any existing range
+    for (const range of ranges) {
+      if (pos >= range.start && pos <= range.end) {
+        return true  // Already within a range, do nothing
+      }
     }
-    // If pos is within range, do nothing (but still return true)
+
+    // Case 1: pos is before all ranges - extend leftmost
+    if (pos < leftmost.start) {
+      ranges[leftmost.index].start = pos
+      return true
+    }
+
+    // Case 2: pos is after all ranges - extend rightmost
+    if (pos > rightmost.end) {
+      ranges[rightmost.index].end = pos
+      return true
+    }
+
+    // Case 3: pos is between two ranges - find which pair and merge them
+    for (let i = 0; i < sortedIndices.length - 1; i++) {
+      const current = sortedIndices[i]
+      const next = sortedIndices[i + 1]
+
+      if (pos > current.end && pos < next.start) {
+        // pos is between current and next - merge them
+        const currentRange = ranges[current.index]
+        const nextRange = ranges[next.index]
+
+        // Expand current range to include next range
+        currentRange.end = nextRange.end
+
+        // Remove the next range
+        ranges.splice(next.index, 1)
+
+        return true
+      }
+    }
 
     return true
   }

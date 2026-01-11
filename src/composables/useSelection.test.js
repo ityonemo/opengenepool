@@ -486,17 +486,77 @@ describe('useSelection', () => {
       expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.MINUS)
     })
 
-    it('does nothing if multiple ranges exist', () => {
+    it('extends leftmost range when clicking before all ranges', () => {
+      const sel = createSelection()
+      sel.select('30..50 + 70..90')
+
+      const result = sel.extendToPosition(10)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(2)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(50)
+      expect(sel.domain.value.ranges[1].start).toBe(70)
+      expect(sel.domain.value.ranges[1].end).toBe(90)
+    })
+
+    it('extends rightmost range when clicking after all ranges', () => {
       const sel = createSelection()
       sel.select('10..30 + 50..70')
 
       const result = sel.extendToPosition(100)
 
-      expect(result).toBe(false)
+      expect(result).toBe(true)
       expect(sel.domain.value.ranges.length).toBe(2)
-      // Ranges unchanged
+      expect(sel.domain.value.ranges[0].start).toBe(10)
       expect(sel.domain.value.ranges[0].end).toBe(30)
-      expect(sel.domain.value.ranges[1].end).toBe(70)
+      expect(sel.domain.value.ranges[1].start).toBe(50)
+      expect(sel.domain.value.ranges[1].end).toBe(100)
+    })
+
+    it('merges two ranges when clicking between them', () => {
+      const sel = createSelection()
+      sel.select('10..30 + 50..70')
+
+      const result = sel.extendToPosition(40)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+    })
+
+    it('merges correct pair when clicking between middle ranges', () => {
+      const sel = createSelection()
+      sel.select('10..20 + 40..50 + 70..80')
+
+      const result = sel.extendToPosition(55)
+
+      // Click at 55 is between range[1] (40..50) and range[2] (70..80)
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges.length).toBe(2)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(20)
+      expect(sel.domain.value.ranges[1].start).toBe(40)
+      expect(sel.domain.value.ranges[1].end).toBe(80)
+    })
+
+    it('preserves orientation when extending leftmost range', () => {
+      const sel = createSelection()
+      sel.select('(30..50) + 70..90')  // First range is minus strand
+
+      sel.extendToPosition(10)
+
+      expect(sel.domain.value.ranges[0].orientation).toBe(Orientation.MINUS)
+    })
+
+    it('preserves orientation when extending rightmost range', () => {
+      const sel = createSelection()
+      sel.select('10..30 + (50..70)')  // Second range is minus strand
+
+      sel.extendToPosition(100)
+
+      expect(sel.domain.value.ranges[1].orientation).toBe(Orientation.MINUS)
     })
 
     it('does nothing if no selection exists', () => {
