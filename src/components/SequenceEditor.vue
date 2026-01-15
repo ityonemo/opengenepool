@@ -10,6 +10,7 @@ import { reverseComplement } from '../utils/dna.js'
 import AnnotationLayer from './AnnotationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
+import InsertModal from './InsertModal.vue'
 
 const props = defineProps({
   /** DNA sequence string to display */
@@ -59,8 +60,23 @@ const emit = defineEmits([
   'annotation-hover'
 ])
 
-// Valid DNA bases for input
-const DNA_BASES = new Set(['A', 'T', 'C', 'G', 'a', 't', 'c', 'g', 'N', 'n'])
+// Valid DNA bases for input (IUPAC codes)
+// A, T, C, G - standard bases
+// N - any base
+// R - purine (A/G), Y - pyrimidine (C/T)
+// S - strong (G/C), W - weak (A/T)
+// K - keto (G/T), M - amino (A/C)
+// B - not A (C/G/T), D - not C (A/G/T), H - not G (A/C/T), V - not T (A/C/G)
+const DNA_BASES = new Set([
+  'A', 'T', 'C', 'G', 'N', 'R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V',
+  'a', 't', 'c', 'g', 'n', 'r', 'y', 's', 'w', 'k', 'm', 'b', 'd', 'h', 'v'
+])
+
+// Insert/replace modal state
+const insertModalVisible = ref(false)
+const insertModalText = ref('')
+const insertModalIsReplace = ref(false)
+const insertModalPosition = ref(0)
 
 // Initialize composables
 const editorState = useEditorState()
@@ -310,6 +326,23 @@ function buildContextMenuItems(context) {
 
   // Selection actions
   if (isSelected && domain && domain.ranges.length > 0) {
+    const firstRange = domain.ranges[0]
+    const isZeroLength = firstRange.start === firstRange.end
+
+    // Insert sequence option for zero-length selections (cursor position)
+    if (isZeroLength && !props.readonly) {
+      items.push({
+        label: 'Insert sequence...',
+        action: () => {
+          insertModalIsReplace.value = false
+          insertModalPosition.value = firstRange.start
+          insertModalText.value = ''
+          insertModalVisible.value = true
+        }
+      })
+      items.push({ separator: true })
+    }
+
     items.push({
       label: 'Copy selection',
       action: () => {
@@ -519,6 +552,21 @@ function handleSelectionContextMenu(data) {
   contextMenuVisible.value = true
 }
 
+function handleAnnotationContextMenu(data) {
+  // Show the same context menu as selection
+  const items = buildContextMenuItems({
+    source: 'annotation',
+    annotation: data.annotation
+  })
+  contextMenuItems.value = items
+  contextMenuX.value = data.event.clientX
+  contextMenuY.value = data.event.clientY
+  contextMenuVisible.value = true
+
+  // Also emit for parent components
+  emit('annotation-contextmenu', data)
+}
+
 // Annotation click handler - select the annotation's span with its orientation
 function handleAnnotationClick(data) {
   const { annotation, event } = data
@@ -632,6 +680,50 @@ function handleCut() {
   }
 }
 
+// Insert/Replace modal functions
+function showInsertModal(initialChar) {
+  // Get selection from the SelectionLayer
+  const sel = selectionLayerRef.value?.selection
+  const domain = sel?.domain?.value
+  const range = domain?.ranges?.[0]
+
+  // Check if there's a selection (range) or just a cursor position (zero-width)
+  insertModalIsReplace.value = range && range.start !== range.end
+  insertModalPosition.value = range?.start ?? 0
+  insertModalText.value = initialChar
+  insertModalVisible.value = true
+}
+
+function handleInsertSubmit(text) {
+  insertModalVisible.value = false
+  if (text) {
+    if (insertModalIsReplace.value) {
+      // Replace selection with new text
+      editorState.deleteSelection()
+    }
+    // Insert the text
+    for (const char of text) {
+      editorState.insertAtCursor(char)
+    }
+    emit('edit', {
+      type: insertModalIsReplace.value ? 'replace' : 'insert',
+      text: text
+    })
+  }
+  // Return focus to editor
+  svgRef.value?.focus()
+}
+
+function handleInsertCancel() {
+  insertModalVisible.value = false
+  // Return focus to editor
+  svgRef.value?.focus()
+}
+
+function focusSvg() {
+  svgRef.value?.focus()
+}
+
 // Keyboard handling
 function handleKeyDown(event) {
   const key = event.key
@@ -656,11 +748,10 @@ function handleKeyDown(event) {
     }
   }
 
-  // DNA base input (disabled in readonly mode)
+  // DNA base input - show modal (disabled in readonly mode)
   if (DNA_BASES.has(key) && !props.readonly) {
     event.preventDefault()
-    editorState.insertAtCursor(key.toUpperCase())
-    emit('edit', { type: 'insert', text: key.toUpperCase() })
+    showInsertModal(key.toUpperCase())
     return
   }
 
@@ -902,6 +993,7 @@ defineExpose({
         :height="svgHeight"
         tabindex="0"
         @keydown="handleKeyDown"
+        @click="focusSvg"
         @selectstart.prevent
         @dragstart.prevent
         @contextmenu.prevent
@@ -1016,19 +1108,10 @@ defineExpose({
           :show-captions="showAnnotationCaptions"
           :offset-y="graphics.lineHeight.value"
           @click="handleAnnotationClick"
-          @contextmenu="emit('annotation-contextmenu', $event)"
+          @contextmenu="handleAnnotationContextMenu"
           @hover="emit('annotation-hover', $event)"
         />
 
-        <!-- Cursor -->
-        <line
-          v-if="editorState.sequenceLength.value > 0"
-          class="cursor"
-          :x1="cursorX"
-          :y1="cursorY + 2"
-          :x2="cursorX"
-          :y2="cursorY + graphics.lineHeight.value - 2"
-        />
       </svg>
     </div>
 
@@ -1039,6 +1122,16 @@ defineExpose({
       :y="contextMenuY"
       :items="contextMenuItems"
       @close="hideContextMenu"
+    />
+
+    <!-- Insert/Replace Modal -->
+    <InsertModal
+      :visible="insertModalVisible"
+      :initial-text="insertModalText"
+      :is-replace="insertModalIsReplace"
+      :position="insertModalPosition"
+      @submit="handleInsertSubmit"
+      @cancel="handleInsertCancel"
     />
 
     <!-- Metadata Modal -->
