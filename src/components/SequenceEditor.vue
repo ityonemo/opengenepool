@@ -71,6 +71,10 @@ const emit = defineEmits([
 // since we've already applied those changes locally
 const pendingEdits = ref(new Map())
 
+// Effective backend - returns null when readonly to prevent any edits
+// This is a safety measure in addition to UI disabling
+const effectiveBackend = computed(() => props.readonly ? null : props.backend)
+
 // Valid DNA bases for input (IUPAC codes)
 // A, T, C, G - standard bases
 // N - any base
@@ -761,8 +765,8 @@ function deleteSelectedRange() {
     })
 
     // 4. Send to backend if connected
-    if (props.backend?.delete) {
-      props.backend.delete({ id: editId, start: range.start, end: range.end })
+    if (effectiveBackend.value?.delete) {
+      effectiveBackend.value.delete({ id: editId, start: range.start, end: range.end })
     }
   }
 
@@ -918,8 +922,8 @@ function handleInsertSubmit(text) {
   })
 
   // 3. Send to backend if connected
-  if (props.backend?.insert) {
-    props.backend.insert({ id: editId, position: insertionSite, text })
+  if (effectiveBackend.value?.insert) {
+    effectiveBackend.value.insert({ id: editId, position: insertionSite, text })
   }
 
   // 4. Emit for standalone mode / parent components
@@ -1102,15 +1106,15 @@ onMounted(() => {
   let cleanupAck = null
   let cleanupError = null
 
-  if (props.backend) {
-    if (props.backend.onAck) {
-      cleanupAck = props.backend.onAck((id) => {
+  if (effectiveBackend.value) {
+    if (effectiveBackend.value.onAck) {
+      cleanupAck = effectiveBackend.value.onAck((id) => {
         pendingEdits.value.delete(id)
       })
     }
 
-    if (props.backend.onError) {
-      cleanupError = props.backend.onError((id, error) => {
+    if (effectiveBackend.value.onError) {
+      cleanupError = effectiveBackend.value.onError((id, error) => {
         console.error('Edit failed:', id, error)
         pendingEdits.value.delete(id)
         // Future: implement rollback of the failed edit
