@@ -22,10 +22,6 @@
  *   0..N   → full sequence (length N)
  *   N..N   → cursor at end (length 0, no bases selected)
  *   (0..N) → full sequence, minus strand (reverse complement)
- *
- * IMPORTANT: This module does NOT handle GenBank (1-based) coordinate
- * conversion. Callers are responsible for converting GenBank coordinates
- * to fenced coordinates before using this API.
  */
 
 /**

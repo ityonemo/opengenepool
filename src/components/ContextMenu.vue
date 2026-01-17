@@ -60,7 +60,7 @@ const menuStyle = computed(() => ({
 <template>
   <div v-if="visible">
     <!-- Invisible backdrop to catch clicks outside -->
-    <div class="context-menu-backdrop" @click="handleBackdropClick"></div>
+    <div class="context-menu-backdrop" @click="handleBackdropClick" @contextmenu.prevent="handleBackdropClick"></div>
 
     <!-- The actual menu -->
     <div
@@ -68,6 +68,7 @@ const menuStyle = computed(() => ({
       :style="menuStyle"
       tabindex="0"
       @keydown="handleKeyDown"
+      @contextmenu.prevent
     >
       <!-- Empty state -->
       <div v-if="items.length === 0" class="menu-empty">

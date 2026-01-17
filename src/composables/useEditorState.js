@@ -8,6 +8,9 @@ import { ref, computed, shallowRef } from 'vue'
  * 1. Created (no sequence)
  * 2. Sequence loaded (has data)
  * 3. Ready (can render)
+ *
+ * Note: Selection is NOT managed here. Selection is managed by useSelection
+ * composable and owned by SequenceEditor, which provides it to children.
  */
 export function useEditorState() {
   // Core data - shallowRef for large sequences to avoid deep reactivity
@@ -25,9 +28,6 @@ export function useEditorState() {
     linetopmargin: 4, // margin above each line (for selection handles)
     contentpadding: 2 // padding between overlapping elements
   })
-
-  // Selection state
-  const selection = ref(null)  // { start, end } or null
 
   // Cursor state (position in sequence where edits occur)
   const cursor = ref(0)
@@ -53,7 +53,7 @@ export function useEditorState() {
         start,
         end,
         text: seq.slice(start, end),
-        position: start + 1  // 1-based position for display
+        position: start  // 0-based position for display
       })
     }
     return result
@@ -63,8 +63,6 @@ export function useEditorState() {
   function setSequence(seq, newTitle = '') {
     sequence.value = seq
     title.value = newTitle
-    // Reset selection when sequence changes
-    selection.value = null
     // Clamp cursor to new sequence length
     cursor.value = Math.min(cursor.value, seq.length)
   }
@@ -74,27 +72,6 @@ export function useEditorState() {
     const min = 50
     const max = Math.max(sequence.value.length, 50)
     zoomLevel.value = Math.max(min, Math.min(level, max))
-  }
-
-  function setSelection(start, end) {
-    if (start === null || end === null) {
-      selection.value = null
-    } else {
-      // Normalize so start <= end
-      selection.value = {
-        start: Math.min(start, end),
-        end: Math.max(start, end)
-      }
-    }
-  }
-
-  function clearSelection() {
-    selection.value = null
-  }
-
-  function getSelectedSequence() {
-    if (!selection.value) return ''
-    return sequence.value.slice(selection.value.start, selection.value.end)
   }
 
   // Position helpers
@@ -147,42 +124,14 @@ export function useEditorState() {
     return deleted
   }
 
-  function deleteSelection() {
-    if (!selection.value) return ''
-    const { start, end } = selection.value
-    const deleted = deleteRange(start, end)
-    cursor.value = start
-    selection.value = null
-    return deleted
-  }
-
-  function replaceSelection(text) {
-    if (selection.value) {
-      const { start, end } = selection.value
-      replaceRange(start, end, text)
-      selection.value = null
-    } else {
-      insertAt(cursor.value, text)
-    }
-  }
-
-  function insertAtCursor(text) {
-    replaceSelection(text)
-  }
-
   function backspace() {
-    if (selection.value) {
-      deleteSelection()
-    } else if (cursor.value > 0) {
+    if (cursor.value > 0) {
       deleteRange(cursor.value - 1, cursor.value)
     }
   }
 
-  // Named 'delete' but exported as 'delete' - handles forward delete
   function deleteForward() {
-    if (selection.value) {
-      deleteSelection()
-    } else if (cursor.value < sequence.value.length) {
+    if (cursor.value < sequence.value.length) {
       deleteRange(cursor.value, cursor.value + 1)
     }
   }
@@ -194,7 +143,6 @@ export function useEditorState() {
     annotations,
     zoomLevel,
     settings,
-    selection,
     cursor,
 
     // Computed
@@ -205,9 +153,6 @@ export function useEditorState() {
     // Actions
     setSequence,
     setZoom,
-    setSelection,
-    clearSelection,
-    getSelectedSequence,
 
     // Cursor
     setCursor,
@@ -216,9 +161,6 @@ export function useEditorState() {
     insertAt,
     deleteRange,
     replaceRange,
-    deleteSelection,
-    replaceSelection,
-    insertAtCursor,
     backspace,
     delete: deleteForward,
 

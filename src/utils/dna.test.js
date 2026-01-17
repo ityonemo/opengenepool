@@ -27,9 +27,6 @@ import {
  *   6..6   → cursor at end (length 0)
  *   2..4   → bases at positions 2 and 3 (length 2)
  *   (0..6) → full sequence, minus strand
- *
- * GenBank (1-based) conversion is handled by the LiveView interface,
- * NOT by this module. All coordinates here are fenced/0-based.
  */
 
 describe('reverseComplement', () => {

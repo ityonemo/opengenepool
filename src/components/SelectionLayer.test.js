@@ -4,12 +4,14 @@ import { ref, computed } from 'vue'
 import SelectionLayer from './SelectionLayer.vue'
 import { useEditorState } from '../composables/useEditorState.js'
 import { useGraphics } from '../composables/useGraphics.js'
+import { useSelection } from '../composables/useSelection.js'
 import { createEventBus } from '../composables/useEventBus.js'
 
 describe('SelectionLayer', () => {
   let editorState
   let graphics
   let eventBus
+  let selection
 
   function createWrapper() {
     editorState = useEditorState()
@@ -18,13 +20,16 @@ describe('SelectionLayer', () => {
     graphics = useGraphics(editorState)
     graphics.setContainerSize(800, 600)
     eventBus = createEventBus()
+    // Create selection composable - this is now provided from parent
+    selection = useSelection(editorState, graphics, eventBus)
 
     return mount(SelectionLayer, {
       global: {
         provide: {
           editorState,
           graphics,
-          eventBus
+          eventBus,
+          selection  // Provide selection to the component
         }
       }
     })

@@ -4,9 +4,9 @@ import { useEditorState } from '../composables/useEditorState.js'
 import { useGraphics } from '../composables/useGraphics.js'
 import { createEventBus } from '../composables/useEventBus.js'
 import { usePersistedZoom } from '../composables/usePersistedZoom.js'
-import { SelectionDomain } from '../composables/useSelection.js'
+import { useSelection, SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
-import { reverseComplement } from '../utils/dna.js'
+import { reverseComplement, Span, Range } from '../utils/dna.js'
 import AnnotationLayer from './AnnotationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
@@ -47,6 +47,11 @@ const props = defineProps({
   metadata: {
     type: Object,
     default: () => ({})
+  },
+  /** Backend adapter for server communication (LiveView, IndexedDB, etc.) */
+  backend: {
+    type: Object,
+    default: null
   }
 })
 
@@ -57,8 +62,14 @@ const emit = defineEmits([
   'edit',
   'annotation-click',
   'annotation-contextmenu',
-  'annotation-hover'
+  'annotation-hover',
+  'annotations-update'
 ])
+
+// Track pending edits for optimistic UI synchronization
+// When we have pending edits, we ignore prop updates from the server
+// since we've already applied those changes locally
+const pendingEdits = ref(new Map())
 
 // Valid DNA bases for input (IUPAC codes)
 // A, T, C, G - standard bases
@@ -77,11 +88,15 @@ const insertModalVisible = ref(false)
 const insertModalText = ref('')
 const insertModalIsReplace = ref(false)
 const insertModalPosition = ref(0)
+const insertModalSelectionEnd = ref(0)  // End of selection for replace mode
 
 // Initialize composables
 const editorState = useEditorState()
 const graphics = useGraphics(editorState)
 const eventBus = createEventBus()
+
+// Selection is owned here and provided to children (single source of truth)
+const selection = useSelection(editorState, graphics, eventBus)
 
 // Set initial zoom from localStorage (fallback to prop)
 const { getInitialZoom, saveZoom } = usePersistedZoom(props.initialZoom)
@@ -93,7 +108,15 @@ watch(editorState.zoomLevel, (newZoom) => {
 })
 
 // Watch for sequence prop changes to initialize/update the editor
+// When we have pending edits (optimistic UI), ignore prop updates since we've
+// already applied those changes locally
 watch(() => props.sequence, (newSeq) => {
+  // Skip prop updates while we have pending edits
+  // This prevents the server's confirmation from re-applying changes we already made
+  if (pendingEdits.value.size > 0) {
+    return
+  }
+
   if (newSeq) {
     editorState.setSequence(newSeq, props.title)
     // Re-apply persisted zoom now that sequence is loaded (setZoom clamps based on length)
@@ -107,6 +130,19 @@ watch(() => props.title, (newTitle) => {
     editorState.title.value = newTitle
   }
 })
+
+// Local copy of annotations for optimistic UI updates
+// This allows us to adjust annotation positions locally before server confirmation
+const localAnnotations = ref([...props.annotations])
+
+// Watch for annotation prop changes (from server)
+// Skip updates while we have pending edits since we've already adjusted locally
+watch(() => props.annotations, (newAnnotations) => {
+  if (pendingEdits.value.size > 0) {
+    return
+  }
+  localAnnotations.value = [...newAnnotations]
+}, { deep: true })
 
 // Annotation filtering state with localStorage persistence
 const HIDDEN_TYPES_KEY = 'opengenepool-hidden-annotation-types'
@@ -185,13 +221,13 @@ watch(hiddenTypes, (newValue) => {
 
 // Extract unique types from annotations for the filter UI
 const annotationTypes = computed(() => {
-  const types = new Set(props.annotations.map(a => a.type || 'misc_feature'))
+  const types = new Set(localAnnotations.value.map(a => a.type || 'misc_feature'))
   return [...types].sort()
 })
 
 // Convert plain annotation objects to Annotation class instances, filtering hidden types
 const annotationInstances = computed(() => {
-  return props.annotations
+  return localAnnotations.value
     .filter(ann => !hiddenTypes.value.has(ann.type || 'misc_feature'))
     .map(ann => {
       // If already an Annotation instance, return as-is
@@ -244,6 +280,7 @@ function isTypeHidden(type) {
 provide('editorState', editorState)
 provide('graphics', graphics)
 provide('eventBus', eventBus)
+provide('selection', selection)  // Single source of truth for selection
 provide('annotationColors', annotationColors)  // Colors persisted to localStorage
 
 // Template refs
@@ -320,9 +357,8 @@ const contextMenuItems = ref([])
 // Build context menu items based on current context
 function buildContextMenuItems(context) {
   const items = []
-  const selection = selectionLayerRef.value?.selection
-  const isSelected = selection?.isSelected.value
-  const domain = selection?.domain.value
+  const isSelected = selection.isSelected.value
+  const domain = selection.domain.value
 
   // Selection actions
   if (isSelected && domain && domain.ranges.length > 0) {
@@ -343,6 +379,30 @@ function buildContextMenuItems(context) {
       items.push({ separator: true })
     }
 
+    // Replace sequence option for single non-zero-length selections only
+    if (!isZeroLength && !props.readonly && domain.ranges.length === 1) {
+      items.push({
+        label: 'Replace sequence with...',
+        action: () => {
+          insertModalIsReplace.value = true
+          insertModalPosition.value = firstRange.start
+          insertModalSelectionEnd.value = firstRange.end
+          insertModalText.value = ''
+          insertModalVisible.value = true
+        }
+      })
+    }
+
+    // Delete sequence option for non-zero-length selections
+    if (!isZeroLength && !props.readonly) {
+      items.push({
+        label: 'Delete sequence',
+        action: () => {
+          handleDelete()
+        }
+      })
+    }
+
     items.push({
       label: 'Copy selection',
       action: () => {
@@ -353,7 +413,6 @@ function buildContextMenuItems(context) {
       label: 'Select none',
       action: () => {
         selection.unselect()
-        editorState.clearSelection()
       }
     })
     items.push({ separator: true })
@@ -413,10 +472,7 @@ function buildContextMenuItems(context) {
   items.push({
     label: 'Select all',
     action: () => {
-      if (selection) {
-        selection.select(`0..${editorState.sequenceLength.value}`)
-      }
-      editorState.setSelection(0, editorState.sequenceLength.value)
+      selection.selectAll()
     }
   })
 
@@ -439,10 +495,7 @@ function hideContextMenu() {
 // Handle clicks on SVG background (null space) - clears selection
 function handleBackgroundClick(event) {
   if (event.button !== 0) return // Left click only
-  const selection = selectionLayerRef.value?.selection
-  if (selection) {
-    selection.unselect()
-  }
+  selection.unselect()
 }
 
 function handleMouseDown(event, lineIndex) {
@@ -458,37 +511,14 @@ function handleMouseDown(event, lineIndex) {
   isDragging.value = true
   dragStart.value = pos
 
-  // Get the SelectionLayer's selection composable
-  const selection = selectionLayerRef.value?.selection
-
   // Shift-click extends existing selection to position
-  if (event.shiftKey && selection?.isSelected.value) {
+  if (event.shiftKey && selection.isSelected.value) {
     selection.extendToPosition(pos)
     return  // Don't start a new drag
-  } else if (event.ctrlKey && selection?.isSelected.value) {
-    // Ctrl-click adds new range from current anchor
-    selection.updateSelection(pos)
-  } else {
-    // Start new selection
-    if (selection) {
-      selection.startSelection(pos, event.ctrlKey)
-    }
   }
 
-  // Also update editorState for backward compatibility
-  if (event.shiftKey && editorState.selection.value) {
-    editorState.setSelection(editorState.selection.value.start, pos)
-  } else {
-    editorState.setSelection(pos, pos)
-  }
-
-  // Broadcast startselect event (for plugin communication)
-  eventBus.emit('startselect', {
-    line: lineIndex,
-    linepos: editorState.positionInLine(pos),
-    pos: pos,
-    mode: event.shiftKey  // true = extend selection
-  })
+  // Start a new selection (or add range with Ctrl)
+  selection.startSelection(pos, event.ctrlKey)
 
   window.addEventListener('mousemove', handleMouseMove)
   window.addEventListener('mouseup', handleMouseUp)
@@ -507,14 +537,7 @@ function handleMouseMove(event) {
 
   const pos = getPositionFromEvent(event, lineIndex)
   if (pos !== null) {
-    // Update SelectionLayer's selection
-    const selection = selectionLayerRef.value?.selection
-    if (selection) {
-      selection.updateSelection(pos)
-    }
-
-    // Also update editorState for backward compatibility
-    editorState.setSelection(dragStart.value, pos)
+    selection.updateSelection(pos)
   }
 }
 
@@ -523,14 +546,16 @@ function handleMouseUp() {
   window.removeEventListener('mousemove', handleMouseMove)
   window.removeEventListener('mouseup', handleMouseUp)
 
-  const sel = editorState.selection.value
-  if (sel && sel.start !== sel.end) {
-    emit('select', { ...sel, sequence: editorState.getSelectedSequence() })
-  }
+  selection.endSelection()
 
-  // Also notify the SelectionLayer to end its drag
-  if (selectionLayerRef.value?.selection) {
-    selectionLayerRef.value.selection.endSelection()
+  // Emit select event if there's a non-zero selection
+  const domain = selection.domain.value
+  if (domain && domain.ranges.length > 0) {
+    const range = domain.ranges[0]
+    if (range.start !== range.end) {
+      const seq = editorState.sequence.value.slice(range.start, range.end)
+      emit('select', { start: range.start, end: range.end, sequence: seq })
+    }
   }
 }
 
@@ -550,6 +575,32 @@ function handleSelectionContextMenu(data) {
   contextMenuX.value = data.event.clientX
   contextMenuY.value = data.event.clientY
   contextMenuVisible.value = true
+}
+
+function handleSelectionMouseDown(data) {
+  // Ctrl+click on selection path - add a new range
+  const { event } = data
+  if (!event.ctrlKey) return
+
+  // Get position from the event
+  const svgRect = svgRef.value.getBoundingClientRect()
+  const y = event.clientY - svgRect.top
+  const x = event.clientX - svgRect.left
+  const lineIndex = graphics.pixelToLineIndex(y, editorState.lineCount.value)
+  const linePos = graphics.pixelToLinePosition(x)
+  const pos = editorState.lineToPosition(lineIndex, linePos)
+
+  if (pos === null) return
+
+  // Start a new range (extend=true to add to existing selection)
+  selection.startSelection(pos, true)
+
+  // Set up drag handling
+  isDragging.value = true
+  dragStart.value = pos
+
+  window.addEventListener('mousemove', handleMouseMove)
+  window.addEventListener('mouseup', handleMouseUp)
 }
 
 function handleAnnotationContextMenu(data) {
@@ -572,8 +623,7 @@ function handleAnnotationClick(data) {
   const { annotation, event } = data
 
   // Create a selection from the annotation's span
-  const selection = selectionLayerRef.value?.selection
-  if (selection && annotation.span) {
+  if (annotation.span) {
     if (event?.shiftKey) {
       // Shift-click extends existing selection to include annotation bounds
       const bounds = annotation.span.bounds
@@ -614,7 +664,7 @@ function handleContextMenu(event, lineIndex) {
     event,
     position: pos,
     line: lineIndex,
-    selection: editorState.selection.value
+    selection: selection.domain.value?.ranges[0] ?? null
   })
 }
 
@@ -643,9 +693,7 @@ function clearNativeSelection() {
 
 // Copy/Cut handlers
 function getSelectedSequenceText() {
-  // Get selection from SelectionLayer's domain
-  const selection = selectionLayerRef.value?.selection
-  const domain = selection?.domain?.value
+  const domain = selection.domain.value
 
   if (domain && domain.ranges && domain.ranges.length > 0) {
     const seq = editorState.sequence.value
@@ -660,8 +708,7 @@ function getSelectedSequenceText() {
     }).join('')
   }
 
-  // Fall back to editorState's simple selection
-  return editorState.getSelectedSequence()
+  return ''
 }
 
 function handleCopy() {
@@ -673,44 +720,240 @@ function handleCopy() {
 
 function handleCut() {
   const selectedSeq = getSelectedSequenceText()
-  if (selectedSeq) {
+  if (selectedSeq && selection.isSelected.value) {
     navigator.clipboard.writeText(selectedSeq)
-    editorState.deleteSelection()
+    deleteSelectedRange()
     emit('edit', { type: 'cut', text: selectedSeq })
+  }
+}
+
+/**
+ * Delete the currently selected ranges (if non-zero).
+ * Sends delete operations to backend for each range and clears selection.
+ * Ranges are deleted from highest position first to avoid shifting issues.
+ */
+function deleteSelectedRange() {
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return false
+
+  // Filter to non-zero ranges and sort by start position descending
+  // (delete from end first to avoid position shifting)
+  const rangesToDelete = domain.ranges
+    .filter(r => r.start !== r.end)
+    .sort((a, b) => b.start - a.start)
+
+  if (rangesToDelete.length === 0) return false
+
+  for (const range of rangesToDelete) {
+    const editId = crypto.randomUUID()
+
+    // 1. Apply locally (optimistic UI)
+    editorState.deleteRange(range.start, range.end)
+
+    // 2. Adjust annotations (delete is a replace with 0-length text)
+    adjustAnnotationsForReplace(range.start, range.end, 0)
+
+    // 3. Track as pending edit
+    pendingEdits.value.set(editId, {
+      type: 'delete',
+      start: range.start,
+      end: range.end
+    })
+
+    // 4. Send to backend if connected
+    if (props.backend?.delete) {
+      props.backend.delete({ id: editId, start: range.start, end: range.end })
+    }
+  }
+
+  // 5. Clear selection
+  selection.unselect()
+
+  return true
+}
+
+function handleBackspace() {
+  if (deleteSelectedRange()) {
+    emit('edit', { type: 'backspace' })
+  }
+}
+
+function handleDelete() {
+  if (deleteSelectedRange()) {
+    emit('edit', { type: 'delete' })
   }
 }
 
 // Insert/Replace modal functions
 function showInsertModal(initialChar) {
-  // Get selection from the SelectionLayer
-  const sel = selectionLayerRef.value?.selection
-  const domain = sel?.domain?.value
+  const domain = selection.domain.value
   const range = domain?.ranges?.[0]
 
   // Check if there's a selection (range) or just a cursor position (zero-width)
   insertModalIsReplace.value = range && range.start !== range.end
   insertModalPosition.value = range?.start ?? 0
+  insertModalSelectionEnd.value = range?.end ?? 0
   insertModalText.value = initialChar
   insertModalVisible.value = true
 }
 
+/**
+ * Adjust annotations for a pure insertion at a position.
+ * Algorithm: if start > site, start += length; if end > site, end += length
+ */
+function adjustAnnotationsForInsert(insertionSite, insertionLength) {
+  if (localAnnotations.value.length === 0) return
+
+  const updatedAnnotations = localAnnotations.value.map(ann => {
+    const span = Span.parse(ann.span)
+    let modified = false
+
+    for (let i = 0; i < span.ranges.length; i++) {
+      const range = span.ranges[i]
+      let newStart = range.start
+      let newEnd = range.end
+
+      if (range.start > insertionSite) {
+        newStart += insertionLength
+      }
+      if (range.end > insertionSite) {
+        newEnd += insertionLength
+      }
+
+      if (newStart !== range.start || newEnd !== range.end) {
+        span.ranges[i] = new Range(newStart, newEnd, range.orientation)
+        modified = true
+      }
+    }
+
+    if (modified) {
+      return { ...ann, span: span.toString() }
+    }
+    return ann
+  })
+
+  // Update local state for optimistic UI
+  localAnnotations.value = updatedAnnotations
+  // Emit for parent components (standalone mode)
+  emit('annotations-update', updatedAnnotations)
+}
+
+/**
+ * Adjust annotations for a replacement (delete + insert).
+ */
+function adjustAnnotationsForReplace(selStart, selEnd, insertionLength) {
+  if (localAnnotations.value.length === 0) return
+
+  const deletionLength = selEnd - selStart
+  const netChange = insertionLength - deletionLength
+
+  const updatedAnnotations = localAnnotations.value.map(ann => {
+    const span = Span.parse(ann.span)
+    let modified = false
+
+    for (let i = 0; i < span.ranges.length; i++) {
+      const range = span.ranges[i]
+      let newStart = range.start
+      let newEnd = range.end
+
+      // Entirely before selection - no change
+      if (range.end <= selStart) {
+        // No change
+      }
+      // Entirely after selection - shift by net change
+      else if (range.start >= selEnd) {
+        newStart = range.start + netChange
+        newEnd = range.end + netChange
+      }
+      // Contains selection (annotation spans across replaced region)
+      else if (range.start <= selStart && range.end >= selEnd) {
+        newEnd = range.end + netChange
+      }
+      // Contained by selection (annotation is within replaced region)
+      else if (range.start >= selStart && range.end <= selEnd) {
+        newStart = selStart
+        newEnd = selStart
+      }
+      // Overlaps left (starts before, ends inside selection)
+      else if (range.start < selStart && range.end > selStart && range.end < selEnd) {
+        newEnd = selStart
+      }
+      // Overlaps right (starts inside selection, ends after)
+      else if (range.start > selStart && range.start < selEnd && range.end > selEnd) {
+        newStart = selStart + insertionLength
+        newEnd = range.end + netChange
+      }
+
+      if (newStart !== range.start || newEnd !== range.end) {
+        span.ranges[i] = new Range(newStart, newEnd, range.orientation)
+        modified = true
+      }
+    }
+
+    if (modified) {
+      return { ...ann, span: span.toString() }
+    }
+    return ann
+  })
+
+  // Update local state for optimistic UI
+  localAnnotations.value = updatedAnnotations
+  // Emit for parent components (standalone mode)
+  emit('annotations-update', updatedAnnotations)
+}
+
 function handleInsertSubmit(text) {
-  insertModalVisible.value = false
-  if (text) {
-    if (insertModalIsReplace.value) {
-      // Replace selection with new text
-      editorState.deleteSelection()
-    }
-    // Insert the text
-    for (const char of text) {
-      editorState.insertAtCursor(char)
-    }
-    emit('edit', {
-      type: insertModalIsReplace.value ? 'replace' : 'insert',
-      text: text
-    })
+  const insertionSite = insertModalPosition.value
+  const editId = crypto.randomUUID()
+
+  // 1. Apply locally (optimistic UI)
+  editorState.insertAt(insertionSite, text)
+  adjustAnnotationsForInsert(insertionSite, text.length)
+
+  // 2. Track as pending edit
+  pendingEdits.value.set(editId, {
+    type: 'insert',
+    position: insertionSite,
+    length: text.length
+  })
+
+  // 3. Send to backend if connected
+  if (props.backend?.insert) {
+    props.backend.insert({ id: editId, position: insertionSite, text })
   }
-  // Return focus to editor
+
+  // 4. Emit for standalone mode / parent components
+  emit('edit', { type: 'insert', position: insertionSite, text })
+}
+
+function handleReplaceSubmit(text) {
+  const selStart = insertModalPosition.value
+  const selEnd = insertModalSelectionEnd.value
+
+  // Delete the selected range and insert replacement text
+  editorState.replaceRange(selStart, selEnd, text)
+
+  adjustAnnotationsForReplace(selStart, selEnd, text.length)
+
+  // Update selection to cover the newly inserted text
+  selection.select(`${selStart}..${selStart + text.length}`)
+
+  emit('edit', { type: 'replace', text })
+}
+
+function handleModalSubmit(text) {
+  insertModalVisible.value = false
+  if (!text) {
+    svgRef.value?.focus()
+    return
+  }
+
+  if (insertModalIsReplace.value) {
+    handleReplaceSubmit(text)
+  } else {
+    handleInsertSubmit(text)
+  }
+
   svgRef.value?.focus()
 }
 
@@ -742,17 +985,20 @@ function handleKeyDown(event) {
         return
       case 'a':
         event.preventDefault()
-        const selection = selectionLayerRef.value?.selection
-        if (selection) selection.selectAll()
+        selection.selectAll()
         return
     }
   }
 
-  // DNA base input - show modal (disabled in readonly mode)
+  // DNA base input - show modal (disabled in readonly mode and multi-range selections)
   if (DNA_BASES.has(key) && !props.readonly) {
-    event.preventDefault()
-    showInsertModal(key.toUpperCase())
-    return
+    const domain = selection.domain.value
+    // Only show modal for single range or no selection
+    if (!domain || domain.ranges.length <= 1) {
+      event.preventDefault()
+      showInsertModal(key.toUpperCase())
+      return
+    }
   }
 
   // Editing keys (disabled in readonly mode)
@@ -760,26 +1006,20 @@ function handleKeyDown(event) {
     case 'Backspace':
       if (props.readonly) break
       event.preventDefault()
-      if (editorState.cursor.value > 0 || editorState.selection.value) {
-        editorState.backspace()
-        emit('edit', { type: 'backspace' })
-      }
+      handleBackspace()
       break
 
     case 'Delete':
       if (props.readonly) break
       event.preventDefault()
-      if (editorState.cursor.value < editorState.sequenceLength.value || editorState.selection.value) {
-        editorState.delete()
-        emit('edit', { type: 'delete' })
-      }
+      handleDelete()
       break
 
     case 'ArrowLeft':
       event.preventDefault()
       editorState.setCursor(editorState.cursor.value - 1)
       if (!event.shiftKey) {
-        editorState.clearSelection()
+        selection.unselect()
       }
       break
 
@@ -787,7 +1027,7 @@ function handleKeyDown(event) {
       event.preventDefault()
       editorState.setCursor(editorState.cursor.value + 1)
       if (!event.shiftKey) {
-        editorState.clearSelection()
+        selection.unselect()
       }
       break
 
@@ -795,7 +1035,7 @@ function handleKeyDown(event) {
       event.preventDefault()
       editorState.setCursor(0)
       if (!event.shiftKey) {
-        editorState.clearSelection()
+        selection.unselect()
       }
       break
 
@@ -803,17 +1043,13 @@ function handleKeyDown(event) {
       event.preventDefault()
       editorState.setCursor(editorState.sequenceLength.value)
       if (!event.shiftKey) {
-        editorState.clearSelection()
+        selection.unselect()
       }
       break
 
     case 'Escape':
       event.preventDefault()
-      // Clear selection when Escape is pressed
-      const escSelection = selectionLayerRef.value?.selection
-      if (escSelection) {
-        escSelection.unselect()
-      }
+      selection.unselect()
       break
   }
 }
@@ -832,7 +1068,10 @@ function setZoom(level) {
 }
 
 function getSelection() {
-  return editorState.selection.value
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return null
+  const range = domain.ranges[0]
+  return { start: range.start, end: range.end }
 }
 
 // Click outside handler for config panel
@@ -859,32 +1098,63 @@ onMounted(() => {
   // Set up click-outside handler for config panel
   document.addEventListener('click', handleClickOutside)
 
+  // Set up backend event handlers for edit acknowledgments
+  let cleanupAck = null
+  let cleanupError = null
+
+  if (props.backend) {
+    if (props.backend.onAck) {
+      cleanupAck = props.backend.onAck((id) => {
+        pendingEdits.value.delete(id)
+      })
+    }
+
+    if (props.backend.onError) {
+      cleanupError = props.backend.onError((id, error) => {
+        console.error('Edit failed:', id, error)
+        pendingEdits.value.delete(id)
+        // Future: implement rollback of the failed edit
+      })
+    }
+  }
+
   emit('ready')
 
   onUnmounted(() => {
     resizeObserver.disconnect()
     document.removeEventListener('click', handleClickOutside)
+
+    // Clean up backend event handlers
+    if (cleanupAck) {
+      cleanupAck()
+    }
+    if (cleanupError) {
+      cleanupError()
+    }
   })
 })
 
 // Selection highlight helpers
 function isLineSelected(line) {
-  const sel = editorState.selection.value
-  if (!sel) return false
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return false
+  const sel = domain.ranges[0]
   return sel.start < line.end && sel.end > line.start
 }
 
 function getSelectionX(line) {
-  const sel = editorState.selection.value
-  if (!sel) return 0
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return 0
+  const sel = domain.ranges[0]
   const start = Math.max(sel.start, line.start)
   const linePos = start - line.start
   return graphics.metrics.value.lmargin + linePos * graphics.metrics.value.charWidth
 }
 
 function getSelectionWidth(line) {
-  const sel = editorState.selection.value
-  if (!sel) return 0
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return 0
+  const sel = domain.ranges[0]
   const start = Math.max(sel.start, line.start)
   const end = Math.min(sel.end, line.end)
   return (end - start) * graphics.metrics.value.charWidth
@@ -1008,6 +1278,7 @@ defineExpose({
           :height="svgHeight"
           class="svg-background"
           @mousedown="handleBackgroundClick"
+          @contextmenu.prevent
         />
 
         <!-- Hidden text for measuring font metrics (50 chars like OGP) -->
@@ -1085,7 +1356,7 @@ defineExpose({
 
           <!-- Selection highlight -->
           <rect
-            v-if="editorState.selection.value && isLineSelected(line)"
+            v-if="isLineSelected(line)"
             :x="getSelectionX(line)"
             y="0"
             :width="getSelectionWidth(line)"
@@ -1099,6 +1370,7 @@ defineExpose({
           ref="selectionLayerRef"
           @select="handleSelectionChange"
           @contextmenu="handleSelectionContextMenu"
+          @mousedown="handleSelectionMouseDown"
         />
 
         <!-- Annotation Layer -->
@@ -1130,7 +1402,7 @@ defineExpose({
       :initial-text="insertModalText"
       :is-replace="insertModalIsReplace"
       :position="insertModalPosition"
-      @submit="handleInsertSubmit"
+      @submit="handleModalSubmit"
       @cancel="handleInsertCancel"
     />
 

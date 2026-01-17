@@ -1,6 +1,5 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { useSelection } from '../composables/useSelection.js'
 import { GraphicsSpan } from '../composables/useGraphics.js'
 import { Orientation } from '../utils/dna.js'
 
@@ -12,15 +11,14 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select', 'contextmenu', 'merge'])
+const emit = defineEmits(['select', 'contextmenu', 'merge', 'mousedown'])
 
 // Inject from parent SequenceEditor
 const editorState = inject('editorState')
 const graphics = inject('graphics')
-const eventBus = inject('eventBus', null)
 
-// Use selection composable
-const selection = useSelection(editorState, graphics, eventBus)
+// Selection is injected from parent (single source of truth)
+const selection = inject('selection')
 
 // Handle drag state
 const draggedHandle = ref(null) // { rangeIndex, type: 'start'|'end' }
@@ -430,6 +428,15 @@ function handlePathClick(event, rangeIndex) {
   // Could emit event for context menu, etc.
 }
 
+function handlePathMouseDown(event, rangeIndex) {
+  // Ctrl+click should add a new range - emit event so parent can handle it
+  if (event.ctrlKey) {
+    emit('mousedown', { event, rangeIndex, range: selection.domain.value.ranges[rangeIndex] })
+  }
+  // Otherwise, do nothing - let the selection path capture the click
+  // to prevent it from clearing/changing the selection
+}
+
 function handlePathContextMenu(event, rangeIndex) {
   event.preventDefault()
   emit('contextmenu', {
@@ -453,6 +460,7 @@ defineExpose({
       <path
         :d="sel.path"
         :class="sel.cssClass"
+        @mousedown="handlePathMouseDown($event, sel.index)"
         @click="handlePathClick($event, sel.index)"
         @contextmenu="handlePathContextMenu($event, sel.index)"
       />
@@ -462,6 +470,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleStart.x, sel.handleStart.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'start')"
+        @contextmenu.prevent="handlePathContextMenu($event, sel.index)"
       />
 
       <!-- End handle - soft triangle pointing down -->
@@ -469,6 +478,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleEnd.x, sel.handleEnd.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'end')"
+        @contextmenu.prevent="handlePathContextMenu($event, sel.index)"
       />
 
       <!-- Tag for multi-range selection -->

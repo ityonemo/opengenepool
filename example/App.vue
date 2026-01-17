@@ -48,6 +48,17 @@ function handleSelect(data) {
   console.log('Selection:', data)
 }
 
+async function handleAnnotationsUpdate(updatedAnnotations) {
+  if (!currentSequence.value) return
+
+  // Update the current sequence's annotations
+  currentSequence.value.annotations = updatedAnnotations
+
+  // Persist to IndexedDB (deep clone to strip Vue proxies)
+  const plainData = JSON.parse(JSON.stringify(currentSequence.value))
+  await saveSequence(plainData)
+}
+
 function downloadSequence() {
   if (!currentSequence.value) return
 
@@ -128,6 +139,7 @@ async function handleUpload(file) {
           :metadata="currentSequence.metadata || {}"
           @edit="handleEdit"
           @select="handleSelect"
+          @annotations-update="handleAnnotationsUpdate"
         />
       </template>
     </main>

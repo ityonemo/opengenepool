@@ -14,11 +14,6 @@ describe('useEditorState', () => {
       expect(editor.zoomLevel.value).toBe(100)
     })
 
-    it('has no selection initially', () => {
-      const editor = useEditorState()
-      expect(editor.selection.value).toBe(null)
-    })
-
     it('has zero lines when empty', () => {
       const editor = useEditorState()
       expect(editor.lineCount.value).toBe(0)
@@ -40,15 +35,6 @@ describe('useEditorState', () => {
       expect(editor.title.value).toBe('My Sequence')
     })
 
-    it('clears selection when sequence changes', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      expect(editor.selection.value).not.toBe(null)
-
-      editor.setSequence('GGGG')
-      expect(editor.selection.value).toBe(null)
-    })
   })
 
   describe('lineCount', () => {
@@ -86,7 +72,7 @@ describe('useEditorState', () => {
         start: 0,
         end: 50,
         text: seq.slice(0, 50),
-        position: 1
+        position: 0
       })
 
       expect(lines[1]).toEqual({
@@ -94,7 +80,7 @@ describe('useEditorState', () => {
         start: 50,
         end: 100,
         text: seq.slice(50, 100),
-        position: 51
+        position: 50
       })
 
       expect(lines[2]).toEqual({
@@ -102,7 +88,7 @@ describe('useEditorState', () => {
         start: 100,
         end: 150,
         text: seq.slice(100, 150),
-        position: 101
+        position: 100
       })
     })
   })
@@ -134,59 +120,6 @@ describe('useEditorState', () => {
       editor.setSequence('A'.repeat(10000))
       editor.setZoom(5000)
       expect(editor.zoomLevel.value).toBe(5000)
-    })
-  })
-
-  describe('selection', () => {
-    it('sets selection with start and end', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-      editor.setSelection(3, 7)
-
-      expect(editor.selection.value).toEqual({ start: 3, end: 7 })
-    })
-
-    it('normalizes selection so start <= end', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-      editor.setSelection(7, 3)  // reversed
-
-      expect(editor.selection.value).toEqual({ start: 3, end: 7 })
-    })
-
-    it('clears selection with null', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-      editor.setSelection(3, 7)
-      editor.setSelection(null, null)
-
-      expect(editor.selection.value).toBe(null)
-    })
-
-    it('clearSelection clears selection', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-      editor.setSelection(3, 7)
-      editor.clearSelection()
-
-      expect(editor.selection.value).toBe(null)
-    })
-  })
-
-  describe('getSelectedSequence', () => {
-    it('returns selected subsequence', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-      editor.setSelection(3, 7)
-
-      expect(editor.getSelectedSequence()).toBe('GATC')
-    })
-
-    it('returns empty string when no selection', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCGATCG')
-
-      expect(editor.getSelectedSequence()).toBe('')
     })
   })
 
@@ -379,91 +312,6 @@ describe('useEditorState', () => {
     })
   })
 
-  describe('deleteSelection', () => {
-    it('deletes the current selection', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.deleteSelection()
-      expect(editor.sequence.value).toBe('ATTCG')
-    })
-
-    it('clears the selection after delete', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.deleteSelection()
-      expect(editor.selection.value).toBe(null)
-    })
-
-    it('sets cursor to start of deleted range', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.deleteSelection()
-      expect(editor.cursor.value).toBe(2)
-    })
-
-    it('does nothing if no selection', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.deleteSelection()
-      expect(editor.sequence.value).toBe('ATCGATCG')
-    })
-
-    it('returns the deleted text', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      const result = editor.deleteSelection()
-      expect(result).toBe('CGA')
-    })
-  })
-
-  describe('replaceSelection', () => {
-    it('replaces the current selection with text', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.replaceSelection('XXX')
-      expect(editor.sequence.value).toBe('ATXXXTCG')
-    })
-
-    it('inserts at cursor if no selection', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setCursor(4)
-      editor.replaceSelection('XXX')
-      expect(editor.sequence.value).toBe('ATCGXXXATCG')
-    })
-
-    it('clears selection after replace', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.replaceSelection('XXX')
-      expect(editor.selection.value).toBe(null)
-    })
-  })
-
-  describe('insertAtCursor', () => {
-    it('inserts text at cursor position', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCG')
-      editor.setCursor(2)
-      editor.insertAtCursor('GGG')
-      expect(editor.sequence.value).toBe('ATGGGCG')
-    })
-
-    it('replaces selection if one exists', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.insertAtCursor('X')
-      expect(editor.sequence.value).toBe('ATXTCG')
-    })
-  })
-
   describe('backspace', () => {
     it('deletes character before cursor', () => {
       const editor = useEditorState()
@@ -481,14 +329,6 @@ describe('useEditorState', () => {
       editor.backspace()
       expect(editor.sequence.value).toBe('ATCG')
       expect(editor.cursor.value).toBe(0)
-    })
-
-    it('deletes selection if one exists', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.backspace()
-      expect(editor.sequence.value).toBe('ATTCG')
     })
   })
 
@@ -508,14 +348,6 @@ describe('useEditorState', () => {
       editor.setCursor(4)
       editor.delete()
       expect(editor.sequence.value).toBe('ATCG')
-    })
-
-    it('deletes selection if one exists', () => {
-      const editor = useEditorState()
-      editor.setSequence('ATCGATCG')
-      editor.setSelection(2, 5)
-      editor.delete()
-      expect(editor.sequence.value).toBe('ATTCG')
     })
   })
 })

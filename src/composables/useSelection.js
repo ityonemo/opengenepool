@@ -8,11 +8,9 @@ import { GraphicsSpan } from './useGraphics.js'
  */
 export class SelectionDomain {
   /**
-   * @param {string|Range[]|Span} spec - Domain specification
-   * @param {Object} options - Parse options
-   * @param {boolean} options.genbank - If true, treat string as GenBank 1-based (default: false for selections)
+   * @param {string|Range[]|Span} spec - Domain specification (0-based fenced coordinates)
    */
-  constructor(spec, { genbank = false } = {}) {
+  constructor(spec) {
     if (!spec) {
       this.ranges = []
     } else if (Array.isArray(spec)) {
@@ -22,8 +20,7 @@ export class SelectionDomain {
       // Deep copy ranges to avoid mutating originals
       this.ranges = spec.ranges.map(r => new Range(r.start, r.end, r.orientation))
     } else if (typeof spec === 'string') {
-      // Selections use 0-based coordinates by default
-      const span = Span.parse(spec, { genbank })
+      const span = Span.parse(spec)
       this.ranges = span.ranges
     } else {
       this.ranges = []
