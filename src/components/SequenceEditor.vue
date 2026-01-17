@@ -7,10 +7,12 @@ import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 import { useSelection, SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
 import { reverseComplement, Span, Range } from '../utils/dna.js'
+import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
 import AnnotationLayer from './AnnotationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
 import InsertModal from './InsertModal.vue'
+import MetadataModal from './MetadataModal.vue'
 
 const props = defineProps({
   /** DNA sequence string to display */
@@ -1226,7 +1228,8 @@ defineExpose({
   getSelection,
   editorState,
   graphics,
-  eventBus
+  eventBus,
+  openMetadataModal
 })
 </script>
 
@@ -1256,9 +1259,7 @@ defineExpose({
           @click="openMetadataModal"
           title="Sequence info"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
-          </svg>
+          <InformationCircleIcon class="icon-toolbar" />
         </button>
       </span>
 
@@ -1275,14 +1276,14 @@ defineExpose({
 • Ctrl+Click: Add range
 • Escape: Clear selection
 • Drag handles: Resize selection"
-      >?</button>
+      >
+        <QuestionMarkCircleIcon class="icon-toolbar-lg" />
+      </button>
 
       <!-- Config gear -->
       <div class="config-container">
         <button class="config-button" @click.stop="configPanelOpen = !configPanelOpen" title="Settings">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z" fill="currentColor"/>
-          </svg>
+          <Cog6ToothIcon class="icon-toolbar-lg" />
         </button>
 
         <!-- Dropdown panel -->
@@ -1472,83 +1473,13 @@ defineExpose({
     />
 
     <!-- Metadata Modal -->
-    <div v-if="metadataModalOpen" class="modal-overlay" @click="closeMetadataModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Sequence Information</h3>
-          <button class="modal-close" @click="closeMetadataModal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <dl class="metadata-list">
-            <template v-if="props.metadata?.molecule_type">
-              <dt>Type</dt>
-              <dd>{{ props.metadata.molecule_type }}<template v-if="props.metadata?.circular !== undefined"> — {{ props.metadata.circular ? 'circular' : 'linear' }}</template></dd>
-            </template>
-            <template v-if="props.metadata?.definition">
-              <dt>Definition</dt>
-              <dd>{{ props.metadata.definition }}</dd>
-            </template>
-            <template v-if="props.metadata?.accession">
-              <dt>Accession</dt>
-              <dd>{{ props.metadata.accession }}</dd>
-            </template>
-            <template v-if="props.metadata?.version">
-              <dt>Version</dt>
-              <dd>{{ props.metadata.version }}</dd>
-            </template>
-            <template v-if="props.metadata?.organism">
-              <dt>Organism</dt>
-              <dd>{{ props.metadata.organism }}</dd>
-            </template>
-            <template v-if="props.metadata?.source">
-              <dt>Source</dt>
-              <dd>{{ props.metadata.source }}</dd>
-            </template>
-            <template v-if="props.metadata?.locus_name">
-              <dt>Locus</dt>
-              <dd>{{ props.metadata.locus_name }}</dd>
-            </template>
-          </dl>
-          <!-- References section -->
-          <template v-if="props.metadata?.references && props.metadata.references.length > 0">
-            <h4 class="references-header">References</h4>
-            <!-- Complete references (have authors, title, journal, and pubmed) -->
-            <div class="references-list">
-              <template v-for="(ref, index) in props.metadata.references" :key="index">
-                <div v-if="ref.authors && ref.title && ref.journal && ref.pubmed" class="reference-item">
-                  <div class="ref-title">{{ ref.title }}</div>
-                  <div class="ref-authors">{{ ref.authors }}</div>
-                  <div class="ref-journal">{{ ref.journal }}</div>
-                  <div class="ref-pubmed">
-                    <a :href="`https://pubmed.ncbi.nlm.nih.gov/${ref.pubmed}/`" target="_blank" rel="noopener noreferrer">
-                      PubMed: {{ ref.pubmed }}
-                    </a>
-                  </div>
-                </div>
-              </template>
-            </div>
-            <!-- Incomplete references in collapsible "more" section -->
-            <details v-if="props.metadata.references.some(ref => !(ref.authors && ref.title && ref.journal && ref.pubmed))" class="references-more">
-              <summary>more</summary>
-              <div class="references-list">
-                <template v-for="(ref, index) in props.metadata.references" :key="'more-' + index">
-                  <div v-if="!(ref.authors && ref.title && ref.journal && ref.pubmed)" class="reference-item">
-                    <div v-if="ref.title" class="ref-title">{{ ref.title }}</div>
-                    <div v-if="ref.authors" class="ref-authors">{{ ref.authors }}</div>
-                    <div v-if="ref.journal" class="ref-journal">{{ ref.journal }}</div>
-                    <div v-if="ref.pubmed" class="ref-pubmed">
-                      <a :href="`https://pubmed.ncbi.nlm.nih.gov/${ref.pubmed}/`" target="_blank" rel="noopener noreferrer">
-                        PubMed: {{ ref.pubmed }}
-                      </a>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </details>
-          </template>
-        </div>
-      </div>
-    </div>
+    <MetadataModal
+      :open="metadataModalOpen"
+      :metadata="props.metadata"
+      :readonly="props.readonly"
+      :backend="effectiveBackend"
+      @close="closeMetadataModal"
+    />
   </div>
 </template>
 
@@ -1763,22 +1694,17 @@ defineExpose({
 
 .help-button {
   background: none;
-  border: 1px solid #ddd;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  border: none;
   cursor: help;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #666;
-  font-weight: bold;
-  font-size: 14px;
   margin-right: 8px;
+  padding: 2px;
 }
 
 .help-button:hover {
-  background: #eee;
   color: #333;
 }
 
@@ -1878,6 +1804,17 @@ defineExpose({
   background: #eee;
 }
 
+/* Heroicon sizes for toolbar */
+.icon-toolbar {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-toolbar-lg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Info button in toolbar */
 .info-button {
   background: none;
@@ -1894,151 +1831,6 @@ defineExpose({
 
 .info-button:hover {
   color: #333;
-}
-
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
-  overflow: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-  padding: 0;
-  line-height: 1;
-}
-
-.modal-close:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.metadata-list {
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 16px;
-}
-
-.metadata-list dt {
-  font-weight: 600;
-  color: #555;
-}
-
-.metadata-list dd {
-  margin: 0;
-  color: #333;
-  word-break: break-word;
-}
-
-/* References styles */
-.references-header {
-  margin: 20px 0 12px 0;
-  font-size: 16px;
-  color: #333;
-  border-top: 1px solid #eee;
-  padding-top: 16px;
-}
-
-.references-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.reference-item {
-  padding: 12px;
-  background: #f8f8f8;
-  border-radius: 6px;
-}
-
-.ref-title {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.ref-authors {
-  color: #555;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.ref-journal {
-  color: #666;
-  font-size: 13px;
-  font-style: italic;
-}
-
-.ref-pubmed {
-  margin-top: 4px;
-  font-size: 13px;
-}
-
-.ref-pubmed a {
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.ref-pubmed a:hover {
-  text-decoration: underline;
-}
-
-.references-more {
-  margin-top: 12px;
-}
-
-.references-more summary {
-  cursor: pointer;
-  color: #666;
-  font-size: 13px;
-}
-
-.references-more summary:hover {
-  color: #333;
-}
-
-.references-more .references-list {
-  margin-top: 12px;
 }
 
 /* Annotation tooltip */

@@ -22,9 +22,7 @@ export function createReadonlyBackend() {
 
     // Metadata operations - silently ignore
     titleChange: () => {},
-    metadataInsert: () => {},
-    metadataEdit: () => {},
-    metadataDelete: () => {},
+    metadataUpdate: () => {},
 
     // Callbacks - return no-op cleanup functions
     onAck: () => () => {},
