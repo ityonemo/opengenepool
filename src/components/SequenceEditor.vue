@@ -358,6 +358,12 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuItems = ref([])
 
+// Tooltip state
+const tooltipVisible = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+const tooltipContent = ref('')
+
 // Build context menu items based on current context
 function buildContextMenuItems(context) {
   const items = []
@@ -646,6 +652,54 @@ function handleAnnotationClick(data) {
 
   // Also emit for parent components
   emit('annotation-click', data)
+}
+
+// Annotation hover handler - show/hide tooltip
+function handleAnnotationHover(data) {
+  const { event, annotation, entering } = data
+
+  if (entering) {
+    // Build tooltip content
+    const parts = []
+
+    if (annotation.caption) {
+      parts.push(annotation.caption)
+    }
+
+    if (annotation.type && annotation.type !== annotation.caption) {
+      parts.push(`[${annotation.type}]`)
+    }
+
+    if (annotation.span) {
+      parts.push(annotation.span.toString())
+    }
+
+    // Add attributes (except translation which is too long)
+    if (annotation.attributes) {
+      const entries = Object.entries(annotation.attributes)
+        .filter(([key]) => key !== 'translation')
+      if (entries.length > 0) {
+        parts.push('')
+        for (const [key, value] of entries) {
+          let displayValue = Array.isArray(value) ? value.join(', ') : String(value)
+          if (displayValue.length > 100) {
+            displayValue = displayValue.substring(0, 100) + '...'
+          }
+          parts.push(`${key}: ${displayValue}`)
+        }
+      }
+    }
+
+    tooltipContent.value = parts.join('\n')
+    tooltipX.value = event.clientX + 12
+    tooltipY.value = event.clientY + 12
+    tooltipVisible.value = true
+  } else {
+    tooltipVisible.value = false
+  }
+
+  // Also emit for parent components
+  emit('annotation-hover', data)
 }
 
 function handleContextMenu(event, lineIndex) {
@@ -1385,7 +1439,7 @@ defineExpose({
           :offset-y="graphics.lineHeight.value"
           @click="handleAnnotationClick"
           @contextmenu="handleAnnotationContextMenu"
-          @hover="emit('annotation-hover', $event)"
+          @hover="handleAnnotationHover"
         />
 
       </svg>
@@ -1399,6 +1453,13 @@ defineExpose({
       :items="contextMenuItems"
       @close="hideContextMenu"
     />
+
+    <!-- Annotation Tooltip -->
+    <div
+      v-if="tooltipVisible"
+      class="annotation-tooltip"
+      :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
+    >{{ tooltipContent }}</div>
 
     <!-- Insert/Replace Modal -->
     <InsertModal
@@ -1978,5 +2039,21 @@ defineExpose({
 
 .references-more .references-list {
   margin-top: 12px;
+}
+
+/* Annotation tooltip */
+.annotation-tooltip {
+  position: fixed;
+  z-index: 2000;
+  background: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, sans-serif;
+  white-space: pre-line;
+  max-width: 350px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 </style>
