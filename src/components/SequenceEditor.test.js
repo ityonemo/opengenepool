@@ -2480,7 +2480,7 @@ describe('SequenceEditor', () => {
 
       expect(mockBackend.metadataUpdate).toHaveBeenCalledTimes(1)
       const call = mockBackend.metadataUpdate.mock.calls[0][0]
-      expect(call.updates.definition).toBe('Updated definition')
+      expect(call.metadata.definition).toBe('Updated definition')
       expect(call.id).toBeDefined()
     })
 
@@ -2517,18 +2517,18 @@ describe('SequenceEditor', () => {
       await wrapper.find('.metadata-edit-form').trigger('submit')
       await wrapper.vm.$nextTick()
 
-      // Should call metadataUpdate once with all changed fields
+      // Should call metadataUpdate once with full metadata
       expect(mockBackend.metadataUpdate).toHaveBeenCalledTimes(1)
 
       const call = mockBackend.metadataUpdate.mock.calls[0][0]
       expect(call.id).toBeDefined()
-      expect(call.updates.molecule_type).toBe('RNA')
-      expect(call.updates.circular).toBe(true)
-      expect(call.updates.definition).toBe('New definition')
-      expect(call.updates.locus_name).toBe('NewLocus')
+      expect(call.metadata.molecule_type).toBe('RNA')
+      expect(call.metadata.circular).toBe(true)
+      expect(call.metadata.definition).toBe('New definition')
+      expect(call.metadata.locus_name).toBe('NewLocus')
     })
 
-    it('does not call backend.metadataUpdate if no fields changed', async () => {
+    it('calls backend.metadataUpdate with full metadata even if no fields changed', async () => {
       const mockBackend = {
         metadataUpdate: mock(() => {}),
         onAck: mock(() => () => {}),
@@ -2549,11 +2549,14 @@ describe('SequenceEditor', () => {
       await wrapper.find('.edit-button').trigger('click')
       await wrapper.vm.$nextTick()
 
-      // Don't change anything, just save
-      await wrapper.find('.btn-save').trigger('click')
+      // Don't change anything, just save - full metadata is always sent
+      await wrapper.find('.metadata-edit-form').trigger('submit')
       await wrapper.vm.$nextTick()
 
-      expect(mockBackend.metadataUpdate).not.toHaveBeenCalled()
+      expect(mockBackend.metadataUpdate).toHaveBeenCalledTimes(1)
+      const call = mockBackend.metadataUpdate.mock.calls[0][0]
+      expect(call.metadata.molecule_type).toBe('DNA')
+      expect(call.metadata.definition).toBe('Test')
     })
 
     it('closes edit form after save', async () => {

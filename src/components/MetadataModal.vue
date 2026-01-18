@@ -145,38 +145,12 @@ function save() {
     }
   }
 
-  // Compute diff between editMetadata and original props.metadata
-  const updates = {}
-  const allKeys = ['molecule_type', 'circular', 'locus_name', ...OPTIONAL_FIELDS.map(f => f.key)]
-
-  for (const key of allKeys) {
-    const newVal = editMetadata.value[key]
-    const oldVal = props.metadata?.[key]
-
-    // Compare values, treating undefined/null/'' as equivalent for optional fields
-    const newNormalized = newVal === undefined ? '' : newVal
-    const oldNormalized = oldVal === undefined ? '' : oldVal
-
-    if (newNormalized !== oldNormalized) {
-      updates[key] = newNormalized
-    }
-  }
-
-  // Check if references changed
-  const oldRefs = props.metadata?.references || []
-  const newRefs = editMetadata.value.references || []
-  if (oldRefs.length !== newRefs.length) {
-    updates.references = newRefs
-  }
-
   // Update localMetadata with the changes
   localMetadata.value = JSON.parse(JSON.stringify(editMetadata.value))
 
-  // Send all changes in a single call to avoid race conditions
-  if (Object.keys(updates).length > 0) {
-    const editId = crypto.randomUUID()
-    effectiveBackend.value?.metadataUpdate?.({ id: editId, updates })
-  }
+  // Send full metadata to backend
+  const editId = crypto.randomUUID()
+  effectiveBackend.value?.metadataUpdate?.({ id: editId, metadata: editMetadata.value })
 
   editMetadata.value = null
   editMode.value = false
