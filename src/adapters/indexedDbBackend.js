@@ -83,8 +83,6 @@ function saveSequence(db, sequence) {
  */
 export function createIndexedDbBackend(sequenceId, options = {}) {
   let db = null
-  let ackCallback = null
-  let errorCallback = null
   const { onSyncStatusChange } = options
 
   // Initialize database connection
@@ -164,20 +162,11 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
       // Save updated sequence
       await saveSequence(db, sequence)
 
-      // Notify success
-      if (ackCallback && data.id) {
-        ackCallback(data.id)
-      }
-
       if (onSyncStatusChange) {
         onSyncStatusChange('saved')
       }
     } catch (error) {
       console.error('IndexedDB operation failed:', error)
-
-      if (errorCallback && data.id) {
-        errorCallback(data.id, error.message)
-      }
 
       if (onSyncStatusChange) {
         onSyncStatusChange('error')
@@ -223,21 +212,6 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
 
     metadataDelete(data) {
       applyOperation('metadataDelete', data)
-    },
-
-    // Response handlers
-    onAck(callback) {
-      ackCallback = callback
-      return () => {
-        ackCallback = null
-      }
-    },
-
-    onError(callback) {
-      errorCallback = callback
-      return () => {
-        errorCallback = null
-      }
     },
 
     // Additional methods for standalone mode

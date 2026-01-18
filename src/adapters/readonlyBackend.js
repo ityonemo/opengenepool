@@ -23,9 +23,5 @@ export function createReadonlyBackend() {
     // Metadata operations - silently ignore
     titleChange: () => {},
     metadataUpdate: () => {},
-
-    // Callbacks - return no-op cleanup functions
-    onAck: () => () => {},
-    onError: () => () => {},
   }
 }

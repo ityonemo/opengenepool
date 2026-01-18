@@ -2050,78 +2050,6 @@ describe('SequenceEditor', () => {
         expect(editId).toBeDefined()
       })
 
-      it('clears pending edit when onAck callback is triggered', async () => {
-        let ackCallback = null
-        const mockBackend = {
-          insert: mock(() => {}),
-          onAck: mock((cb) => {
-            ackCallback = cb
-            return () => {}
-          }),
-          onError: mock(() => () => {}),
-        }
-
-        const wrapper = mount(SequenceEditor, {
-          props: {
-            sequence: 'ATCGATCG',
-            backend: mockBackend
-          }
-        })
-        await wrapper.vm.$nextTick()
-
-        await setupInsertAtPosition(wrapper, 4)
-
-        const insertModal = wrapper.findComponent({ name: 'InsertModal' })
-        insertModal.vm.$emit('submit', 'GGG')
-        await wrapper.vm.$nextTick()
-
-        const editId = mockBackend.insert.mock.calls[0][0].id
-
-        // Simulate server acknowledgment
-        expect(ackCallback).toBeDefined()
-        ackCallback(editId)
-        await wrapper.vm.$nextTick()
-
-        // Component should have processed the ack (no visible error)
-        // The sequence should still be correct
-        expect(wrapper.vm.getSequence()).toBe('ATCGGGGATCG')
-      })
-
-      it('handles onError callback', async () => {
-        let errorCallback = null
-        const mockBackend = {
-          insert: mock(() => {}),
-          onAck: mock(() => () => {}),
-          onError: mock((cb) => {
-            errorCallback = cb
-            return () => {}
-          }),
-        }
-
-        const wrapper = mount(SequenceEditor, {
-          props: {
-            sequence: 'ATCGATCG',
-            backend: mockBackend
-          }
-        })
-        await wrapper.vm.$nextTick()
-
-        await setupInsertAtPosition(wrapper, 4)
-
-        const insertModal = wrapper.findComponent({ name: 'InsertModal' })
-        insertModal.vm.$emit('submit', 'GGG')
-        await wrapper.vm.$nextTick()
-
-        const editId = mockBackend.insert.mock.calls[0][0].id
-
-        // Simulate server error (should not throw)
-        expect(errorCallback).toBeDefined()
-        errorCallback(editId, 'Server error')
-        await wrapper.vm.$nextTick()
-
-        // Component should handle error gracefully
-        expect(wrapper.vm.getSequence()).toBe('ATCGGGGATCG')
-      })
     })
 
     describe('standalone mode (no backend)', () => {
@@ -2236,56 +2164,6 @@ describe('SequenceEditor', () => {
       })
     })
 
-    describe('callback cleanup', () => {
-      it('returns cleanup function from onAck', async () => {
-        const cleanupFn = mock(() => {})
-        const mockBackend = {
-          insert: mock(() => {}),
-          onAck: mock(() => cleanupFn),
-          onError: mock(() => () => {}),
-        }
-
-        const wrapper = mount(SequenceEditor, {
-          props: {
-            sequence: 'ATCGATCG',
-            backend: mockBackend
-          }
-        })
-        await wrapper.vm.$nextTick()
-
-        expect(mockBackend.onAck).toHaveBeenCalledTimes(1)
-        expect(typeof mockBackend.onAck.mock.calls[0][0]).toBe('function')
-
-        // Unmount should trigger cleanup
-        wrapper.unmount()
-        expect(cleanupFn).toHaveBeenCalledTimes(1)
-      })
-
-      it('returns cleanup function from onError', async () => {
-        const cleanupFn = mock(() => {})
-        const mockBackend = {
-          insert: mock(() => {}),
-          onAck: mock(() => () => {}),
-          onError: mock(() => cleanupFn),
-        }
-
-        const wrapper = mount(SequenceEditor, {
-          props: {
-            sequence: 'ATCGATCG',
-            backend: mockBackend
-          }
-        })
-        await wrapper.vm.$nextTick()
-
-        expect(mockBackend.onError).toHaveBeenCalledTimes(1)
-        expect(typeof mockBackend.onError.mock.calls[0][0]).toBe('function')
-
-        // Unmount should trigger cleanup
-        wrapper.unmount()
-        expect(cleanupFn).toHaveBeenCalledTimes(1)
-      })
-    })
-
     describe('multiple rapid inserts', () => {
       it('handles multiple inserts with unique IDs', async () => {
         const mockBackend = createMockBackend()
@@ -2311,47 +2189,6 @@ describe('SequenceEditor', () => {
         const ids = mockBackend.insert.mock.calls.map(c => c[0].id)
         const uniqueIds = new Set(ids)
         expect(uniqueIds.size).toBe(3)
-      })
-
-      it('ignores prop updates while edits are pending', async () => {
-        let ackCallback = null
-        const mockBackend = {
-          insert: mock(() => {}),
-          onAck: mock((cb) => {
-            ackCallback = cb
-            return () => {}
-          }),
-          onError: mock(() => () => {}),
-        }
-
-        const wrapper = mount(SequenceEditor, {
-          props: {
-            sequence: 'ATCGATCG',
-            backend: mockBackend
-          }
-        })
-        await wrapper.vm.$nextTick()
-
-        // Do an insert
-        await setupInsertAtPosition(wrapper, 4)
-        const insertModal = wrapper.findComponent({ name: 'InsertModal' })
-        insertModal.vm.$emit('submit', 'GGG')
-        await wrapper.vm.$nextTick()
-
-        // Local sequence should be updated
-        expect(wrapper.vm.getSequence()).toBe('ATCGGGGATCG')
-
-        // Simulate a prop update from server (should be ignored while pending)
-        await wrapper.setProps({ sequence: 'ATCGATCG' })
-        await wrapper.vm.$nextTick()
-
-        // Should still show optimistic update
-        expect(wrapper.vm.getSequence()).toBe('ATCGGGGATCG')
-
-        // After ack, prop updates would be accepted again
-        const editId = mockBackend.insert.mock.calls[0][0].id
-        ackCallback(editId)
-        await wrapper.vm.$nextTick()
       })
     })
   })

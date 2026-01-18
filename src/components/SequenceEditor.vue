@@ -13,6 +13,7 @@ import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
 import InsertModal from './InsertModal.vue'
 import MetadataModal from './MetadataModal.vue'
+import AnnotationModal from './AnnotationModal.vue'
 
 const props = defineProps({
   /** DNA sequence string to display */
@@ -68,11 +69,6 @@ const emit = defineEmits([
   'annotations-update'
 ])
 
-// Track pending edits for optimistic UI synchronization
-// When we have pending edits, we ignore prop updates from the server
-// since we've already applied those changes locally
-const pendingEdits = ref(new Map())
-
 // Effective backend - returns null when readonly to prevent any edits
 // This is a safety measure in addition to UI disabling
 const effectiveBackend = computed(() => props.readonly ? null : props.backend)
@@ -96,6 +92,10 @@ const insertModalIsReplace = ref(false)
 const insertModalPosition = ref(0)
 const insertModalSelectionEnd = ref(0)  // End of selection for replace mode
 
+// Annotation modal state
+const annotationModalOpen = ref(false)
+const annotationModalSpan = ref('0..0')
+
 // Initialize composables
 const editorState = useEditorState()
 const graphics = useGraphics(editorState)
@@ -114,15 +114,7 @@ watch(editorState.zoomLevel, (newZoom) => {
 })
 
 // Watch for sequence prop changes to initialize/update the editor
-// When we have pending edits (optimistic UI), ignore prop updates since we've
-// already applied those changes locally
 watch(() => props.sequence, (newSeq) => {
-  // Skip prop updates while we have pending edits
-  // This prevents the server's confirmation from re-applying changes we already made
-  if (pendingEdits.value.size > 0) {
-    return
-  }
-
   if (newSeq) {
     editorState.setSequence(newSeq, props.title)
     // Re-apply persisted zoom now that sequence is loaded (setZoom clamps based on length)
@@ -142,11 +134,7 @@ watch(() => props.title, (newTitle) => {
 const localAnnotations = ref([...props.annotations])
 
 // Watch for annotation prop changes (from server)
-// Skip updates while we have pending edits since we've already adjusted locally
 watch(() => props.annotations, (newAnnotations) => {
-  if (pendingEdits.value.size > 0) {
-    return
-  }
   localAnnotations.value = [...newAnnotations]
 }, { deep: true })
 
@@ -258,6 +246,50 @@ function openMetadataModal() {
 function closeMetadataModal() {
   metadataModalOpen.value = false
 }
+
+// Annotation creation modal
+function openAnnotationModal() {
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return
+
+  // Don't open if any range is zero-length
+  if (!domain.ranges.every(r => r.start !== r.end)) return
+
+  // Build span string from all ranges (join with +)
+  const spanStr = domain.ranges
+    .map(r => new Range(r.start, r.end, r.orientation).toString())
+    .join(' + ')
+  annotationModalSpan.value = spanStr
+  annotationModalOpen.value = true
+}
+
+function closeAnnotationModal() {
+  annotationModalOpen.value = false
+}
+
+function handleAnnotationCreate(data) {
+  // Generate a new UUID for the annotation
+  const annotationId = crypto.randomUUID()
+
+  // Send to backend
+  effectiveBackend.value?.annotationCreated?.({
+    id: annotationId,
+    caption: data.caption,
+    type: data.type,
+    span: data.span,
+    attributes: data.attributes
+  })
+
+  annotationModalOpen.value = false
+}
+
+// Computed: whether we have a non-zero selection for annotation creation
+// All ranges must be non-zero length
+const hasNonZeroSelection = computed(() => {
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length === 0) return false
+  return domain.ranges.every(r => r.start !== r.end)
+})
 
 // Annotation filter handlers
 function toggleAnnotationType(type) {
@@ -411,6 +443,17 @@ function buildContextMenuItems(context) {
         label: 'Delete sequence',
         action: () => {
           handleDelete()
+        }
+      })
+    }
+
+    // Create annotation option when all ranges have non-zero length
+    const allRangesNonZero = domain.ranges.every(r => r.start !== r.end)
+    if (allRangesNonZero && !props.readonly) {
+      items.push({
+        label: 'Create Annotation',
+        action: () => {
+          openAnnotationModal()
         }
       })
     }
@@ -813,14 +856,7 @@ function deleteSelectedRange() {
     // 2. Adjust annotations (delete is a replace with 0-length text)
     adjustAnnotationsForReplace(range.start, range.end, 0)
 
-    // 3. Track as pending edit
-    pendingEdits.value.set(editId, {
-      type: 'delete',
-      start: range.start,
-      end: range.end
-    })
-
-    // 4. Send to backend if connected
+    // 3. Send to backend if connected
     if (effectiveBackend.value?.delete) {
       effectiveBackend.value.delete({ id: editId, start: range.start, end: range.end })
     }
@@ -970,19 +1006,12 @@ function handleInsertSubmit(text) {
   editorState.insertAt(insertionSite, text)
   adjustAnnotationsForInsert(insertionSite, text.length)
 
-  // 2. Track as pending edit
-  pendingEdits.value.set(editId, {
-    type: 'insert',
-    position: insertionSite,
-    length: text.length
-  })
-
-  // 3. Send to backend if connected
+  // 2. Send to backend if connected
   if (effectiveBackend.value?.insert) {
     effectiveBackend.value.insert({ id: editId, position: insertionSite, text })
   }
 
-  // 4. Emit for standalone mode / parent components
+  // 3. Emit for standalone mode / parent components
   emit('edit', { type: 'insert', position: insertionSite, text })
 }
 
@@ -1158,39 +1187,11 @@ onMounted(() => {
   // Set up click-outside handler for config panel
   document.addEventListener('click', handleClickOutside)
 
-  // Set up backend event handlers for edit acknowledgments
-  let cleanupAck = null
-  let cleanupError = null
-
-  if (effectiveBackend.value) {
-    if (effectiveBackend.value.onAck) {
-      cleanupAck = effectiveBackend.value.onAck((id) => {
-        pendingEdits.value.delete(id)
-      })
-    }
-
-    if (effectiveBackend.value.onError) {
-      cleanupError = effectiveBackend.value.onError((id, error) => {
-        console.error('Edit failed:', id, error)
-        pendingEdits.value.delete(id)
-        // Future: implement rollback of the failed edit
-      })
-    }
-  }
-
   emit('ready')
 
   onUnmounted(() => {
     resizeObserver.disconnect()
     document.removeEventListener('click', handleClickOutside)
-
-    // Clean up backend event handlers
-    if (cleanupAck) {
-      cleanupAck()
-    }
-    if (cleanupError) {
-      cleanupError()
-    }
   })
 })
 
@@ -1480,6 +1481,16 @@ defineExpose({
       :backend="effectiveBackend"
       @close="closeMetadataModal"
     />
+
+    <!-- Annotation Creation Modal -->
+    <AnnotationModal
+      :open="annotationModalOpen"
+      :span="annotationModalSpan"
+      :sequence-length="editorState.sequence.value.length"
+      :readonly="props.readonly"
+      @close="closeAnnotationModal"
+      @create="handleAnnotationCreate"
+    />
   </div>
 </template>
 
@@ -1710,6 +1721,21 @@ defineExpose({
 
 .config-container {
   position: relative;
+}
+
+.toolbar-button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.toolbar-button:hover {
+  background: #45a049;
 }
 
 .config-button {

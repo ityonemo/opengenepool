@@ -114,6 +114,10 @@ src/
     └── annotation.js        # Annotation model
 ```
 
+## Known Limitations
+
+- **Indefinite ranges not supported** - GenBank-style indefinite ranges like `<100..200` (start uncertain) or `100..>200` (end uncertain) are not currently supported. Support for these will be added in a future release.
+
 ## License
 
 See [LICENCE.txt](LICENCE.txt)
