@@ -523,6 +523,21 @@ function buildContextMenuItems(context) {
     }
   }
 
+  // Annotation-specific items when right-clicking on an annotation
+  if (context.source === 'annotation' && context.annotation && !props.readonly) {
+    const annotation = context.annotation
+    items.push({
+      label: 'Delete Annotation',
+      action: () => {
+        effectiveBackend.value?.annotationDeleted?.({
+          id: crypto.randomUUID(),
+          annotationId: annotation.id
+        })
+      }
+    })
+    items.push({ separator: true })
+  }
+
   // Always available
   items.push({
     label: 'Select all',
