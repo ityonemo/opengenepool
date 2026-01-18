@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide, watch, nextTick } from 'vue'
 import { useEditorState } from '../composables/useEditorState.js'
 import { useGraphics } from '../composables/useGraphics.js'
 import { createEventBus } from '../composables/useEventBus.js'
@@ -7,7 +7,7 @@ import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 import { useSelection, SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
 import { reverseComplement, Span, Range } from '../utils/dna.js'
-import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import AnnotationLayer from './AnnotationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
@@ -95,6 +95,12 @@ const insertModalSelectionEnd = ref(0)  // End of selection for replace mode
 // Annotation modal state
 const annotationModalOpen = ref(false)
 const annotationModalSpan = ref('0..0')
+const editingAnnotation = ref(null)  // null = create mode, annotation object = edit mode
+
+// Title editing state
+const editingTitle = ref(false)
+const editTitleValue = ref('')
+const titleInputRef = ref(null)
 
 // Initialize composables
 const editorState = useEditorState()
@@ -247,6 +253,46 @@ function closeMetadataModal() {
   metadataModalOpen.value = false
 }
 
+// Title editing
+function startEditingTitle() {
+  if (props.readonly) return
+  editTitleValue.value = editorState.title.value || ''
+  editingTitle.value = true
+  // Focus input after DOM update
+  nextTick(() => {
+    titleInputRef.value?.focus()
+    titleInputRef.value?.select()
+  })
+}
+
+function cancelEditingTitle() {
+  editingTitle.value = false
+  editTitleValue.value = ''
+}
+
+function confirmEditingTitle() {
+  const newTitle = editTitleValue.value.trim()
+  if (newTitle && newTitle !== editorState.title.value) {
+    editorState.title.value = newTitle
+    effectiveBackend.value?.titleUpdate?.({
+      id: crypto.randomUUID(),
+      title: newTitle
+    })
+  }
+  editingTitle.value = false
+  editTitleValue.value = ''
+}
+
+function handleTitleKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    confirmEditingTitle()
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelEditingTitle()
+  }
+}
+
 // Annotation creation modal
 function openAnnotationModal() {
   const domain = selection.domain.value
@@ -265,6 +311,30 @@ function openAnnotationModal() {
 
 function closeAnnotationModal() {
   annotationModalOpen.value = false
+  editingAnnotation.value = null
+}
+
+function openAnnotationModalForEdit(annotation) {
+  editingAnnotation.value = annotation
+  // Set span from annotation (for display purposes, though AnnotationModal will parse from annotation)
+  const spanStr = typeof annotation.span === 'string'
+    ? annotation.span
+    : annotation.span?.toString() || '0..0'
+  annotationModalSpan.value = spanStr
+  annotationModalOpen.value = true
+}
+
+function handleAnnotationUpdate(data) {
+  effectiveBackend.value?.annotationUpdate?.({
+    id: crypto.randomUUID(),
+    annotationId: editingAnnotation.value.id,
+    caption: data.caption,
+    type: data.type,
+    span: data.span,
+    attributes: data.attributes
+  })
+  annotationModalOpen.value = false
+  editingAnnotation.value = null
 }
 
 function handleAnnotationCreate(data) {
@@ -526,6 +596,12 @@ function buildContextMenuItems(context) {
   // Annotation-specific items when right-clicking on an annotation
   if (context.source === 'annotation' && context.annotation && !props.readonly) {
     const annotation = context.annotation
+    items.push({
+      label: 'Edit Annotation',
+      action: () => {
+        openAnnotationModalForEdit(annotation)
+      }
+    })
     items.push({
       label: 'Delete Annotation',
       action: () => {
@@ -845,6 +921,18 @@ function handleCut() {
   }
 }
 
+async function handlePaste() {
+  try {
+    const clipboardText = await navigator.clipboard.readText()
+    if (clipboardText) {
+      showInsertModal(clipboardText)
+    }
+  } catch (err) {
+    // Clipboard access denied or empty - silently ignore
+    console.warn('Clipboard access failed:', err)
+  }
+}
+
 /**
  * Delete the currently selected ranges (if non-zero).
  * Sends delete operations to backend for each range and clears selection.
@@ -1091,6 +1179,11 @@ function handleKeyDown(event) {
         event.preventDefault()
         selection.selectAll()
         return
+      case 'v':
+        if (props.readonly) return
+        event.preventDefault()
+        handlePaste()
+        return
     }
   }
 
@@ -1178,6 +1271,80 @@ function getSelection() {
   return { start: range.start, end: range.end }
 }
 
+/**
+ * Scroll the editor to make a position visible.
+ * @param {number} position - The sequence position to scroll to
+ */
+function scrollToPosition(position) {
+  const editorContainer = containerRef.value?.querySelector('.editor-container')
+  if (!editorContainer) return
+
+  const lineIndex = editorState.positionToLine(position)
+  const lineY = graphics.getLineY(lineIndex)
+  const lineHeight = graphics.lineHeight.value
+
+  const containerRect = editorContainer.getBoundingClientRect()
+  const scrollTop = editorContainer.scrollTop
+  const viewportTop = scrollTop
+  const viewportBottom = scrollTop + containerRect.height
+
+  // Check if line is already visible
+  if (lineY >= viewportTop && lineY + lineHeight <= viewportBottom) {
+    return // Already visible
+  }
+
+  // Scroll so the line is near the top with some padding
+  editorContainer.scrollTo({
+    top: Math.max(0, lineY - 20),
+    behavior: 'smooth'
+  })
+}
+
+/**
+ * Set the selection programmatically.
+ * @param {string} spec - Selection specification:
+ *   - Span format: "10..20" or "10..20 + 30..40"
+ *   - Annotation reference: "a:<annotation_id>"
+ */
+function setSelection(spec) {
+  // Check for annotation reference format "a:<id>"
+  if (spec.startsWith('a:')) {
+    const annotationId = spec.slice(2)
+    const annotation = localAnnotations.value.find(ann => ann.id === annotationId)
+    if (annotation && annotation.span) {
+      selection.select(annotation.span)
+      // Scroll to annotation start
+      const startMatch = annotation.span.match(/^(\d+)/)
+      if (startMatch) {
+        scrollToPosition(parseInt(startMatch[1], 10))
+      }
+    }
+    return
+  }
+  selection.select(spec)
+  // Scroll to selection start
+  const startMatch = spec.match(/^(\d+)/)
+  if (startMatch) {
+    scrollToPosition(parseInt(startMatch[1], 10))
+  }
+}
+
+/**
+ * Clear the current selection.
+ */
+function clearSelection() {
+  selection.unselect()
+}
+
+/**
+ * Set cursor position (zero-width selection).
+ * @param {number} position - The position to place the cursor
+ */
+function setCursor(position) {
+  selection.select(`${position}..${position}`)
+  scrollToPosition(position)
+}
+
 // Click outside handler for config panel
 function handleClickOutside(event) {
   if (configPanelOpen.value) {
@@ -1242,6 +1409,10 @@ defineExpose({
   getSequence,
   setZoom,
   getSelection,
+  setSelection,
+  clearSelection,
+  setCursor,
+  scrollToPosition,
   editorState,
   graphics,
   eventBus,
@@ -1267,7 +1438,38 @@ defineExpose({
       </label>
 
       <span v-if="editorState.sequenceLength.value > 0" class="info">
-        <strong>{{ editorState.title.value || 'Untitled' }}</strong>
+        <!-- Title editing mode -->
+        <span v-if="editingTitle" class="title-edit-container">
+          <input
+            ref="titleInputRef"
+            v-model="editTitleValue"
+            type="text"
+            class="title-input"
+            @keydown="handleTitleKeydown"
+            @blur="cancelEditingTitle"
+          />
+          <button
+            class="title-edit-btn title-edit-confirm"
+            @mousedown.prevent="confirmEditingTitle"
+            title="Save"
+          >
+            <CheckIcon class="icon-sm" />
+          </button>
+          <button
+            class="title-edit-btn title-edit-cancel"
+            @mousedown.prevent="cancelEditingTitle"
+            title="Cancel"
+          >
+            <XMarkIcon class="icon-sm" />
+          </button>
+        </span>
+        <!-- Title display mode -->
+        <strong
+          v-else
+          class="title-display"
+          :class="{ 'title-editable': !props.readonly }"
+          @dblclick="startEditingTitle"
+        >{{ editorState.title.value || 'Untitled' }}</strong>
         &mdash; {{ editorState.sequenceLength.value.toLocaleString() }} bp
         <button
           v-if="hasMetadata"
@@ -1497,14 +1699,16 @@ defineExpose({
       @close="closeMetadataModal"
     />
 
-    <!-- Annotation Creation Modal -->
+    <!-- Annotation Creation/Edit Modal -->
     <AnnotationModal
       :open="annotationModalOpen"
       :span="annotationModalSpan"
       :sequence-length="editorState.sequence.value.length"
       :readonly="props.readonly"
+      :annotation="editingAnnotation"
       @close="closeAnnotationModal"
       @create="handleAnnotationCreate"
+      @update="handleAnnotationUpdate"
     />
   </div>
 </template>
@@ -1546,6 +1750,77 @@ defineExpose({
 
 .info {
   color: #666;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.title-display {
+  cursor: default;
+}
+
+.title-editable {
+  cursor: pointer;
+}
+
+.title-editable:hover {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.title-edit-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.title-input {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border: 1px solid #4a90d9;
+  border-radius: 3px;
+  outline: none;
+  min-width: 150px;
+}
+
+.title-input:focus {
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.title-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.title-edit-confirm {
+  background: #22c55e;
+  color: white;
+}
+
+.title-edit-confirm:hover {
+  background: #16a34a;
+}
+
+.title-edit-cancel {
+  background: #ef4444;
+  color: white;
+}
+
+.title-edit-cancel:hover {
+  background: #dc2626;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
 }
 
 .editor-container {

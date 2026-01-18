@@ -19,10 +19,18 @@ const props = defineProps({
   readonly: {
     type: Boolean,
     default: false
+  },
+  /** Existing annotation to edit (null = create mode) */
+  annotation: {
+    type: Object,
+    default: null
   }
 })
 
-const emit = defineEmits(['close', 'create'])
+const emit = defineEmits(['close', 'create', 'update'])
+
+// Edit mode when an existing annotation is passed
+const isEditMode = computed(() => props.annotation !== null)
 
 // Standard annotation types
 const STANDARD_TYPES = [
@@ -85,15 +93,30 @@ function strandToOrientation(strand) {
   }
 }
 
-// Initialize form from span prop when modal opens
+// Initialize form from span prop (create mode) or annotation (edit mode) when modal opens
 watch(() => props.open, (isOpen) => {
   if (isOpen && !props.readonly) {
-    ranges.value = parseSpan(props.span)
-    // Reset other fields
-    caption.value = ''
-    annotationType.value = ''
-    attributes.value = {}
-    visibleFields.value = []
+    if (props.annotation) {
+      // Edit mode - pre-fill from existing annotation
+      caption.value = props.annotation.caption || ''
+      annotationType.value = props.annotation.type || ''
+      // Parse span from annotation (may be Span object or string)
+      const spanStr = typeof props.annotation.span === 'string'
+        ? props.annotation.span
+        : props.annotation.span?.toString() || props.span
+      ranges.value = parseSpan(spanStr)
+      // Pre-fill attributes
+      const attrs = props.annotation.attributes || {}
+      attributes.value = { ...attrs }
+      visibleFields.value = Object.keys(attrs)
+    } else {
+      // Create mode - use span prop and reset fields
+      ranges.value = parseSpan(props.span)
+      caption.value = ''
+      annotationType.value = ''
+      attributes.value = {}
+      visibleFields.value = []
+    }
     customFieldName.value = ''
   }
 }, { immediate: true })
@@ -240,12 +263,18 @@ function handleSubmit() {
     }
   }
 
-  emit('create', {
+  const data = {
     caption: caption.value.trim(),
     type: annotationType.value.trim(),
     span: computedSpan.value,
     attributes: finalAttrs
-  })
+  }
+
+  if (isEditMode.value) {
+    emit('update', data)
+  } else {
+    emit('create', data)
+  }
 
   emit('close')
 }
@@ -259,7 +288,7 @@ function onOverlayClick() {
   <div v-if="open && !readonly" class="modal-overlay" @click="onOverlayClick">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h3>Create Annotation</h3>
+        <h3>{{ isEditMode ? 'Edit Annotation' : 'Create Annotation' }}</h3>
         <button class="modal-close" @click="close">&times;</button>
       </div>
 
@@ -419,7 +448,7 @@ function onOverlayClick() {
             </div>
             <div class="form-actions-right">
               <button type="button" class="btn-cancel" @click="close">Cancel</button>
-              <button type="submit" class="btn-create" :disabled="!isValid">Create</button>
+              <button type="submit" class="btn-create" :disabled="!isValid">{{ isEditMode ? 'Update' : 'Create' }}</button>
             </div>
           </div>
         </form>

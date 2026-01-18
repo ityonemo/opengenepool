@@ -1654,12 +1654,10 @@ describe('SequenceEditor', () => {
         insert: mock(() => {}),
         delete: mock(() => {}),
         annotationCreated: mock(() => {}),
-        annotationChanged: mock(() => {}),
+        annotationUpdate: mock(() => {}),
         annotationDeleted: mock(() => {}),
-        titleChange: mock(() => {}),
-        metadataInsert: mock(() => {}),
+        titleUpdate: mock(() => {}),
         metadataUpdate: mock(() => {}),
-        metadataDelete: mock(() => {}),
         onAck: mock((callback) => {
           // Store callback for manual triggering in tests
           createMockBackend._ackCallback = callback
@@ -2764,6 +2762,599 @@ describe('SequenceEditor', () => {
       // Should exit edit form - but note: changes are kept in editMetadata since we're using v-model
       // The cancel just closes the inline form, it doesn't revert the changes to editMetadata
       expect(wrapper.find('.reference-edit-form').exists()).toBe(false)
+    })
+  })
+
+  describe('title editing', () => {
+    it('enters edit mode on double-click when not readonly', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'My Sequence'
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Title should be displayed
+      const titleDisplay = wrapper.find('.title-display')
+      expect(titleDisplay.exists()).toBe(true)
+      expect(titleDisplay.text()).toBe('My Sequence')
+
+      // Double-click to edit
+      await titleDisplay.trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Should show input field
+      expect(wrapper.find('.title-input').exists()).toBe(true)
+      expect(wrapper.find('.title-input').element.value).toBe('My Sequence')
+
+      // Should show confirm and cancel buttons
+      expect(wrapper.find('.title-edit-confirm').exists()).toBe(true)
+      expect(wrapper.find('.title-edit-cancel').exists()).toBe(true)
+    })
+
+    it('does not enter edit mode on double-click when readonly', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'My Sequence',
+          readonly: true
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      const titleDisplay = wrapper.find('.title-display')
+      await titleDisplay.trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Should NOT show input field
+      expect(wrapper.find('.title-input').exists()).toBe(false)
+    })
+
+    it('confirms edit on Enter key and calls backend', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Original Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Change the title
+      const input = wrapper.find('.title-input')
+      await input.setValue('New Title')
+      await wrapper.vm.$nextTick()
+
+      // Press Enter
+      await input.trigger('keydown', { key: 'Enter' })
+      await wrapper.vm.$nextTick()
+
+      // Should exit edit mode
+      expect(wrapper.find('.title-input').exists()).toBe(false)
+      expect(wrapper.find('.title-display').text()).toBe('New Title')
+
+      // Should call backend
+      expect(mockBackend.titleUpdate).toHaveBeenCalledTimes(1)
+      const call = mockBackend.titleUpdate.mock.calls[0][0]
+      expect(call.title).toBe('New Title')
+      expect(call.id).toBeDefined()
+    })
+
+    it('confirms edit on confirm button click', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Original Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Change the title
+      await wrapper.find('.title-input').setValue('Updated Title')
+      await wrapper.vm.$nextTick()
+
+      // Click confirm button (use mousedown.prevent as in the component)
+      await wrapper.find('.title-edit-confirm').trigger('mousedown')
+      await wrapper.vm.$nextTick()
+
+      // Should exit edit mode and call backend
+      expect(wrapper.find('.title-input').exists()).toBe(false)
+      expect(mockBackend.titleUpdate).toHaveBeenCalledTimes(1)
+      expect(mockBackend.titleUpdate.mock.calls[0][0].title).toBe('Updated Title')
+    })
+
+    it('cancels edit on Escape key', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Original Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Change the title
+      await wrapper.find('.title-input').setValue('Changed Title')
+      await wrapper.vm.$nextTick()
+
+      // Press Escape
+      await wrapper.find('.title-input').trigger('keydown', { key: 'Escape' })
+      await wrapper.vm.$nextTick()
+
+      // Should exit edit mode without saving
+      expect(wrapper.find('.title-input').exists()).toBe(false)
+      expect(wrapper.find('.title-display').text()).toBe('Original Title')
+
+      // Should NOT call backend
+      expect(mockBackend.titleUpdate).not.toHaveBeenCalled()
+    })
+
+    it('cancels edit on cancel button click', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Original Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Change the title
+      await wrapper.find('.title-input').setValue('Changed Title')
+      await wrapper.vm.$nextTick()
+
+      // Click cancel button
+      await wrapper.find('.title-edit-cancel').trigger('mousedown')
+      await wrapper.vm.$nextTick()
+
+      // Should exit edit mode without saving
+      expect(wrapper.find('.title-input').exists()).toBe(false)
+      expect(mockBackend.titleUpdate).not.toHaveBeenCalled()
+    })
+
+    it('does not call backend if title unchanged', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Same Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Don't change the title, just press Enter
+      await wrapper.find('.title-input').trigger('keydown', { key: 'Enter' })
+      await wrapper.vm.$nextTick()
+
+      // Should NOT call backend
+      expect(mockBackend.titleUpdate).not.toHaveBeenCalled()
+    })
+
+    it('does not call backend if title is empty after trim', async () => {
+      const mockBackend = {
+        titleUpdate: mock(() => {}),
+        onAck: mock(() => () => {}),
+        onError: mock(() => () => {}),
+      }
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'Original Title',
+          backend: mockBackend
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      // Enter edit mode
+      await wrapper.find('.title-display').trigger('dblclick')
+      await wrapper.vm.$nextTick()
+
+      // Set title to whitespace only
+      await wrapper.find('.title-input').setValue('   ')
+      await wrapper.vm.$nextTick()
+
+      // Press Enter
+      await wrapper.find('.title-input').trigger('keydown', { key: 'Enter' })
+      await wrapper.vm.$nextTick()
+
+      // Should NOT call backend
+      expect(mockBackend.titleUpdate).not.toHaveBeenCalled()
+    })
+
+    it('shows editable cursor style when not readonly', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'My Sequence'
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      const titleDisplay = wrapper.find('.title-display')
+      expect(titleDisplay.classes()).toContain('title-editable')
+    })
+
+    it('does not show editable cursor style when readonly', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          sequence: 'ATCGATCG',
+          title: 'My Sequence',
+          readonly: true
+        }
+      })
+      await wrapper.vm.$nextTick()
+
+      const titleDisplay = wrapper.find('.title-display')
+      expect(titleDisplay.classes()).not.toContain('title-editable')
+    })
+  })
+
+  describe('Ctrl+V paste', () => {
+    // Helper to mock clipboard API
+    function mockClipboard(readTextFn) {
+      const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { readText: readTextFn },
+        writable: true,
+        configurable: true
+      })
+      return () => {
+        if (originalClipboard) {
+          Object.defineProperty(navigator, 'clipboard', originalClipboard)
+        } else {
+          delete navigator.clipboard
+        }
+      }
+    }
+
+    it('opens insert modal with clipboard content on Ctrl+V', async () => {
+      const restore = mockClipboard(mock(() => Promise.resolve('GATTACA')))
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      wrapper.vm.editorState.setCursor(4)
+      await wrapper.vm.$nextTick()
+
+      // Trigger Ctrl+V
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', ctrlKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Wait for async clipboard read
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await wrapper.vm.$nextTick()
+
+      // Modal should open with clipboard content
+      expect(wrapper.find('.modal-overlay').exists()).toBe(true)
+      expect(wrapper.find('.modal-input').element.value).toBe('GATTACA')
+
+      restore()
+    })
+
+    it('does nothing when readonly', async () => {
+      const mockReadText = mock(() => Promise.resolve('GATTACA'))
+      const restore = mockClipboard(mockReadText)
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100, readonly: true }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Trigger Ctrl+V
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', ctrlKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Modal should NOT open
+      expect(wrapper.find('.modal-overlay').exists()).toBe(false)
+      // Clipboard should NOT be read
+      expect(mockReadText).not.toHaveBeenCalled()
+
+      restore()
+    })
+
+    it('handles clipboard read error gracefully', async () => {
+      const originalConsoleWarn = console.warn
+      console.warn = mock(() => {})
+      const restore = mockClipboard(mock(() => Promise.reject(new Error('Clipboard access denied'))))
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Trigger Ctrl+V - should not throw
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', ctrlKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Wait for async clipboard read to fail
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await wrapper.vm.$nextTick()
+
+      // Modal should NOT open (no content)
+      expect(wrapper.find('.modal-overlay').exists()).toBe(false)
+      // Warning should be logged
+      expect(console.warn).toHaveBeenCalled()
+
+      restore()
+      console.warn = originalConsoleWarn
+    })
+
+    it('does nothing when clipboard is empty', async () => {
+      const restore = mockClipboard(mock(() => Promise.resolve('')))
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Trigger Ctrl+V
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', ctrlKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Wait for async clipboard read
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await wrapper.vm.$nextTick()
+
+      // Modal should NOT open (empty clipboard)
+      expect(wrapper.find('.modal-overlay').exists()).toBe(false)
+
+      restore()
+    })
+
+    it('works with Cmd+V on Mac', async () => {
+      const restore = mockClipboard(mock(() => Promise.resolve('ACGT')))
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Trigger Cmd+V (metaKey instead of ctrlKey)
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', metaKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Wait for async clipboard read
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await wrapper.vm.$nextTick()
+
+      // Modal should open
+      expect(wrapper.find('.modal-overlay').exists()).toBe(true)
+      expect(wrapper.find('.modal-input').element.value).toBe('ACGT')
+
+      restore()
+    })
+
+    it('opens in replace mode when there is a selection', async () => {
+      const restore = mockClipboard(mock(() => Promise.resolve('GATTACA')))
+
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Select positions 2..5
+      const selection = wrapper.findComponent({ name: 'SelectionLayer' }).vm.selection
+      selection.select('2..5')
+      await wrapper.vm.$nextTick()
+
+      // Trigger Ctrl+V
+      await wrapper.find('.editor-svg').trigger('keydown', { key: 'v', ctrlKey: true })
+      await wrapper.vm.$nextTick()
+
+      // Wait for async clipboard read
+      await new Promise(resolve => setTimeout(resolve, 10))
+      await wrapper.vm.$nextTick()
+
+      // Modal should open in replace mode
+      expect(wrapper.find('.modal-overlay').exists()).toBe(true)
+      expect(wrapper.find('.modal-label').text()).toContain('Replace')
+
+      restore()
+    })
+  })
+
+  describe('programmatic selection API', () => {
+    it('setSelection sets a single range', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      wrapper.vm.setSelection('4..8')
+      await wrapper.vm.$nextTick()
+
+      const sel = wrapper.vm.getSelection()
+      expect(sel).toEqual({ start: 4, end: 8 })
+    })
+
+    it('setSelection sets multiple ranges', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Multiple ranges use + separator
+      wrapper.vm.setSelection('2..4 + 8..12')
+      await wrapper.vm.$nextTick()
+
+      // getSelection returns first range only
+      const sel = wrapper.vm.getSelection()
+      expect(sel).toEqual({ start: 2, end: 4 })
+
+      // But both ranges should be selected (check via SelectionLayer)
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const domain = selectionLayer.vm.selection.domain.value
+      expect(domain.ranges).toHaveLength(2)
+      expect(domain.ranges[0].start).toBe(2)
+      expect(domain.ranges[0].end).toBe(4)
+      expect(domain.ranges[1].start).toBe(8)
+      expect(domain.ranges[1].end).toBe(12)
+    })
+
+    it('clearSelection clears the selection', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Set a selection first
+      wrapper.vm.setSelection('4..8')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.vm.getSelection()).not.toBeNull()
+
+      // Clear it
+      wrapper.vm.clearSelection()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.vm.getSelection()).toBeNull()
+    })
+
+    it('setSelection replaces existing selection', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Set initial selection
+      wrapper.vm.setSelection('0..4')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.vm.getSelection()).toEqual({ start: 0, end: 4 })
+
+      // Replace with new selection
+      wrapper.vm.setSelection('8..12')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.vm.getSelection()).toEqual({ start: 8, end: 12 })
+    })
+
+    it('setSelection updates selection composable state', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      wrapper.vm.setSelection('4..8')
+      await wrapper.vm.$nextTick()
+
+      // Check that selection layer has the selection
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      expect(selectionLayer.vm.selection.isSelected.value).toBe(true)
+      expect(selectionLayer.vm.selection.domain.value.ranges[0].start).toBe(4)
+      expect(selectionLayer.vm.selection.domain.value.ranges[0].end).toBe(8)
+    })
+
+    it('setSelection with a:<id> selects annotation span', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [
+            { id: 'ann-123', span: '5..15', caption: 'Test Gene', type: 'gene' }
+          ]
+        }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Select by annotation ID
+      wrapper.vm.setSelection('a:ann-123')
+      await wrapper.vm.$nextTick()
+
+      // Should select the annotation's span
+      const sel = wrapper.vm.getSelection()
+      expect(sel).toEqual({ start: 5, end: 15 })
+    })
+
+    it('setSelection with a:<id> does nothing for unknown annotation', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [
+            { id: 'ann-123', span: '5..15', caption: 'Test Gene', type: 'gene' }
+          ]
+        }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      // Try to select unknown annotation
+      wrapper.vm.setSelection('a:unknown-id')
+      await wrapper.vm.$nextTick()
+
+      // Should not have any selection
+      const sel = wrapper.vm.getSelection()
+      expect(sel).toBeNull()
+    })
+
+    it('setCursor sets a zero-width selection at position', async () => {
+      const wrapper = mount(SequenceEditor, {
+        props: { initialZoom: 100 }
+      })
+      wrapper.vm.setSequence('ATCGATCGATCGATCG')
+      await wrapper.vm.$nextTick()
+
+      wrapper.vm.setCursor(7)
+      await wrapper.vm.$nextTick()
+
+      // Zero-width selection at position 7
+      const sel = wrapper.vm.getSelection()
+      expect(sel).toEqual({ start: 7, end: 7 })
     })
   })
 })

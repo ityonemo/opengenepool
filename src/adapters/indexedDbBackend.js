@@ -132,7 +132,7 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
           sequence.annotations = [...sequence.annotations, data.annotation]
           break
 
-        case 'annotationChanged':
+        case 'annotationUpdate':
           sequence.annotations = sequence.annotations.map((ann) =>
             ann.id === data.annotation.id ? data.annotation : ann
           )
@@ -144,18 +144,12 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
           )
           break
 
-        case 'titleChange':
+        case 'titleUpdate':
           sequence.title = data.title
           break
 
-        case 'metadataInsert':
-        case 'metadataEdit':
-          sequence.metadata = { ...sequence.metadata, [data.key]: data.value }
-          break
-
-        case 'metadataDelete':
-          const { [data.key]: _, ...rest } = sequence.metadata
-          sequence.metadata = rest
+        case 'metadataUpdate':
+          sequence.metadata = data.metadata
           break
       }
 
@@ -189,8 +183,8 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
       applyOperation('annotationCreated', data)
     },
 
-    annotationChanged(data) {
-      applyOperation('annotationChanged', data)
+    annotationUpdate(data) {
+      applyOperation('annotationUpdate', data)
     },
 
     annotationDeleted(data) {
@@ -198,20 +192,12 @@ export function createIndexedDbBackend(sequenceId, options = {}) {
     },
 
     // Metadata operations
-    titleChange(data) {
-      applyOperation('titleChange', data)
+    titleUpdate(data) {
+      applyOperation('titleUpdate', data)
     },
 
-    metadataInsert(data) {
-      applyOperation('metadataInsert', data)
-    },
-
-    metadataEdit(data) {
-      applyOperation('metadataEdit', data)
-    },
-
-    metadataDelete(data) {
-      applyOperation('metadataDelete', data)
+    metadataUpdate(data) {
+      applyOperation('metadataUpdate', data)
     },
 
     // Additional methods for standalone mode

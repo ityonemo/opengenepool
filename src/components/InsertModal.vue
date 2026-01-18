@@ -43,7 +43,8 @@ watch(() => props.visible, async (visible) => {
 }, { immediate: true })
 
 function handleSubmit() {
-  const value = text.value.toUpperCase().replace(/[^ATCGNRYSWKMBDHV]/gi, '')
+  // Remove whitespace/newlines and invalid characters, uppercase
+  const value = text.value.toUpperCase().replace(/[^ATCGNRYSWKMBDHV]/g, '')
   if (value) {
     emit('submit', value)
   }
@@ -72,12 +73,12 @@ function handleKeyDown(event) {
       <label class="modal-label">
         {{ isReplace ? 'Replace sequence with:' : `Insert sequence at ${position}:` }}
       </label>
-      <input
+      <textarea
         ref="inputRef"
         v-model="text"
-        type="text"
         class="modal-input"
         placeholder="Enter DNA sequence (A, T, C, G, N, ...)"
+        rows="4"
         @keydown="handleKeyDown"
       />
       <div class="modal-hint">
@@ -131,6 +132,9 @@ function handleKeyDown(event) {
   border: 1px solid #ccc;
   border-radius: 4px;
   text-transform: uppercase;
+  box-sizing: border-box;
+  resize: vertical;
+  line-height: 1.4;
 }
 
 .modal-input:focus {

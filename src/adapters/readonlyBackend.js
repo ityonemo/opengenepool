@@ -17,11 +17,11 @@ export function createReadonlyBackend() {
 
     // Annotation operations - silently ignore
     annotationCreated: () => {},
-    annotationChanged: () => {},
+    annotationUpdate: () => {},
     annotationDeleted: () => {},
 
     // Metadata operations - silently ignore
-    titleChange: () => {},
+    titleUpdate: () => {},
     metadataUpdate: () => {},
   }
 }

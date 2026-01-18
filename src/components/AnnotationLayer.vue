@@ -145,45 +145,6 @@ function getLineY(lineIndex) {
   return graphics.getLineY(lineIndex)
 }
 
-// Generate tooltip text for an annotation fragment
-function getTooltipText(fragment) {
-  const parts = []
-  const ann = fragment.annotation
-
-  // Add caption/name
-  if (fragment.caption) {
-    parts.push(fragment.caption)
-  }
-
-  // Add type if different from caption
-  if (fragment.type && fragment.type !== fragment.caption) {
-    parts.push(`[${fragment.type}]`)
-  }
-
-  // Add position info
-  if (ann && ann.span) {
-    parts.push(ann.span.toString())
-  }
-
-  // Add all metadata from annotation attributes (except translation which is too long)
-  if (ann && ann.attributes) {
-    const entries = Object.entries(ann.attributes).filter(([key]) => key !== 'translation')
-    if (entries.length > 0) {
-      parts.push('') // blank line before metadata
-      for (const [key, value] of entries) {
-        // Format the value (handle arrays, truncate long values)
-        let displayValue = Array.isArray(value) ? value.join(', ') : String(value)
-        if (displayValue.length > 100) {
-          displayValue = displayValue.substring(0, 100) + '...'
-        }
-        parts.push(`${key}: ${displayValue}`)
-      }
-    }
-  }
-
-  return parts.join('\n')
-}
-
 // Generate full arrow-shaped path for fragment (like original)
 function getFullArrowPath(fragment) {
   const x = getFragmentX(fragment)
@@ -274,9 +235,6 @@ defineExpose({
         @mouseenter="handleMouseEnter($event, element.fragment)"
         @mouseleave="handleMouseLeave($event, element.fragment)"
       >
-        <!-- Tooltip via SVG title element -->
-        <title>{{ getTooltipText(element.fragment) }}</title>
-
         <!-- Use pre-computed arrow path from layout, color from localStorage -->
         <path
           :d="element.path"

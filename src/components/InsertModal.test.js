@@ -43,7 +43,7 @@ describe('InsertModal', () => {
       })
       await nextTick()
       await nextTick()
-      const input = wrapper.find('input')
+      const input = wrapper.find('textarea')
       expect(input.element.value).toBe('ATG')
     })
 
@@ -53,7 +53,7 @@ describe('InsertModal', () => {
       })
       await nextTick()
       await nextTick()
-      const input = wrapper.find('input')
+      const input = wrapper.find('textarea')
       expect(input.element.value).toBe('')
     })
   })
@@ -76,7 +76,7 @@ describe('InsertModal', () => {
       })
       await nextTick()
       await nextTick()
-      await wrapper.find('input').trigger('keydown', { key: 'Enter' })
+      await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
       expect(wrapper.emitted('submit')).toHaveLength(1)
       expect(wrapper.emitted('submit')[0]).toEqual(['ATG'])
     })
@@ -116,7 +116,7 @@ describe('InsertModal', () => {
       const wrapper = mount(InsertModal, {
         props: { visible: true }
       })
-      await wrapper.find('input').trigger('keydown', { key: 'Escape' })
+      await wrapper.find('textarea').trigger('keydown', { key: 'Escape' })
       expect(wrapper.emitted('cancel')).toHaveLength(1)
     })
 
