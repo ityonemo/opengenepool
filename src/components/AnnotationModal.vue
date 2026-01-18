@@ -49,6 +49,7 @@ const annotationType = ref('')
 const ranges = ref([])
 const attributes = ref({})
 const visibleFields = ref([])
+const customFieldName = ref('')
 
 // Parse span prop to extract ranges with orientation
 function parseSpan(spanStr) {
@@ -93,6 +94,7 @@ watch(() => props.open, (isOpen) => {
     annotationType.value = ''
     attributes.value = {}
     visibleFields.value = []
+    customFieldName.value = ''
   }
 }, { immediate: true })
 
@@ -201,6 +203,15 @@ function addField(key) {
   if (key && !visibleFields.value.includes(key)) {
     visibleFields.value.push(key)
     attributes.value[key] = ''
+  }
+}
+
+function addCustomField() {
+  const key = customFieldName.value.trim()
+  if (key && !visibleFields.value.includes(key)) {
+    visibleFields.value.push(key)
+    attributes.value[key] = ''
+    customFieldName.value = ''
   }
 }
 
@@ -379,13 +390,27 @@ function onOverlayClick() {
 
           <!-- Add field dropdown and actions -->
           <div class="form-actions">
-            <div v-if="availableToAdd.length > 0" class="add-field-dropdown">
-              <select class="add-field-select" @change="addField($event.target.value); $event.target.value = ''">
-                <option value="">Add field...</option>
-                <option v-for="field in availableToAdd" :key="field.key" :value="field.key">
-                  {{ field.label }}
-                </option>
-              </select>
+            <div class="add-field-controls">
+              <div v-if="availableToAdd.length > 0" class="add-field-dropdown">
+                <select class="add-field-select" @change="addField($event.target.value); $event.target.value = ''">
+                  <option value="">Add field...</option>
+                  <option v-for="field in availableToAdd" :key="field.key" :value="field.key">
+                    {{ field.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="custom-field-group">
+                <input
+                  type="text"
+                  class="custom-field-input"
+                  v-model="customFieldName"
+                  placeholder="Custom qualifier"
+                  @keyup.enter="addCustomField"
+                />
+                <button type="button" class="btn-add-custom-field" @click="addCustomField" title="Add custom qualifier">
+                  <PlusIcon class="icon-small" />
+                </button>
+              </div>
             </div>
             <div class="form-actions-right">
               <button type="button" class="btn-cancel" @click="close">Cancel</button>
@@ -658,5 +683,47 @@ function onOverlayClick() {
 
 .add-field-select:hover {
   border-color: #999;
+}
+
+.add-field-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.custom-field-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.custom-field-input {
+  width: 120px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.custom-field-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.btn-add-custom-field {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  color: #4CAF50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-add-custom-field:hover {
+  border-color: #4CAF50;
+  background: #f0fff0;
 }
 </style>

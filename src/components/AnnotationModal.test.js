@@ -305,6 +305,83 @@ describe('AnnotationModal', () => {
 
       expect(wrapper.find('#annotation-attr-product').exists()).toBe(false)
     })
+
+    it('shows custom qualifier input', () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+      expect(wrapper.find('.custom-field-input').exists()).toBe(true)
+    })
+
+    it('adds custom qualifier when typed and button clicked', async () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      await wrapper.find('.custom-field-input').setValue('my_qualifier')
+      await wrapper.find('.btn-add-custom-field').trigger('click')
+
+      expect(wrapper.find('#annotation-attr-my_qualifier').exists()).toBe(true)
+    })
+
+    it('clears custom qualifier input after adding', async () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      await wrapper.find('.custom-field-input').setValue('my_qualifier')
+      await wrapper.find('.btn-add-custom-field').trigger('click')
+
+      expect(wrapper.find('.custom-field-input').element.value).toBe('')
+    })
+
+    it('includes custom qualifier in emitted attributes', async () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      // Fill required fields
+      await wrapper.find('#annotation-caption').setValue('Test')
+      await wrapper.find('#annotation-type').setValue('gene')
+
+      // Add custom qualifier
+      await wrapper.find('.custom-field-input').setValue('custom_field')
+      await wrapper.find('.btn-add-custom-field').trigger('click')
+
+      // Wait for DOM to update
+      await wrapper.vm.$nextTick()
+
+      // Verify the field was added
+      expect(wrapper.find('#annotation-attr-custom_field').exists()).toBe(true)
+
+      await wrapper.find('#annotation-attr-custom_field').setValue('custom value')
+
+      // Verify form is valid (button should be enabled)
+      expect(wrapper.find('.btn-create').element.disabled).toBe(false)
+
+      // Submit
+      await wrapper.find('form').trigger('submit')
+
+      const emitted = wrapper.emitted('create')
+      expect(emitted).toHaveLength(1)
+      expect(emitted[0][0].attributes).toEqual({ custom_field: 'custom value' })
+    })
+
+    it('does not add empty custom qualifier', async () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      // Try to add empty qualifier
+      await wrapper.find('.custom-field-input').setValue('')
+      await wrapper.find('.btn-add-custom-field').trigger('click')
+
+      // Should not have added any new fields (only the standard dropdown exists)
+      const fields = wrapper.findAll('.form-group')
+      // Caption, Type, Ranges, and form-actions - no additional attribute fields
+      const attrInputs = wrapper.findAll('[id^="annotation-attr-"]')
+      expect(attrInputs.length).toBe(0)
+    })
   })
 
   describe('form validation', () => {
