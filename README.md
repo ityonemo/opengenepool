@@ -74,6 +74,8 @@ Position:   0  1  2  3  4  5  6
 - `0..0` = cursor at start (length 0)
 - `(0..6)` = full sequence, minus strand (reverse complement)
 
+**Important:** Ranges must always be specified in ascending order (start ≤ end), regardless of strand orientation. Use `(10..20)` for minus strand, not `(20..10)`.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |

@@ -94,8 +94,12 @@ export class Range {
    *   "[10..20]" → Range from 10 to 20 (unoriented)
    *   "15"       → Cursor at position 15 (same as "15..15")
    *
+   * Ranges must be in ascending order (start ≤ end). Use "(10..20)" for minus
+   * strand, not "(20..10)".
+   *
    * @param {string} str - The range string in fenced coordinates
    * @returns {Range}
+   * @throws {Error} If end < start
    */
   static parse(str) {
     const trimmed = str.trim()
