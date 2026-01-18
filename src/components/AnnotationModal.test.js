@@ -313,13 +313,34 @@ describe('AnnotationModal', () => {
       expect(wrapper.find('.custom-field-input').exists()).toBe(true)
     })
 
-    it('adds custom qualifier when typed and button clicked', async () => {
+    it('shows dropdown when custom input is empty', () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      expect(wrapper.find('.add-field-select').exists()).toBe(true)
+      expect(wrapper.find('.add-field-button').exists()).toBe(false)
+    })
+
+    it('shows button when custom input has text', async () => {
       const wrapper = mount(AnnotationModal, {
         props: { open: true, span: '0..10' }
       })
 
       await wrapper.find('.custom-field-input').setValue('my_qualifier')
-      await wrapper.find('.btn-add-custom-field').trigger('click')
+
+      expect(wrapper.find('.add-field-select').exists()).toBe(false)
+      expect(wrapper.find('.add-field-button').exists()).toBe(true)
+      expect(wrapper.find('.add-field-button').text()).toBe('Add field:')
+    })
+
+    it('adds custom qualifier when button clicked', async () => {
+      const wrapper = mount(AnnotationModal, {
+        props: { open: true, span: '0..10' }
+      })
+
+      await wrapper.find('.custom-field-input').setValue('my_qualifier')
+      await wrapper.find('.add-field-button').trigger('click')
 
       expect(wrapper.find('#annotation-attr-my_qualifier').exists()).toBe(true)
     })
@@ -330,7 +351,7 @@ describe('AnnotationModal', () => {
       })
 
       await wrapper.find('.custom-field-input').setValue('my_qualifier')
-      await wrapper.find('.btn-add-custom-field').trigger('click')
+      await wrapper.find('.add-field-button').trigger('click')
 
       expect(wrapper.find('.custom-field-input').element.value).toBe('')
     })
@@ -346,7 +367,7 @@ describe('AnnotationModal', () => {
 
       // Add custom qualifier
       await wrapper.find('.custom-field-input').setValue('custom_field')
-      await wrapper.find('.btn-add-custom-field').trigger('click')
+      await wrapper.find('.add-field-button').trigger('click')
 
       // Wait for DOM to update
       await wrapper.vm.$nextTick()
@@ -367,20 +388,14 @@ describe('AnnotationModal', () => {
       expect(emitted[0][0].attributes).toEqual({ custom_field: 'custom value' })
     })
 
-    it('does not add empty custom qualifier', async () => {
+    it('does not show add button when custom input is empty', () => {
       const wrapper = mount(AnnotationModal, {
         props: { open: true, span: '0..10' }
       })
 
-      // Try to add empty qualifier
-      await wrapper.find('.custom-field-input').setValue('')
-      await wrapper.find('.btn-add-custom-field').trigger('click')
-
-      // Should not have added any new fields (only the standard dropdown exists)
-      const fields = wrapper.findAll('.form-group')
-      // Caption, Type, Ranges, and form-actions - no additional attribute fields
-      const attrInputs = wrapper.findAll('[id^="annotation-attr-"]')
-      expect(attrInputs.length).toBe(0)
+      // With empty input, button should not exist (dropdown shows instead)
+      expect(wrapper.find('.add-field-button').exists()).toBe(false)
+      expect(wrapper.find('.add-field-select').exists()).toBe(true)
     })
   })
 

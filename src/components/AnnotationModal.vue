@@ -391,26 +391,31 @@ function onOverlayClick() {
           <!-- Add field dropdown and actions -->
           <div class="form-actions">
             <div class="add-field-controls">
-              <div v-if="availableToAdd.length > 0" class="add-field-dropdown">
-                <select class="add-field-select" @change="addField($event.target.value); $event.target.value = ''">
-                  <option value="">Add field...</option>
-                  <option v-for="field in availableToAdd" :key="field.key" :value="field.key">
-                    {{ field.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="custom-field-group">
-                <input
-                  type="text"
-                  class="custom-field-input"
-                  v-model="customFieldName"
-                  placeholder="Custom qualifier"
-                  @keyup.enter="addCustomField"
-                />
-                <button type="button" class="btn-add-custom-field" @click="addCustomField" title="Add custom qualifier">
-                  <PlusIcon class="icon-small" />
-                </button>
-              </div>
+              <button
+                v-if="customFieldName.trim()"
+                type="button"
+                class="add-field-button"
+                @click="addCustomField"
+              >
+                Add field:
+              </button>
+              <select
+                v-else-if="availableToAdd.length > 0"
+                class="add-field-select"
+                @change="addField($event.target.value); $event.target.value = ''"
+              >
+                <option value="">Add field...</option>
+                <option v-for="field in availableToAdd" :key="field.key" :value="field.key">
+                  {{ field.label }}
+                </option>
+              </select>
+              <input
+                type="text"
+                class="custom-field-input"
+                v-model="customFieldName"
+                placeholder="Custom qualifier"
+                @keyup.enter="addCustomField"
+              />
             </div>
             <div class="form-actions-right">
               <button type="button" class="btn-cancel" @click="close">Cancel</button>
@@ -691,12 +696,6 @@ function onOverlayClick() {
   align-items: center;
 }
 
-.custom-field-group {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
 .custom-field-input {
   width: 120px;
   padding: 8px;
@@ -710,20 +709,17 @@ function onOverlayClick() {
   border-color: #4CAF50;
 }
 
-.btn-add-custom-field {
-  background: none;
-  border: 1px solid #ccc;
+.add-field-button {
+  padding: 8px 12px;
+  border: 1px solid #4CAF50;
   border-radius: 4px;
-  padding: 6px;
+  background: #f0fff0;
+  font-size: 13px;
   cursor: pointer;
   color: #4CAF50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.btn-add-custom-field:hover {
-  border-color: #4CAF50;
-  background: #f0fff0;
+.add-field-button:hover {
+  background: #e0ffe0;
 }
 </style>
