@@ -83,26 +83,39 @@ export function polarToCartesian(cx, cy, radius, angle) {
  * @param {number} cy - Center y of circle
  * @param {number} radius - Center radius of the arc band
  * @param {number} thickness - Thickness of the arc band
- * @param {boolean} [wrapAround=false] - If true, arc goes the "long way" around
+ * @param {boolean|number} [wrapAroundOrOffset=false] - If boolean: whether arc goes the "long way". If number: angle offset in radians.
+ * @param {number} [angleOffset=0] - Angle offset in radians (for origin rotation)
  * @returns {string} SVG path string
  */
-export function getArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness, wrapAround = false) {
+export function getArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness, wrapAroundOrOffset = false, angleOffset = 0) {
+  // Handle backward compatibility: if wrapAroundOrOffset is a number, it's the angle offset
+  let wrapAround = false
+  let offset = angleOffset
+  if (typeof wrapAroundOrOffset === 'number') {
+    offset = wrapAroundOrOffset
+  } else {
+    wrapAround = wrapAroundOrOffset
+  }
+
   // Handle zero-length arc
   if (startPos === endPos && !wrapAround) {
     return ''
   }
 
-  const innerRadius = radius - thickness / 2
-  const outerRadius = radius + thickness / 2
+  // Ensure inner radius stays positive (at least 1px)
+  const halfThickness = thickness / 2
+  const innerRadius = Math.max(1, radius - halfThickness)
+  const outerRadius = radius + halfThickness
 
-  const startAngle = positionToAngle(startPos, sequenceLength)
-  const endAngle = positionToAngle(endPos, sequenceLength)
+  const startAngle = positionToAngle(startPos, sequenceLength) + offset
+  const endAngle = positionToAngle(endPos, sequenceLength) + offset
 
-  // For very small arcs (< 1% of circle), use simple polygon instead of arcs
+  // For very small arcs (< 1 degree), use simple polygon instead of arcs
   // SVG arcs behave unpredictably when start and end points are nearly identical
   const bpSpan = endPos - startPos
   const fraction = bpSpan / sequenceLength
-  if (!wrapAround && fraction > 0 && fraction < 0.01) {
+  // 1 degree = 1/360 ≈ 0.00278
+  if (!wrapAround && fraction > 0 && fraction < 1 / 360) {
     const outerStart = polarToCartesian(cx, cy, outerRadius, startAngle)
     const outerEnd = polarToCartesian(cx, cy, outerRadius, endAngle)
     const innerStart = polarToCartesian(cx, cy, innerRadius, startAngle)
@@ -165,25 +178,39 @@ export function getArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thi
  * @param {number} thickness - Thickness of the arc band
  * @param {number} orientation - 1 for plus (arrow at end), -1 for minus (arrow at start), 0 for none
  * @param {number} [arrowLength=8] - Length of arrowhead in pixels
+ * @param {number} [angleOffset=0] - Angle offset in radians (for origin rotation)
  * @returns {string} SVG path string
  */
-export function getArrowArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness, orientation, arrowLength = 8) {
+export function getArrowArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness, orientation, arrowLength = 8, angleOffset = 0) {
   // Handle zero-length arc
   if (startPos === endPos) {
     return ''
   }
 
-  const innerRadius = radius - thickness / 2
-  const outerRadius = radius + thickness / 2
+  // Ensure inner radius stays positive (at least 1px)
+  const halfThickness = thickness / 2
+  const innerRadius = Math.max(1, radius - halfThickness)
+  const outerRadius = radius + halfThickness
 
-  const startAngle = positionToAngle(startPos, sequenceLength)
-  const endAngle = positionToAngle(endPos, sequenceLength)
+  const startAngle = positionToAngle(startPos, sequenceLength) + angleOffset
+  const endAngle = positionToAngle(endPos, sequenceLength) + angleOffset
 
-  // For very small arcs (< 1% of circle), use simple polygon
-  // SVG arcs behave unpredictably when start and end points are nearly identical
-  const bpSpan = endPos - startPos
-  const fraction = bpSpan / sequenceLength
-  if (fraction < 0.01) {
+  // Calculate arc span (ensure positive for clockwise)
+  let arcSpan = endAngle - startAngle
+  if (arcSpan < 0) {
+    arcSpan += 2 * Math.PI
+  }
+
+  // Arrow takes up some angular space
+  const arrowAngle = arrowLength / radius
+
+  // Minimum angle threshold: 1 degree + arrow angle
+  // If arc is too small, fall back to simple polygon (no arrow)
+  const oneDegree = Math.PI / 180
+  const minAngleForArrow = oneDegree + arrowAngle
+
+  if (arcSpan < minAngleForArrow) {
+    // Too small for arrow - draw simple polygon
     const outerStart = polarToCartesian(cx, cy, outerRadius, startAngle)
     const outerEnd = polarToCartesian(cx, cy, outerRadius, endAngle)
     const innerStart = polarToCartesian(cx, cy, innerRadius, startAngle)
@@ -197,21 +224,12 @@ export function getArrowArcPath(startPos, endPos, sequenceLength, cx, cy, radius
     ].join(' ')
   }
 
-  // Calculate arc span (ensure positive for clockwise)
-  let arcSpan = endAngle - startAngle
-  if (arcSpan < 0) {
-    arcSpan += 2 * Math.PI
-  }
-
-  // Arrow takes up some angular space
-  const arrowAngle = arrowLength / radius
-
   // Large arc flag: 1 if span > 180 degrees
   const largeArcFlag = arcSpan > Math.PI ? 1 : 0
 
   // No arrow - simple arc
   if (orientation === 0) {
-    return getArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness)
+    return getArcPath(startPos, endPos, sequenceLength, cx, cy, radius, thickness, false, angleOffset)
   }
 
   // Calculate base points
@@ -336,15 +354,16 @@ export function getRowRadius(rowIndex, baseRadius, annotationHeight, padding = 2
  * @param {number} cy - Center y of circle
  * @param {number} radius - Radius for the text path
  * @param {boolean} [reverse=false] - If true, draw arc in reverse direction (for bottom-half text)
+ * @param {number} [angleOffset=0] - Angle offset in radians (for origin rotation)
  * @returns {string} SVG path string
  */
-export function getTextArcPath(startPos, endPos, sequenceLength, cx, cy, radius, reverse = false) {
+export function getTextArcPath(startPos, endPos, sequenceLength, cx, cy, radius, reverse = false, angleOffset = 0) {
   if (startPos === endPos) {
     return ''
   }
 
-  const startAngle = positionToAngle(startPos, sequenceLength)
-  const endAngle = positionToAngle(endPos, sequenceLength)
+  const startAngle = positionToAngle(startPos, sequenceLength) + angleOffset
+  const endAngle = positionToAngle(endPos, sequenceLength) + angleOffset
 
   // Calculate arc span
   let arcSpan = endAngle - startAngle

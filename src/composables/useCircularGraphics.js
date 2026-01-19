@@ -24,6 +24,16 @@ import {
 export function useCircularGraphics(editorState, options = {}) {
   const annotationRowCount = options.annotationRowCount || ref(0)
 
+  // Origin offset - allows rotating the entire view so position 0 appears elsewhere
+  // This is an angular offset in radians
+  const originOffset = ref(0)
+
+  // Zoom state - controls backbone radius scaling
+  const zoomScale = ref(1.0)
+
+  // Zoom limits
+  const minBackboneRadius = 50
+
   // Annotation settings (fixed)
   const annotationHeight = ref(14)
   const annotationPadding = ref(4)       // Padding between annotation rows
@@ -45,11 +55,12 @@ export function useCircularGraphics(editorState, options = {}) {
   const centerX = computed(() => viewBoxWidth.value / 2)
   const centerY = computed(() => viewBoxHeight.value / 2)
 
-  // Backbone radius - shrinks to accommodate annotation rows
+  // Backbone radius - shrinks to accommodate annotation rows, scales with zoom
   // Base radius minus space needed for annotations on the outside
   const baseBackboneRadius = 180
   const backboneRadius = computed(() => {
-    return Math.max(80, baseBackboneRadius - annotationSpace.value / 2)
+    const base = Math.max(80, baseBackboneRadius - annotationSpace.value / 2)
+    return base * zoomScale.value
   })
 
   // ViewBox string for SVG
@@ -57,38 +68,91 @@ export function useCircularGraphics(editorState, options = {}) {
     `0 0 ${viewBoxWidth.value} ${viewBoxHeight.value}`
   )
 
+  // Max backbone radius - leave room for annotations and margin
+  const maxBackboneRadius = computed(() => {
+    return (viewBoxWidth.value / 2) - annotationSpace.value - 20
+  })
+
+  /**
+   * Set zoom scale with clamping to stay within radius limits.
+   * @param {number} scale - Desired zoom scale
+   */
+  function setZoom(scale) {
+    const base = Math.max(80, baseBackboneRadius - annotationSpace.value / 2)
+    const proposedRadius = base * scale
+
+    if (proposedRadius < minBackboneRadius) {
+      scale = minBackboneRadius / base
+    } else if (proposedRadius > maxBackboneRadius.value) {
+      scale = maxBackboneRadius.value / base
+    }
+
+    zoomScale.value = scale
+  }
+
   /**
    * Convert sequence position to angle.
+   * Includes origin offset so position 0 can appear at any angle.
    * @param {number} position
    * @returns {number} Angle in radians
    */
   function positionToAngle(position) {
-    return posToAngle(position, editorState.sequenceLength.value)
+    return posToAngle(position, editorState.sequenceLength.value) + originOffset.value
   }
 
   /**
    * Convert angle to sequence position.
+   * Accounts for origin offset.
    * @param {number} angle - Angle in radians
    * @returns {number} Sequence position
    */
   function angleToPosition(angle) {
-    return angleToPos(angle, editorState.sequenceLength.value)
+    return angleToPos(angle - originOffset.value, editorState.sequenceLength.value)
   }
 
   /**
    * Convert mouse coordinates to sequence position.
+   * Accounts for origin offset.
    * @param {number} mouseX
    * @param {number} mouseY
    * @returns {number} Sequence position (integer)
    */
   function mouseToPosition(mouseX, mouseY) {
-    return mouseToPos(
+    // Get raw position without offset
+    const rawPos = mouseToPos(
       mouseX,
       mouseY,
       centerX.value,
       centerY.value,
       editorState.sequenceLength.value
     )
+    // Adjust for origin offset by converting the offset to a position delta
+    const offsetPositions = (originOffset.value / (2 * Math.PI)) * editorState.sequenceLength.value
+    let adjustedPos = rawPos - offsetPositions
+    // Normalize to [0, seqLen)
+    const seqLen = editorState.sequenceLength.value
+    adjustedPos = ((adjustedPos % seqLen) + seqLen) % seqLen
+    return Math.round(adjustedPos)
+  }
+
+  /**
+   * Convert mouse coordinates to angle (for origin dragging).
+   * @param {number} mouseX
+   * @param {number} mouseY
+   * @returns {number} Angle in radians
+   */
+  function mouseToAngle(mouseX, mouseY) {
+    const dx = mouseX - centerX.value
+    const dy = mouseY - centerY.value
+    return Math.atan2(dy, dx)
+  }
+
+  /**
+   * Set the origin offset angle.
+   * @param {number} angle - New offset in radians
+   */
+  function setOriginOffset(angle) {
+    originOffset.value = angle
   }
 
   /**
@@ -241,6 +305,12 @@ export function useCircularGraphics(editorState, options = {}) {
     centerY,
     backboneRadius,
 
+    // Zoom
+    zoomScale,
+    minBackboneRadius,
+    maxBackboneRadius,
+    setZoom,
+
     // Annotation settings
     annotationHeight,
     annotationPadding,
@@ -254,7 +324,12 @@ export function useCircularGraphics(editorState, options = {}) {
     positionToAngle,
     angleToPosition,
     mouseToPosition,
+    mouseToAngle,
     positionToCartesian,
+
+    // Origin offset
+    originOffset,
+    setOriginOffset,
 
     // Annotation stacking
     getRowRadius,

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
 import { Orientation } from '../utils/dna.js'
-import { getArrowArcPath, getArcPath, getTextArcPath, positionToAngle } from '../utils/circular.js'
+import { getArrowArcPath, getArcPath, getTextArcPath } from '../utils/circular.js'
 
 const props = defineProps({
   /** Array of Annotation objects to render */
@@ -143,6 +143,9 @@ const annotationElements = computed(() => {
         orientation = Orientation.MINUS
       }
 
+      // Get the origin offset for angle calculations
+      const angleOffset = circularGraphics.originOffset.value
+
       // Generate path
       const path = getArrowArcPath(
         range.start,
@@ -152,7 +155,9 @@ const annotationElements = computed(() => {
         cy,
         radius,
         thickness,
-        orientation
+        orientation,
+        8,  // arrowLength
+        angleOffset
       )
 
       if (!path) continue
@@ -180,7 +185,8 @@ const annotationElements = computed(() => {
         cx,
         cy,
         radius,
-        isBottomHalf  // Reverse for bottom half so text reads correctly
+        isBottomHalf,  // Reverse for bottom half so text reads correctly
+        angleOffset
       )
 
       elements.push({

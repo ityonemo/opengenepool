@@ -102,6 +102,61 @@ describe('useCircularGraphics', () => {
     })
   })
 
+  describe('zoom', () => {
+    it('has zoomScale initialized to 1.0', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      expect(graphics.zoomScale.value).toBe(1.0)
+    })
+
+    it('exposes zoom limits', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      expect(graphics.minBackboneRadius).toBe(50)
+      expect(graphics.maxBackboneRadius.value).toBeGreaterThan(50)
+    })
+
+    it('scales backboneRadius with zoomScale', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      const baseRadius = graphics.backboneRadius.value
+      graphics.zoomScale.value = 0.5
+      expect(graphics.backboneRadius.value).toBeCloseTo(baseRadius * 0.5)
+
+      graphics.zoomScale.value = 1.5
+      expect(graphics.backboneRadius.value).toBeCloseTo(baseRadius * 1.5)
+    })
+
+    it('setZoom clamps to minBackboneRadius', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      // Try to zoom out so radius would be below minimum
+      graphics.setZoom(0.1) // Would make radius ~18px, below 50px minimum
+      expect(graphics.backboneRadius.value).toBeGreaterThanOrEqual(graphics.minBackboneRadius)
+    })
+
+    it('setZoom clamps to maxBackboneRadius', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      // Try to zoom in beyond the maximum
+      graphics.setZoom(5.0) // Would make radius ~900px, above max
+      expect(graphics.backboneRadius.value).toBeLessThanOrEqual(graphics.maxBackboneRadius.value)
+    })
+
+    it('setZoom updates zoomScale within limits', () => {
+      const editorState = createMockEditorState()
+      const graphics = useCircularGraphics(editorState)
+
+      graphics.setZoom(1.2)
+      expect(graphics.zoomScale.value).toBe(1.2)
+    })
+  })
+
   describe('tick marks', () => {
     it('generates tick marks at regular intervals', () => {
       const editorState = createMockEditorState(10000)

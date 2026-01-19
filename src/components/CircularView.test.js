@@ -131,4 +131,31 @@ describe('CircularView', () => {
       expect(wrapper.vm.circularGraphics.backboneRadius).toBeDefined()
     })
   })
+
+  describe('zoom', () => {
+    it('exposes isZooming state', () => {
+      const wrapper = createWrapper()
+      expect(wrapper.vm.isZooming).toBeDefined()
+      expect(wrapper.vm.isZooming).toBe(false)
+    })
+
+    it('exposes showZoomTooltip state', () => {
+      const wrapper = createWrapper()
+      expect(wrapper.vm.showZoomTooltip).toBeDefined()
+      expect(wrapper.vm.showZoomTooltip).toBe(false)
+    })
+
+    it('renders zoom tooltip when showZoomTooltip is true', async () => {
+      const wrapper = createWrapper()
+      // Tooltip should not be visible initially
+      expect(wrapper.find('.zoom-tooltip').exists()).toBe(false)
+
+      // Set showZoomTooltip to true
+      wrapper.vm.showZoomTooltip = true
+      await wrapper.vm.$nextTick()
+
+      // Tooltip should be visible
+      expect(wrapper.find('.zoom-tooltip').exists()).toBe(true)
+    })
+  })
 })

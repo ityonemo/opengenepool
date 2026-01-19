@@ -75,6 +75,7 @@ const selectionPaths = computed(() => {
     }
 
     // Generate arc path
+    const angleOffset = circularGraphics.originOffset.value
     const path = getArcPath(
       range.start,
       range.end,
@@ -82,7 +83,9 @@ const selectionPaths = computed(() => {
       cx,
       cy,
       centerRadius,
-      thickness
+      thickness,
+      false,  // wrapAround
+      angleOffset
     )
 
     if (!path) continue
