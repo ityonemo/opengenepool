@@ -74,18 +74,22 @@ function getChevronPath(x, width, h, orientation, showTail, showNotch) {
 
   if (orientation === 1) {
     // Plus strand: chevron points right (nose on right edge, tail on left)
+    // Fork indent recessed by tail amount to receive previous codon's nose
+    const forkIndent = showTail ? tail : 0
     return `M ${x - tail} 0 ` +                // top-left corner (extended if showTail)
            `L ${x + width} 0 ` +               // top-right edge
            `L ${x + width + nose} ${h / 2} ` + // nose point (protrudes if showNotch)
            `L ${x + width} ${h} ` +            // bottom-right edge
            `L ${x - tail} ${h} ` +             // bottom-left corner (extended if showTail)
-           `L ${x} ${h / 2} ` +                // middle-left (inside of fork)
+           `L ${x + forkIndent} ${h / 2} ` +   // middle-left (recessed to receive nose)
            `Z`
   } else {
     // Minus strand: chevron points left (nose on left edge, tail on right)
+    // Fork indent recessed by tail amount to receive previous codon's nose
+    const forkIndent = showTail ? tail : 0
     return `M ${x} 0 ` +                       // top-left edge
            `L ${x + width + tail} 0 ` +        // top-right corner (extended if showTail)
-           `L ${x + width} ${h / 2} ` +        // middle-right (inside of fork)
+           `L ${x + width - forkIndent} ${h / 2} ` + // middle-right (recessed to receive nose)
            `L ${x + width + tail} ${h} ` +     // bottom-right corner (extended if showTail)
            `L ${x} ${h} ` +                    // bottom-left edge
            `L ${x - nose} ${h / 2} ` +         // nose point (protrudes if showNotch)
