@@ -95,9 +95,9 @@ function handleMouseDown(event) {
   lastDragPos.value = pos
   isWrapped.value = false
 
-  // Shift-click extends existing selection
+  // Shift-click extends selection (circular mode - closes gaps, no directional extend for multi-range)
   if (event.shiftKey && selection.isSelected.value) {
-    selection.extendToPosition(pos)
+    selection.extendToPosition(pos, true)
     return
   }
 

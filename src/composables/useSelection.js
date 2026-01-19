@@ -429,14 +429,15 @@ export function useSelection(editorState, graphics, eventBus) {
    *
    * For single range: extends start or end to include position.
    * For multiple ranges:
-   *   - If pos is before all ranges: extend leftmost range's start
-   *   - If pos is after all ranges: extend rightmost range's end
+   *   - If pos is before all ranges: extend leftmost range's start (linear only)
+   *   - If pos is after all ranges: extend rightmost range's end (linear only)
    *   - If pos is between two ranges: merge those two ranges
    *
    * @param {number} pos - Position to extend to
+   * @param {boolean} circular - If true, only merge gaps (no directional extend)
    * @returns {boolean} - True if operation was valid, false if preconditions not met
    */
-  function extendToPosition(pos) {
+  function extendToPosition(pos, circular = false) {
     if (!isSelected.value || !domain.value || domain.value.ranges.length === 0) {
       return false
     }
@@ -458,16 +459,19 @@ export function useSelection(editorState, graphics, eventBus) {
       }
     }
 
-    // Case 1: pos is before all ranges - extend leftmost
-    if (pos < leftmost.start) {
-      ranges[leftmost.index].start = pos
-      return true
-    }
+    // Extend in a direction (linear mode, or circular with single range)
+    if (!circular || ranges.length === 1) {
+      // Case 1: pos is before all ranges - extend leftmost
+      if (pos < leftmost.start) {
+        ranges[leftmost.index].start = pos
+        return true
+      }
 
-    // Case 2: pos is after all ranges - extend rightmost
-    if (pos > rightmost.end) {
-      ranges[rightmost.index].end = pos
-      return true
+      // Case 2: pos is after all ranges - extend rightmost
+      if (pos > rightmost.end) {
+        ranges[rightmost.index].end = pos
+        return true
+      }
     }
 
     // Case 3: pos is between two ranges - find which pair and merge them
@@ -485,6 +489,29 @@ export function useSelection(editorState, graphics, eventBus) {
 
         // Remove the next range
         ranges.splice(next.index, 1)
+
+        return true
+      }
+    }
+
+    // Case 4 (circular only): pos is in the "around the horn" gap
+    // This is the gap between the rightmost range's end and leftmost range's start,
+    // wrapping through the origin (0)
+    if (circular && sortedIndices.length >= 2) {
+      const leftmost = sortedIndices[0]
+      const rightmost = sortedIndices[sortedIndices.length - 1]
+
+      // Check if pos is in the wraparound gap: after rightmost.end OR before leftmost.start
+      if (pos > rightmost.end || pos < leftmost.start) {
+        // Merge rightmost and leftmost ranges
+        const rightmostRange = ranges[rightmost.index]
+        const leftmostRange = ranges[leftmost.index]
+
+        // Extend rightmost to include leftmost
+        rightmostRange.end = leftmostRange.end
+
+        // Remove leftmost range
+        ranges.splice(leftmost.index, 1)
 
         return true
       }

@@ -587,5 +587,77 @@ describe('useSelection', () => {
 
       expect(sel.domain.value.ranges[0].end).toBe(80)
     })
+
+    it('circular mode: merges two ranges when clicking between them', () => {
+      const sel = createSelection()
+      sel.select('10..30')
+      sel.domain.value.addRange(new Range(50, 70, Orientation.PLUS))
+
+      const result = sel.extendToPosition(40, true)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges).toHaveLength(1)
+      expect(sel.domain.value.ranges[0].start).toBe(10)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+    })
+
+    it('circular mode: merges when clicking before all ranges (wraparound gap)', () => {
+      const sel = createSelection()
+      sel.select('50..70')
+      sel.domain.value.addRange(new Range(100, 120, Orientation.PLUS))
+
+      // Click at 20 - in wraparound gap (120 -> seqLen -> 0 -> 50)
+      const result = sel.extendToPosition(20, true)
+
+      // Should merge via wraparound (same as "around the horn")
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges).toHaveLength(1)
+      // Rightmost (100..120) extends to include leftmost (50..70)
+      expect(sel.domain.value.ranges[0].start).toBe(100)
+      expect(sel.domain.value.ranges[0].end).toBe(70)
+    })
+
+    it('circular mode: merges when clicking after all ranges (wraparound gap)', () => {
+      const sel = createSelection()
+      sel.select('10..30')
+      sel.domain.value.addRange(new Range(50, 70, Orientation.PLUS))
+
+      // Click at 100 - in wraparound gap (70 -> seqLen -> 0 -> 10)
+      const result = sel.extendToPosition(100, true)
+
+      // Should merge via wraparound (same as "around the horn")
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges).toHaveLength(1)
+      // Rightmost (50..70) extends to include leftmost (10..30)
+      expect(sel.domain.value.ranges[0].start).toBe(50)
+      expect(sel.domain.value.ranges[0].end).toBe(30)
+    })
+
+    it('circular mode: merges ranges when clicking in wraparound gap (around the horn)', () => {
+      const sel = createSelection()
+      sel.select('100..200')
+      sel.domain.value.addRange(new Range(400, 500, Orientation.PLUS))
+
+      // Click at position 50 - in the gap that wraps around origin (500 -> 0 -> 100)
+      const result = sel.extendToPosition(50, true)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges).toHaveLength(1)
+      // Rightmost (400..500) extends to include leftmost (100..200)
+      expect(sel.domain.value.ranges[0].start).toBe(400)
+      expect(sel.domain.value.ranges[0].end).toBe(200)
+    })
+
+    it('circular mode: single range still extends directionally', () => {
+      const sel = createSelection()
+      sel.select('100..200')
+
+      const result = sel.extendToPosition(50, true)
+
+      expect(result).toBe(true)
+      expect(sel.domain.value.ranges).toHaveLength(1)
+      expect(sel.domain.value.ranges[0].start).toBe(50)
+      expect(sel.domain.value.ranges[0].end).toBe(200)
+    })
   })
 })
