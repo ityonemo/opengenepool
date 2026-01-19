@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import SequenceEditor from '../src/components/SequenceEditor.vue'
 import Sidebar from './Sidebar.vue'
+import { ArrowDownTrayIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { listSequences, getSequence, saveSequence, deleteSequence, isEmpty } from './db.js'
 import { pUC19 } from './seed.js'
 import { parseGenBank } from './genbank-parser.js'
@@ -13,6 +14,13 @@ const sequences = ref([])
 // Currently selected sequence
 const selectedId = ref(null)
 const currentSequence = ref(null)
+
+// Search state
+const searchVisible = ref(false)
+const searchQuery = ref('')
+const searchMatches = ref([])
+const currentMatchIndex = ref(0)
+const editorRef = ref(null)
 
 // Load sequences on mount, seed if empty
 onMounted(async () => {
@@ -57,6 +65,134 @@ async function handleAnnotationsUpdate(updatedAnnotations) {
   // Persist to IndexedDB (deep clone to strip Vue proxies)
   const plainData = JSON.parse(JSON.stringify(currentSequence.value))
   await saveSequence(plainData)
+}
+
+function openSearch() {
+  searchVisible.value = true
+  searchQuery.value = ''
+  searchMatches.value = []
+  currentMatchIndex.value = 0
+}
+
+function closeSearch() {
+  searchVisible.value = false
+}
+
+function reverseComplement(seq) {
+  const complement = { A: 'T', T: 'A', G: 'C', C: 'G', N: 'N', R: 'Y', Y: 'R', S: 'S', W: 'W', K: 'M', M: 'K', B: 'V', V: 'B', D: 'H', H: 'D' }
+  return seq.split('').reverse().map(c => complement[c] || c).join('')
+}
+
+// Convert IUPAC ambiguity codes to regex character classes
+function iupacToRegex(seq) {
+  const iupac = {
+    A: 'A', T: 'T', G: 'G', C: 'C',
+    N: '[ATGC]',
+    R: '[AG]',   // puRine
+    Y: '[CT]',   // pYrimidine
+    S: '[GC]',   // Strong
+    W: '[AT]',   // Weak
+    K: '[GT]',   // Keto
+    M: '[AC]',   // aMino
+    B: '[CGT]',  // not A
+    D: '[AGT]',  // not C
+    H: '[ACT]',  // not G
+    V: '[ACG]'   // not T
+  }
+  return seq.split('').map(c => iupac[c] || c).join('')
+}
+
+function performSearch() {
+  if (!currentSequence.value || !searchQuery.value) {
+    searchMatches.value = []
+    return
+  }
+
+  const query = searchQuery.value.toUpperCase()
+  const revComp = reverseComplement(query)
+  const seq = currentSequence.value.sequence.toUpperCase()
+  const queryLen = query.length
+
+  // Convert IUPAC to regex patterns
+  const forwardPattern = iupacToRegex(query)
+  const revCompPattern = iupacToRegex(revComp)
+
+  // Find forward matches
+  const forwardRegex = new RegExp(forwardPattern, 'g')
+  const matches = []
+  let match
+
+  while ((match = forwardRegex.exec(seq)) !== null) {
+    matches.push({ start: match.index, end: match.index + match[0].length, strand: '+' })
+    // Prevent infinite loop on zero-length matches
+    if (match.index === forwardRegex.lastIndex) forwardRegex.lastIndex++
+  }
+
+  // Find reverse complement matches (if pattern is different from forward)
+  if (revCompPattern !== forwardPattern) {
+    const revRegex = new RegExp(revCompPattern, 'g')
+    while ((match = revRegex.exec(seq)) !== null) {
+      // Check if this overlaps with any forward match
+      const overlaps = matches.some(m =>
+        m.strand === '+' && !(match.index >= m.end || match.index + match[0].length <= m.start)
+      )
+      if (!overlaps) {
+        matches.push({ start: match.index, end: match.index + match[0].length, strand: '-' })
+      }
+      if (match.index === revRegex.lastIndex) revRegex.lastIndex++
+    }
+  }
+
+  // Sort by position
+  matches.sort((a, b) => a.start - b.start)
+
+  searchMatches.value = matches
+  currentMatchIndex.value = 0
+
+  if (matches.length > 0) {
+    goToMatch(0)
+  }
+}
+
+function goToMatch(index) {
+  if (searchMatches.value.length === 0) return
+
+  currentMatchIndex.value = index
+  const match = searchMatches.value[index]
+
+  // Select the match in the editor (with strand orientation)
+  if (editorRef.value) {
+    const spec = match.strand === '-'
+      ? `(${match.start}..${match.end})`
+      : `${match.start}..${match.end}`
+    editorRef.value.setSelection(spec)
+  }
+}
+
+function nextMatch() {
+  if (searchMatches.value.length === 0) return
+  const next = (currentMatchIndex.value + 1) % searchMatches.value.length
+  goToMatch(next)
+}
+
+function prevMatch() {
+  if (searchMatches.value.length === 0) return
+  const prev = (currentMatchIndex.value - 1 + searchMatches.value.length) % searchMatches.value.length
+  goToMatch(prev)
+}
+
+function handleSearchKeydown(event) {
+  if (event.key === 'Enter') {
+    if (event.shiftKey) {
+      prevMatch()
+    } else if (searchMatches.value.length > 0) {
+      nextMatch()
+    } else {
+      performSearch()
+    }
+  } else if (event.key === 'Escape') {
+    closeSearch()
+  }
 }
 
 function downloadSequence() {
@@ -125,24 +261,66 @@ async function handleUpload(file) {
       <div v-if="!currentSequence" class="placeholder">
         Please select a sequence on the left
       </div>
-      <template v-else>
-        <div class="toolbar">
-          <button class="download-btn" @click="downloadSequence" title="Download as GenBank">
-            Download .gb
+      <SequenceEditor
+        v-else
+        ref="editorRef"
+        :key="currentSequence.id"
+        :sequence="currentSequence.sequence"
+        :title="currentSequence.name"
+        :annotations="currentSequence.annotations || []"
+        :metadata="currentSequence.metadata || {}"
+        @edit="handleEdit"
+        @select="handleSelect"
+        @annotations-update="handleAnnotationsUpdate"
+      >
+        <template #toolbar>
+          <button class="toolbar-icon-btn" @click="openSearch" title="Search sequence">
+            <MagnifyingGlassIcon class="toolbar-icon" />
           </button>
-        </div>
-        <SequenceEditor
-          :key="currentSequence.id"
-          :sequence="currentSequence.sequence"
-          :title="currentSequence.name"
-          :annotations="currentSequence.annotations || []"
-          :metadata="currentSequence.metadata || {}"
-          @edit="handleEdit"
-          @select="handleSelect"
-          @annotations-update="handleAnnotationsUpdate"
-        />
-      </template>
+          <button class="toolbar-icon-btn" @click="downloadSequence" title="Download as GenBank">
+            <ArrowDownTrayIcon class="toolbar-icon" />
+          </button>
+        </template>
+      </SequenceEditor>
     </main>
+
+    <!-- Search Modal -->
+    <div v-if="searchVisible" class="search-overlay">
+      <div class="search-modal">
+        <div class="search-header">
+          <span class="search-title">Search Sequence</span>
+          <button class="search-close" @click="closeSearch">&times;</button>
+        </div>
+        <div class="search-body">
+          <input
+            type="text"
+            v-model="searchQuery"
+            class="search-input"
+            placeholder="Enter DNA sequence (e.g., GAATTC)"
+            @keydown="handleSearchKeydown"
+            @input="performSearch"
+            autofocus
+          />
+          <div class="search-results">
+            <span v-if="searchQuery && searchMatches.length === 0" class="no-matches">
+              No matches found
+            </span>
+            <template v-else-if="searchMatches.length > 0">
+              <span class="match-count">
+                {{ currentMatchIndex + 1 }} of {{ searchMatches.length }} matches:
+              </span>
+              <span class="match-location">
+                {{ searchMatches[currentMatchIndex].strand === '-' ? 'complement(' : '' }}{{ searchMatches[currentMatchIndex].start + 1 }}..{{ searchMatches[currentMatchIndex].end }}{{ searchMatches[currentMatchIndex].strand === '-' ? ')' : '' }}
+              </span>
+            </template>
+          </div>
+          <div v-if="searchMatches.length > 0" class="search-nav">
+            <button @click="prevMatch" class="nav-btn">&larr; Previous</button>
+            <button @click="nextMatch" class="nav-btn">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -179,26 +357,136 @@ html, body, #app {
   background: #fafafa;
 }
 
-.toolbar {
-  padding: 8px 16px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #ddd;
+.toolbar-icon-btn {
   display: flex;
-  justify-content: flex-end;
-}
-
-.download-btn {
-  padding: 6px 12px;
-  border: 1px solid #ccc;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
-  color: #333;
-  font-size: 13px;
+  color: #666;
   cursor: pointer;
 }
 
-.download-btn:hover {
-  background: #e8e8e8;
+.toolbar-icon-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+  border-color: #ccc;
+}
+
+.toolbar-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Search Modal - positioned top-right to not block editor */
+.search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.search-modal {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  min-width: 320px;
+  max-width: 400px;
+  pointer-events: auto;
+}
+
+.search-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.search-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.search-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #666;
+  padding: 0 4px;
+}
+
+.search-close:hover {
+  color: #333;
+}
+
+.search-body {
+  padding: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: "Lucida Console", Monaco, monospace;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.search-results {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #666;
+  min-height: 20px;
+}
+
+.no-matches {
+  color: #999;
+}
+
+.match-count {
+  color: #333;
+}
+
+.match-location {
+  font-family: "Lucida Console", Monaco, monospace;
+  color: #0066cc;
+  margin-left: 4px;
+}
+
+.search-nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.nav-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.nav-btn:hover {
+  background: #f5f5f5;
   border-color: #999;
 }
 </style>
