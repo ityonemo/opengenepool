@@ -2716,4 +2716,37 @@ defineExpose({
   pointer-events: none;
   z-index: 10;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .toolbar-spacer {
+    display: none;
+  }
+
+  .info {
+    width: 100%;
+    order: -1;
+    justify-content: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .zoom-control {
+    font-size: 13px;
+  }
+
+  .view-mode-toggle {
+    order: 1;
+  }
+
+  .help-button {
+    margin-right: 0;
+  }
+}
 </style>

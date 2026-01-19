@@ -259,7 +259,9 @@ async function handleUpload(file) {
     />
     <main class="main-content">
       <div v-if="!currentSequence" class="placeholder">
-        Please select a sequence on the left
+        <p class="placeholder-desktop">Please select a sequence on the left</p>
+        <p class="placeholder-mobile">Please select a sequence above</p>
+        <p class="mobile-note">Note: Some features may not have a good user experience on mobile devices.</p>
       </div>
       <SequenceEditor
         v-else
@@ -366,11 +368,39 @@ html, body, #app {
 .placeholder {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #888;
   font-size: 18px;
   background: #fafafa;
+  gap: 12px;
+}
+
+.placeholder p {
+  margin: 0;
+}
+
+.placeholder-mobile,
+.mobile-note {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .placeholder-desktop {
+    display: none;
+  }
+
+  .placeholder-mobile,
+  .mobile-note {
+    display: block;
+  }
+
+  .mobile-note {
+    font-size: 14px;
+    color: #999;
+    font-style: italic;
+  }
 }
 
 .toolbar-icon-btn {
