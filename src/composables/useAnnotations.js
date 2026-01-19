@@ -65,12 +65,15 @@ export function generateArrowPath({ left, right, height, blockWidth, arrowEdge, 
   }
 }
 
+// Height reserved for translation display below CDS annotations
+const TRANSLATION_HEIGHT = 18
+
 /**
  * Annotation element for layout calculations.
  * Wraps a fragment with bounding box info for collision detection.
  */
 export class AnnotationElement {
-  constructor({ left, top, right, bottom, fragment, path }) {
+  constructor({ left, top, right, bottom, fragment, path, reserveTranslationSpace = false }) {
     this._left = left
     this._top = top
     this._right = right
@@ -79,6 +82,7 @@ export class AnnotationElement {
     this.path = path
     this.deltaY = 0
     this.anchored = false  // annotations can be pushed up
+    this.reserveTranslationSpace = reserveTranslationSpace  // whether this element reserves space for translation
   }
 
   get left() { return this._left }
@@ -102,8 +106,10 @@ export class AnnotationElement {
  * @param {Object} editorState - Editor state composable
  * @param {Object} graphics - Graphics composable
  * @param {Object} eventBus - Event bus for plugin communication
+ * @param {Object} options - Optional settings
+ * @param {Ref<boolean>} options.showTranslation - When true, CDS annotations reserve extra height for translation
  */
-export function useAnnotations(editorState, graphics, eventBus) {
+export function useAnnotations(editorState, graphics, eventBus, options = {}) {
   // Annotation state
   const annotations = ref([])
 
@@ -177,15 +183,25 @@ export function useAnnotations(editorState, graphics, eventBus) {
           orientation: fragOrientation
         })
 
+        // Check if this is a CDS with translation enabled
+        const isCDS = annotation.type?.toUpperCase() === 'CDS'
+        const showTrans = options.showTranslation?.value ?? false
+        const reserveTranslationSpace = isCDS && showTrans
+
         // Create element with bounding box
         // Annotations are positioned ABOVE the sequence line (negative y)
+        // CDS annotations with translation reserve extra space below for the translation display
+        const totalHeight = reserveTranslationSpace
+          ? annotationHeight + TRANSLATION_HEIGHT
+          : annotationHeight
         const elem = new AnnotationElement({
           left,
-          top: -annotationHeight,
+          top: -totalHeight,
           right,
           bottom: 0,
           fragment: frag,
-          path
+          path,
+          reserveTranslationSpace
         })
 
         // Add to line map

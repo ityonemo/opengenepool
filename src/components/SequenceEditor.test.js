@@ -735,17 +735,20 @@ describe('SequenceEditor', () => {
 
       await wrapper.find('.config-button').trigger('click')
 
-      const typeNames = wrapper.findAll('.type-name')
+      // Check type names in the config-types section (not the display toggles)
+      const configTypes = wrapper.find('.config-types')
+      const typeNames = configTypes.findAll('.type-name')
       expect(typeNames.length).toBe(2)
       expect(typeNames.map(t => t.text()).sort()).toEqual(['gene', 'promoter'])
     })
 
-    it('shows "No annotations" when no annotations exist', async () => {
+    it('hides annotation types section when no annotations exist', async () => {
       const wrapper = mount(SequenceEditor, {
         props: { annotations: [] }
       })
       await wrapper.find('.config-button').trigger('click')
-      expect(wrapper.find('.config-empty').text()).toBe('No annotations')
+      // No config-types section when there are no annotations
+      expect(wrapper.find('.config-types').exists()).toBe(false)
     })
 
     it('hides annotations when type is unchecked', async () => {
@@ -776,52 +779,6 @@ describe('SequenceEditor', () => {
       layer = wrapper.findComponent({ name: 'AnnotationLayer' })
       expect(layer.props('annotations').length).toBe(1)
       expect(layer.props('annotations')[0].type).toBe('promoter')
-    })
-
-    it('Hide All button hides all annotation types', async () => {
-      const annotations = [
-        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
-        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
-      ]
-
-      const wrapper = mount(SequenceEditor, {
-        props: { annotations, initialZoom: 100 }
-      })
-      wrapper.vm.setSequence('A'.repeat(500))
-      await wrapper.vm.$nextTick()
-
-      await wrapper.find('.config-button').trigger('click')
-      await wrapper.find('.config-actions button:last-child').trigger('click')
-      await wrapper.vm.$nextTick()
-
-      // AnnotationLayer should not render when all types hidden
-      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
-      expect(layer.exists()).toBe(false)
-    })
-
-    it('Show All button shows all annotation types', async () => {
-      const annotations = [
-        new Annotation({ id: 'ann1', type: 'gene', span: '10..50' }),
-        new Annotation({ id: 'ann2', type: 'promoter', span: '60..80' })
-      ]
-
-      const wrapper = mount(SequenceEditor, {
-        props: { annotations, initialZoom: 100 }
-      })
-      wrapper.vm.setSequence('A'.repeat(500))
-      await wrapper.vm.$nextTick()
-
-      // Hide all first
-      await wrapper.find('.config-button').trigger('click')
-      await wrapper.find('.config-actions button:last-child').trigger('click')
-      await wrapper.vm.$nextTick()
-
-      // Now show all
-      await wrapper.find('.config-actions button:first-child').trigger('click')
-      await wrapper.vm.$nextTick()
-
-      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
-      expect(layer.props('annotations').length).toBe(2)
     })
 
     it('hides source type by default', async () => {

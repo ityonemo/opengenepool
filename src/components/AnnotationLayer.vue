@@ -1,7 +1,16 @@
 <script setup>
-import { computed, inject, watch } from 'vue'
+import { computed, inject, watch, ref } from 'vue'
 import { Orientation } from '../utils/dna.js'
 import { useAnnotations, generateArrowPath } from '../composables/useAnnotations.js'
+
+// Height reserved for translation display (must match useAnnotations)
+const TRANSLATION_HEIGHT = 18
+
+// User intent (from config checkbox)
+const show = ref(true)
+
+// Display visibility - derived from show (always the same for annotations)
+const visible = computed(() => show.value)
 
 const props = defineProps({
   /** Array of Annotation objects to render */
@@ -23,6 +32,11 @@ const props = defineProps({
   showCaptions: {
     type: Boolean,
     default: true
+  },
+  /** Whether to show translation for CDS annotations (reserves extra space) */
+  showTranslation: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -58,7 +72,11 @@ function getTypeColor(type) {
 }
 
 // Use annotations composable for layout calculations
-const annotationsComposable = useAnnotations(editorState, graphics, eventBus)
+// Pass showTranslation as a computed so CDS annotations can reserve extra space
+const showTranslationRef = computed(() => props.showTranslation)
+const annotationsComposable = useAnnotations(editorState, graphics, eventBus, {
+  showTranslation: showTranslationRef
+})
 
 // Watch for annotation prop changes
 watch(() => props.annotations, (newAnnotations) => {
@@ -206,8 +224,10 @@ function handleMouseLeave(event, fragment) {
   emit('hover', { event, annotation: fragment.annotation, fragment, entering: false })
 }
 
-// Expose for testing
+// Expose for testing and visibility control
 defineExpose({
+  show,
+  visible,
   fragments,
   fragmentsByLine,
   getFragmentX,
@@ -216,7 +236,7 @@ defineExpose({
 </script>
 
 <template>
-  <g class="annotation-layer">
+  <g v-if="visible" class="annotation-layer">
     <!-- Render annotations for each line -->
     <!-- Position at top of line so negative-Y arrows extend into space above -->
     <g
@@ -225,11 +245,12 @@ defineExpose({
       :transform="`translate(0, ${getLineY(lineIndex)})`"
     >
       <!-- Each element on this line (with layout-computed deltaY) -->
+      <!-- When translation space is reserved, offset visual up to leave room below for translation -->
       <g
         v-for="(element, elemIndex) in elementsByLine.get(lineIndex)"
         :key="`elem-${element.fragment.id}-${elemIndex}`"
         :class="['annotation-fragment', element.fragment.cssClass]"
-        :transform="`translate(0, ${element.deltaY})`"
+        :transform="`translate(0, ${element.deltaY - (element.reserveTranslationSpace ? TRANSLATION_HEIGHT : 0)})`"
         @click="handleClick($event, element.fragment)"
         @contextmenu="handleContextMenu($event, element.fragment)"
         @mouseenter="handleMouseEnter($event, element.fragment)"

@@ -9,6 +9,7 @@ import { Annotation } from '../utils/annotation.js'
 import { reverseComplement, Span, Range } from '../utils/dna.js'
 import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import AnnotationLayer from './AnnotationLayer.vue'
+import TranslationLayer from './TranslationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import ContextMenu from './ContextMenu.vue'
 import InsertModal from './InsertModal.vue'
@@ -204,6 +205,10 @@ const hiddenTypes = ref(loadHiddenTypes())
 const annotationColors = ref(loadAnnotationColors())
 const configPanelOpen = ref(false)
 
+// Refs to layer components (visibility is owned by layers)
+const annotationLayerRef = ref(null)
+const translationLayerRef = ref(null)
+
 // Save colors to localStorage whenever they change
 watch(annotationColors, (newColors) => {
   localStorage.setItem(COLORS_KEY, JSON.stringify(newColors))
@@ -235,6 +240,11 @@ const annotationInstances = computed(() => {
       // Convert plain object to Annotation
       return new Annotation(ann)
     })
+})
+
+// CDS annotations for translation display (only visible CDS annotations)
+const cdsAnnotations = computed(() => {
+  return annotationInstances.value.filter(ann => ann.type?.toUpperCase() === 'CDS')
 })
 
 // Metadata display helpers
@@ -370,14 +380,6 @@ function toggleAnnotationType(type) {
     newSet.add(type)
   }
   hiddenTypes.value = newSet
-}
-
-function showAllTypes() {
-  hiddenTypes.value = new Set()
-}
-
-function hideAllTypes() {
-  hiddenTypes.value = new Set(annotationTypes.value)
 }
 
 function isTypeHidden(type) {
@@ -1506,11 +1508,18 @@ defineExpose({
 
         <!-- Dropdown panel -->
         <div v-if="configPanelOpen" class="config-panel" @click.stop>
-          <div class="config-header">Annotations</div>
-          <div v-if="annotationTypes.length > 0" class="config-types">
+          <!-- Annotations section -->
+          <label class="config-header-toggle">
+            <input
+              type="checkbox"
+              :checked="annotationLayerRef?.show"
+              @change="annotationLayerRef && (annotationLayerRef.show = $event.target.checked)"
+            >
+            <span>Annotations</span>
+          </label>
+          <div v-if="annotationLayerRef?.show && annotationTypes.length > 0" class="config-types">
             <label v-for="type in annotationTypes" :key="type" class="type-row">
               <input type="checkbox" :checked="!isTypeHidden(type)" @change="toggleAnnotationType(type)">
-              <!-- Color swatch uses persisted colors from localStorage -->
               <svg class="type-swatch" viewBox="0 0 14 14" width="14" height="14">
                 <rect
                   x="0" y="0" width="14" height="14" rx="2"
@@ -1522,11 +1531,16 @@ defineExpose({
               <span class="type-name">{{ type }}</span>
             </label>
           </div>
-          <div v-else class="config-empty">No annotations</div>
-          <div v-if="annotationTypes.length > 0" class="config-actions">
-            <button @click="showAllTypes">Show All</button>
-            <button @click="hideAllTypes">Hide All</button>
-          </div>
+
+          <!-- Translation section -->
+          <label v-if="cdsAnnotations.length > 0" class="config-header-toggle">
+            <input
+              type="checkbox"
+              :checked="translationLayerRef?.show"
+              @change="translationLayerRef && (translationLayerRef.show = $event.target.checked)"
+            >
+            <span>Translation</span>
+          </label>
         </div>
       </div>
     </div>
@@ -1650,11 +1664,20 @@ defineExpose({
           @mousedown="handleSelectionMouseDown"
         />
 
+        <!-- Translation Layer (rendered below annotations, above sequence) -->
+        <TranslationLayer
+          v-if="cdsAnnotations.length > 0"
+          ref="translationLayerRef"
+          :annotations="cdsAnnotations"
+        />
+
         <!-- Annotation Layer -->
         <AnnotationLayer
           v-if="annotationInstances.length > 0"
+          ref="annotationLayerRef"
           :annotations="annotationInstances"
           :show-captions="showAnnotationCaptions"
+          :show-translation="translationLayerRef?.visible ?? false"
           :offset-y="graphics.lineHeight.value"
           @click="handleAnnotationClick"
           @contextmenu="handleAnnotationContextMenu"
@@ -2063,6 +2086,20 @@ defineExpose({
   border-bottom: 1px solid #eee;
 }
 
+.config-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.config-header-toggle input[type="checkbox"] {
+  margin: 0;
+}
+
 .config-types {
   padding: 8px 12px;
   max-height: 300px;
@@ -2073,6 +2110,18 @@ defineExpose({
   padding: 8px 12px;
   color: #999;
   font-size: 13px;
+}
+
+.config-section {
+  border-top: 1px solid #eee;
+}
+
+.config-section .config-header {
+  border-bottom: none;
+}
+
+.config-section .type-row {
+  padding: 4px 12px 8px 12px;
 }
 
 .type-row {
