@@ -401,10 +401,30 @@ function handleDragMove(event) {
     // Determine which direction we wrapped
     if (primaryRange.end === seqLen) {
       // Clockwise wrap: primary is anchor..seqLen, secondary is 0..pos
-      secondRange.end = pos
+      // Find the minimum start of any OTHER range in the 0..anchor region
+      let maxEnd = anchor
+      for (let i = 0; i < ranges.length; i++) {
+        if (i === rangeIndex || i === wrappedSecondRangeIndex.value) continue
+        const r = ranges[i]
+        // If this range is in the 0..anchor region, we can't go past its start
+        if (r.start < anchor && r.start < maxEnd) {
+          maxEnd = r.start
+        }
+      }
+      secondRange.end = Math.min(pos, maxEnd)
     } else if (primaryRange.start === 0) {
       // Counter-clockwise wrap: primary is 0..anchor, secondary is pos..seqLen
-      secondRange.start = pos
+      // Find the maximum end of any OTHER range in the anchor..seqLen region
+      let minStart = anchor
+      for (let i = 0; i < ranges.length; i++) {
+        if (i === rangeIndex || i === wrappedSecondRangeIndex.value) continue
+        const r = ranges[i]
+        // If this range is in the anchor..seqLen region, we can't go before its end
+        if (r.end > anchor && r.end > minStart) {
+          minStart = r.end
+        }
+      }
+      secondRange.start = Math.max(pos, minStart)
     }
   } else {
     // Non-wrapped: standard single-range logic
