@@ -20,6 +20,7 @@ const props = defineProps({
 const emit = defineEmits([
   'select',
   'contextmenu',
+  'handle-contextmenu',
   'annotation-click',
   'annotation-contextmenu',
   'annotation-hover'
@@ -277,6 +278,10 @@ function handleSelectionContextMenu(data) {
   emit('contextmenu', data)
 }
 
+function handleHandleContextMenu(data) {
+  emit('handle-contextmenu', data)
+}
+
 // Origin dragging
 const isDraggingOrigin = ref(false)
 const originDragStartAngle = ref(0)
@@ -435,6 +440,7 @@ defineExpose({
     <CircularSelectionLayer
       @select="handleSelectionChange"
       @contextmenu="handleSelectionContextMenu"
+      @handle-contextmenu="handleHandleContextMenu"
     />
 
     <!-- Annotation layer -->

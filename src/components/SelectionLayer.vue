@@ -11,7 +11,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select', 'contextmenu', 'merge', 'mousedown'])
+const emit = defineEmits(['select', 'contextmenu', 'merge', 'mousedown', 'handle-contextmenu'])
 
 // Inject from parent SequenceEditor
 const editorState = inject('editorState')
@@ -446,6 +446,20 @@ function handlePathContextMenu(event, rangeIndex) {
   })
 }
 
+function handleHandleContextMenu(event, rangeIndex, handleType) {
+  event.preventDefault()
+  event.stopPropagation()
+  const range = selection.domain.value.ranges[rangeIndex]
+  const isCursor = range.start === range.end
+  emit('handle-contextmenu', {
+    event,
+    rangeIndex,
+    range,
+    handleType,  // 'start' or 'end'
+    isCursor
+  })
+}
+
 // Expose for parent component
 defineExpose({
   selection
@@ -470,7 +484,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleStart.x, sel.handleStart.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'start')"
-        @contextmenu.prevent="handlePathContextMenu($event, sel.index)"
+        @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'start')"
       />
 
       <!-- End handle - soft triangle pointing down -->
@@ -478,7 +492,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleEnd.x, sel.handleEnd.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'end')"
-        @contextmenu.prevent="handlePathContextMenu($event, sel.index)"
+        @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'end')"
       />
 
       <!-- Tag for multi-range selection -->

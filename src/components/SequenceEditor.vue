@@ -17,6 +17,7 @@ import ContextMenu from './ContextMenu.vue'
 import InsertModal from './InsertModal.vue'
 import MetadataModal from './MetadataModal.vue'
 import AnnotationModal from './AnnotationModal.vue'
+import ExtendModal from './ExtendModal.vue'
 
 const props = defineProps({
   /** DNA sequence string to display */
@@ -99,6 +100,96 @@ const insertModalSelectionEnd = ref(0)  // End of selection for replace mode
 const annotationModalOpen = ref(false)
 const annotationModalSpan = ref('0..0')
 const editingAnnotation = ref(null)  // null = create mode, annotation object = edit mode
+
+// Extend modal state
+const extendModalVisible = ref(false)
+const extendModalDirection = ref('positive')
+const extendModalRangeIndex = ref(0)
+const extendModalHandleType = ref('end')  // 'start' or 'end'
+
+// Computed max bases for extend modal
+const extendModalMaxBases = computed(() => {
+  if (!extendModalVisible.value) return null
+
+  const domain = selection.domain.value
+  if (!domain || extendModalRangeIndex.value >= domain.ranges.length) return null
+
+  const range = domain.ranges[extendModalRangeIndex.value]
+  const seqLen = editorState.sequenceLength.value
+  const direction = extendModalDirection.value
+  const isCircular = props.metadata?.circular === true
+
+  if (direction === 'negative') {
+    if (isCircular) {
+      // Circular: can wrap around, limited by nearest range end (going backwards)
+      // Start from range.start, go backwards wrapping at 0 to seqLen
+      let limit = seqLen  // max possible (full circle minus current selection)
+
+      for (let i = 0; i < domain.ranges.length; i++) {
+        if (i === extendModalRangeIndex.value) continue
+        const other = domain.ranges[i]
+        // Calculate distance going backwards (wrapping)
+        let gap
+        if (other.end <= range.start) {
+          // Other range is before us (no wrap needed)
+          gap = range.start - other.end
+        } else {
+          // Other range is after us, wrap around
+          gap = range.start + (seqLen - other.end)
+        }
+        limit = Math.min(limit, gap)
+      }
+      return limit
+    } else {
+      // Linear: max is distance to 0 or nearest range end
+      let limit = range.start
+
+      for (let i = 0; i < domain.ranges.length; i++) {
+        if (i === extendModalRangeIndex.value) continue
+        const other = domain.ranges[i]
+        if (other.end <= range.start) {
+          const gap = range.start - other.end
+          limit = Math.min(limit, gap)
+        }
+      }
+      return limit
+    }
+  } else {
+    if (isCircular) {
+      // Circular: can wrap around, limited by nearest range start (going forwards)
+      let limit = seqLen  // max possible (full circle minus current selection)
+
+      for (let i = 0; i < domain.ranges.length; i++) {
+        if (i === extendModalRangeIndex.value) continue
+        const other = domain.ranges[i]
+        // Calculate distance going forwards (wrapping)
+        let gap
+        if (other.start >= range.end) {
+          // Other range is after us (no wrap needed)
+          gap = other.start - range.end
+        } else {
+          // Other range is before us, wrap around
+          gap = (seqLen - range.end) + other.start
+        }
+        limit = Math.min(limit, gap)
+      }
+      return limit
+    } else {
+      // Linear: max is distance to seqLen or nearest range start
+      let limit = seqLen - range.end
+
+      for (let i = 0; i < domain.ranges.length; i++) {
+        if (i === extendModalRangeIndex.value) continue
+        const other = domain.ranges[i]
+        if (other.start >= range.end) {
+          const gap = other.start - range.end
+          limit = Math.min(limit, gap)
+        }
+      }
+      return limit
+    }
+  }
+})
 
 // Title editing state
 const editingTitle = ref(false)
@@ -853,6 +944,111 @@ function handleSelectionMouseDown(data) {
 
   window.addEventListener('mousemove', handleMouseMove)
   window.addEventListener('mouseup', handleMouseUp)
+}
+
+// Handle context menu on selection handles (for extend functionality)
+function handleHandleContextMenu(data) {
+  const { event, rangeIndex, range, handleType, isCursor } = data
+  const items = []
+
+  if (isCursor) {
+    // Cursor - offer both directions
+    items.push({
+      label: 'Extend negative (left)',
+      action: () => openExtendModal(rangeIndex, 'start', 'negative')
+    })
+    items.push({
+      label: 'Extend positive (right)',
+      action: () => openExtendModal(rangeIndex, 'end', 'positive')
+    })
+  } else if (handleType === 'start') {
+    // Start handle - extend negative (leftward)
+    items.push({
+      label: 'Extend negative (left)',
+      action: () => openExtendModal(rangeIndex, 'start', 'negative')
+    })
+  } else {
+    // End handle - extend positive (rightward)
+    items.push({
+      label: 'Extend positive (right)',
+      action: () => openExtendModal(rangeIndex, 'end', 'positive')
+    })
+  }
+
+  contextMenuItems.value = items
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+  contextMenuVisible.value = true
+}
+
+function openExtendModal(rangeIndex, handleType, direction) {
+  extendModalRangeIndex.value = rangeIndex
+  extendModalHandleType.value = handleType
+  extendModalDirection.value = direction
+  extendModalVisible.value = true
+}
+
+function handleExtendSubmit(bases) {
+  const rangeIndex = extendModalRangeIndex.value
+  const handleType = extendModalHandleType.value
+  const direction = extendModalDirection.value
+  const domain = selection.domain.value
+
+  if (!domain || rangeIndex >= domain.ranges.length) {
+    extendModalVisible.value = false
+    return
+  }
+
+  const range = domain.ranges[rangeIndex]
+  const seqLen = editorState.sequenceLength.value
+  const isCircular = props.metadata?.circular === true
+
+  if (direction === 'negative') {
+    // Extend leftward - decrease start
+    const newStart = range.start - bases
+
+    if (newStart < 0 && isCircular) {
+      // Wrapping around origin - create two ranges
+      const overflow = -newStart  // how much we went past 0
+      range.start = 0  // Current range now starts at 0
+
+      // Add wrapped range at end of sequence
+      domain.ranges.push({
+        start: seqLen - overflow,
+        end: seqLen,
+        orientation: range.orientation
+      })
+    } else {
+      range.start = Math.max(0, newStart)
+    }
+  } else {
+    // Extend rightward - increase end
+    const newEnd = range.end + bases
+
+    if (newEnd > seqLen && isCircular) {
+      // Wrapping around origin - create two ranges
+      const overflow = newEnd - seqLen  // how much we went past seqLen
+      range.end = seqLen  // Current range now ends at seqLen
+
+      // Add wrapped range at start of sequence
+      domain.ranges.push({
+        start: 0,
+        end: overflow,
+        orientation: range.orientation
+      })
+    } else {
+      range.end = Math.min(seqLen, newEnd)
+    }
+  }
+
+  // Trigger reactivity
+  selection.domain.value = selection.domain.value
+
+  extendModalVisible.value = false
+}
+
+function handleExtendCancel() {
+  extendModalVisible.value = false
 }
 
 function handleAnnotationContextMenu(data) {
@@ -1718,16 +1914,19 @@ defineExpose({
     </div>
 
     <!-- Circular View (only shown when viewMode is circular) -->
-    <div v-if="viewMode === 'circular'" class="editor-container circular-container">
-      <CircularView
-        :annotations="annotationInstances"
-        :show-annotation-captions="showAnnotationCaptions"
-        @select="handleSelectionChange"
-        @contextmenu="showContextMenu($event.event, $event)"
-        @annotation-click="handleAnnotationClick"
-        @annotation-contextmenu="handleAnnotationContextMenu"
-        @annotation-hover="handleAnnotationHover"
-      />
+    <div v-if="viewMode === 'circular'" class="editor-wrapper">
+      <div class="editor-container circular-container">
+        <CircularView
+          :annotations="annotationInstances"
+          :show-annotation-captions="showAnnotationCaptions"
+          @select="handleSelectionChange"
+          @contextmenu="showContextMenu($event.event, $event)"
+          @handle-contextmenu="handleHandleContextMenu"
+          @annotation-click="handleAnnotationClick"
+          @annotation-contextmenu="handleAnnotationContextMenu"
+          @annotation-hover="handleAnnotationHover"
+        />
+      </div>
 
       <!-- Selection Status Display -->
       <div
@@ -1737,8 +1936,9 @@ defineExpose({
     </div>
 
     <!-- Linear SVG Editor (default view) -->
-    <div v-else class="editor-container">
-      <svg
+    <div v-else class="editor-wrapper">
+      <div class="editor-container">
+        <svg
         ref="svgRef"
         class="editor-svg"
         :width="graphics.metrics.value.fullWidth"
@@ -1853,6 +2053,7 @@ defineExpose({
           @select="handleSelectionChange"
           @contextmenu="handleSelectionContextMenu"
           @mousedown="handleSelectionMouseDown"
+          @handle-contextmenu="handleHandleContextMenu"
         />
 
         <!-- Translation Layer (rendered below annotations, above sequence) -->
@@ -1880,6 +2081,7 @@ defineExpose({
         />
 
       </svg>
+      </div>
 
       <!-- Selection Status Display -->
       <div
@@ -1933,6 +2135,15 @@ defineExpose({
       @close="closeAnnotationModal"
       @create="handleAnnotationCreate"
       @update="handleAnnotationUpdate"
+    />
+
+    <!-- Extend Selection Modal -->
+    <ExtendModal
+      :visible="extendModalVisible"
+      :direction="extendModalDirection"
+      :max-bases="extendModalMaxBases"
+      @submit="handleExtendSubmit"
+      @cancel="handleExtendCancel"
     />
   </div>
 </template>
@@ -2047,11 +2258,18 @@ defineExpose({
   height: 14px;
 }
 
+.editor-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .editor-container {
   flex: 1;
   overflow: auto;
   background: white;
-  position: relative;
 }
 
 .editor-svg {

@@ -11,7 +11,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select', 'contextmenu', 'merge'])
+const emit = defineEmits(['select', 'contextmenu', 'merge', 'handle-contextmenu'])
 
 // Inject from parent
 const editorState = inject('editorState')
@@ -457,6 +457,20 @@ function handlePathContextMenu(event, rangeIndex) {
     range: selection.domain.value.ranges[rangeIndex]
   })
 }
+
+function handleHandleContextMenu(event, rangeIndex, handleType) {
+  event.preventDefault()
+  event.stopPropagation()
+  const range = selection.domain.value.ranges[rangeIndex]
+  const isCursor = range.start === range.end
+  emit('handle-contextmenu', {
+    event,
+    rangeIndex,
+    range,
+    handleType,  // 'start' or 'end'
+    isCursor
+  })
+}
 </script>
 
 <template>
@@ -479,6 +493,7 @@ function handlePathContextMenu(event, rangeIndex) {
         )"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'start')"
+        @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'start')"
       />
 
       <!-- End tab handle (only if different from start) -->
@@ -492,6 +507,7 @@ function handlePathContextMenu(event, rangeIndex) {
         )"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'end')"
+        @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'end')"
       />
 
       <!-- Range index tag for multi-range selections -->
