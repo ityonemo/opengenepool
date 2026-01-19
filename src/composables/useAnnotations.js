@@ -212,18 +212,47 @@ export function useAnnotations(editorState, graphics, eventBus, options = {}) {
       }
     }
 
+    // Compute global stacking priority for each annotation
+    // Priority: CDS before non-CDS (CDS gets lower rows), then by total span width (widest first)
+    const annotationPriority = new Map()
+    for (const annotation of annotations.value) {
+      const span = annotation.span
+      if (!span || !span.ranges) continue
+      // Total width across all ranges
+      const totalWidth = span.ranges.reduce((sum, r) => sum + (r.end - r.start), 0)
+      const isCDS = annotation.type?.toUpperCase() === 'CDS'
+      annotationPriority.set(annotation.id, { isCDS, totalWidth })
+    }
+
     // Apply sequence-based collision detection to each line
     for (const [line, elements] of byLine) {
-      // Sort by width (widest first) for greedy placement
-      elements.sort((a, b) => b.width - a.width)
+      // Sort by global annotation priority:
+      // 1. CDS before non-CDS (CDS placed first, gets lower rows)
+      // 2. Within same type, widest first
+      elements.sort((a, b) => {
+        const priorityA = annotationPriority.get(a.fragment.annotation?.id) ?? { isCDS: false, totalWidth: 0 }
+        const priorityB = annotationPriority.get(b.fragment.annotation?.id) ?? { isCDS: false, totalWidth: 0 }
+        // CDS comes before non-CDS
+        if (priorityA.isCDS !== priorityB.isCDS) {
+          return priorityA.isCDS ? -1 : 1
+        }
+        // Within same type, wider comes first
+        return priorityB.totalWidth - priorityA.totalWidth
+      })
 
       // Track placed elements by their row (deltaY level)
-      // Each row is an array of {start, end} sequence positions
-      const rows = []
+      // Each row tracks: elements placed, and the max height needed for that row
+      const rows = []  // Array of { elements: [{start, end}], height: number }
 
       for (const elem of elements) {
         const fragStart = elem.fragment.start
         const fragEnd = elem.fragment.end
+        const annotationId = elem.fragment.annotation?.id
+
+        // Height this element needs (including translation space if applicable)
+        const elemHeight = elem.reserveTranslationSpace
+          ? annotationHeight + TRANSLATION_HEIGHT
+          : annotationHeight
 
         // Find the first row where this element doesn't overlap
         let placedRow = -1
@@ -231,7 +260,7 @@ export function useAnnotations(editorState, graphics, eventBus, options = {}) {
           const row = rows[rowIdx]
           let hasOverlap = false
 
-          for (const placed of row) {
+          for (const placed of row.elements) {
             if (rangesOverlap(fragStart, fragEnd, placed.start, placed.end)) {
               hasOverlap = true
               break
@@ -247,15 +276,46 @@ export function useAnnotations(editorState, graphics, eventBus, options = {}) {
         // If no existing row works, create a new one
         if (placedRow === -1) {
           placedRow = rows.length
-          rows.push([])
+          rows.push({ elements: [], height: annotationHeight })
         }
 
-        // Place element in this row
-        rows[placedRow].push({ start: fragStart, end: fragEnd })
+        // Place element in this row (include annotation ID for unique identification)
+        rows[placedRow].elements.push({ start: fragStart, end: fragEnd, annotationId })
+        // Update row height if this element needs more space
+        rows[placedRow].height = Math.max(rows[placedRow].height, elemHeight)
 
-        // Calculate deltaY based on row (each row is one annotation height + padding above)
-        // Row 0 = deltaY 0, Row 1 = -(annotationHeight + padding), etc.
-        elem.deltaY = -placedRow * (annotationHeight + contentPadding)
+        // Calculate deltaY based on cumulative height of rows below
+        // Row 0 = deltaY 0, subsequent rows stack above based on actual row heights
+        let deltaY = 0
+        for (let i = 0; i < placedRow; i++) {
+          deltaY -= rows[i].height + contentPadding
+        }
+        elem.deltaY = deltaY
+      }
+
+      // Second pass: recalculate deltaY now that all row heights are known
+      // (in case earlier elements were placed before a tall element expanded the row)
+      for (const elem of elements) {
+        const annotationId = elem.fragment.annotation?.id
+
+        // Find which row this element is in (match by annotation ID)
+        let elemRow = -1
+        for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+          for (const placed of rows[rowIdx].elements) {
+            if (placed.annotationId === annotationId) {
+              elemRow = rowIdx
+              break
+            }
+          }
+          if (elemRow !== -1) break
+        }
+
+        // Recalculate deltaY with final row heights
+        let deltaY = 0
+        for (let i = 0; i < elemRow; i++) {
+          deltaY -= rows[i].height + contentPadding
+        }
+        elem.deltaY = deltaY
       }
     }
 

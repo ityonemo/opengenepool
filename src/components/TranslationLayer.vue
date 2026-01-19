@@ -13,6 +13,11 @@ const props = defineProps({
   height: {
     type: Number,
     default: 18
+  },
+  /** Map of lineIndex -> Map of annotationId -> deltaY from AnnotationLayer */
+  annotationDeltaYByLine: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -261,6 +266,15 @@ function getLineY(lineIndex) {
   return graphics.getLineY(lineIndex)
 }
 
+// Get deltaY for a specific annotation on a specific line
+function getAnnotationDeltaY(lineIndex, annotationId) {
+  const lineMap = props.annotationDeltaYByLine.get(lineIndex)
+  if (lineMap) {
+    return lineMap.get(annotationId) ?? 0
+  }
+  return 0
+}
+
 // Group elements by annotation ID for border rendering
 function getAnnotationGroups(elements) {
   const groups = new Map()
@@ -339,53 +353,58 @@ defineExpose({ showTranslation, visible })
       :key="`line-${lineIndex}`"
       :transform="`translate(0, ${getLineY(lineIndex)})`"
     >
-      <!-- Border rect for each annotation group -->
-      <rect
-        v-for="[annotationId, groupElements] in getAnnotationGroups(elementsByLine.get(lineIndex))"
-        :key="`border-${annotationId}`"
-        :x="getGroupBounds(groupElements).x"
-        :y="-height"
-        :width="getGroupBounds(groupElements).width"
-        :height="height"
-        class="aa-group-border"
-      />
-      <!-- Each amino acid element on this line -->
+      <!-- Each annotation group positioned at its annotation's deltaY -->
       <g
-        v-for="(element, elemIndex) in elementsByLine.get(lineIndex)"
-        :key="`aa-${element.annotationId}-${elemIndex}`"
-        :class="{ 'aa-element': !element.isOverflow }"
-        @mouseenter="!element.isOverflow && handleMouseEnter($event, element)"
-        @mouseleave="!element.isOverflow && handleMouseLeave($event, element)"
-        @click="!element.isOverflow && handleClick($event, element)"
+        v-for="[annotationId, groupElements] in getAnnotationGroups(elementsByLine.get(lineIndex))"
+        :key="`group-${annotationId}`"
+        :transform="`translate(0, ${getAnnotationDeltaY(lineIndex, annotationId)})`"
       >
-        <!-- Chevron path (nose/tail controlled by showNotch/showTail) -->
-        <path
-          :d="getChevronPath(getClippedBox(element).x, getClippedBox(element).width, height, element.orientation, element.showTail, element.showNotch)"
-          :fill="getAminoAcidColor(element.aminoAcid)"
-          :transform="`translate(0, ${-height})`"
-          class="aa-chevron"
+        <!-- Border rect for the group -->
+        <rect
+          :x="getGroupBounds(groupElements).x"
+          :y="-height"
+          :width="getGroupBounds(groupElements).width"
+          :height="height"
+          class="aa-group-border"
         />
-        <!-- Amino acid letter (only for main element, not overflow) -->
-        <text
-          v-if="!element.isOverflow && element.aminoAcid !== '*'"
-          :x="element.x"
-          :y="-height / 2 + 1"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          class="translation-text"
-        >{{ element.aminoAcid }}</text>
-        <!-- Stop sign for stop codons (red octagon) -->
+        <!-- Each amino acid element in this group -->
         <g
-          v-if="!element.isOverflow && element.aminoAcid === '*'"
-          :transform="`translate(${element.x}, ${-height / 2})`"
+          v-for="(element, elemIndex) in groupElements"
+          :key="`aa-${element.annotationId}-${elemIndex}`"
+          :class="{ 'aa-element': !element.isOverflow }"
+          @mouseenter="!element.isOverflow && handleMouseEnter($event, element)"
+          @mouseleave="!element.isOverflow && handleMouseLeave($event, element)"
+          @click="!element.isOverflow && handleClick($event, element)"
         >
-          <polygon
-            points="-2,-5 2,-5 5,-2 5,2 2,5 -2,5 -5,2 -5,-2"
-            fill="#CC0000"
-            stroke="white"
-            stroke-width="1"
-            class="stop-sign"
+          <!-- Chevron path (nose/tail controlled by showNotch/showTail) -->
+          <path
+            :d="getChevronPath(getClippedBox(element).x, getClippedBox(element).width, height, element.orientation, element.showTail, element.showNotch)"
+            :fill="getAminoAcidColor(element.aminoAcid)"
+            :transform="`translate(0, ${-height})`"
+            class="aa-chevron"
           />
+          <!-- Amino acid letter (only for main element, not overflow) -->
+          <text
+            v-if="!element.isOverflow && element.aminoAcid !== '*'"
+            :x="element.x"
+            :y="-height / 2 + 1"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            class="translation-text"
+          >{{ element.aminoAcid }}</text>
+          <!-- Stop sign for stop codons (red octagon) -->
+          <g
+            v-if="!element.isOverflow && element.aminoAcid === '*'"
+            :transform="`translate(${element.x}, ${-height / 2})`"
+          >
+            <polygon
+              points="-2,-5 2,-5 5,-2 5,2 2,5 -2,5 -5,2 -5,-2"
+              fill="#CC0000"
+              stroke="white"
+              stroke-width="1"
+              class="stop-sign"
+            />
+          </g>
         </g>
       </g>
     </g>

@@ -224,6 +224,23 @@ function handleMouseLeave(event, fragment) {
   emit('hover', { event, annotation: fragment.annotation, fragment, entering: false })
 }
 
+// Computed: Map annotation ID to deltaY for translation positioning
+const annotationDeltaYByLine = computed(() => {
+  const result = new Map()
+  for (const [lineIndex, elements] of elementsByLine.value) {
+    const lineMap = new Map()
+    for (const elem of elements) {
+      // Use the annotation ID from the fragment
+      const annotationId = elem.fragment.annotation?.id
+      if (annotationId) {
+        lineMap.set(annotationId, elem.deltaY)
+      }
+    }
+    result.set(lineIndex, lineMap)
+  }
+  return result
+})
+
 // Expose for testing and visibility control
 defineExpose({
   showAnnotations,
@@ -231,7 +248,8 @@ defineExpose({
   fragments,
   fragmentsByLine,
   getFragmentX,
-  getFragmentWidth
+  getFragmentWidth,
+  annotationDeltaYByLine
 })
 </script>
 

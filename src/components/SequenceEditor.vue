@@ -1752,6 +1752,7 @@ defineExpose({
           v-if="cdsAnnotations.length > 0"
           ref="translationLayerRef"
           :annotations="cdsAnnotations"
+          :annotation-delta-y-by-line="annotationLayerRef?.annotationDeltaYByLine"
           @hover="handleTranslationHover"
           @click="handleTranslationClick"
         />
