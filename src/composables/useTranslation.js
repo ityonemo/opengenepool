@@ -47,17 +47,24 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
 
       // Build position map: for each position in concatenated sequence,
       // store absolutePos to map back to original coordinates
+      // Also track which segment (range) each position belongs to
       let cdsSequence = ''
       const positionMap = []  // positionMap[concatPos] = absolutePos in original sequence
+      const segmentMap = []   // segmentMap[concatPos] = segment index (which range)
+      const segmentBoundaries = []  // end positions (exclusive) of each segment in concat space
 
-      for (const range of ranges) {
+      for (let rangeIdx = 0; rangeIdx < ranges.length; rangeIdx++) {
+        const range = ranges[rangeIdx]
         const rangeSeq = sequence.slice(range.start, range.end)
         for (let i = 0; i < rangeSeq.length; i++) {
           // Position in original sequence (before any reverse complement)
           positionMap.push(range.start + i)
+          segmentMap.push(rangeIdx)
         }
         cdsSequence += rangeSeq
+        segmentBoundaries.push(positionMap.length)  // End of this segment in concat space
       }
+      const numSegments = ranges.length
 
       // Reverse complement for minus strand
       if (isMinus) {
@@ -94,12 +101,15 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
         let codonStart, codonEnd
         const mapLen = positionMap.length
 
+        // Determine codon positions in concatenated (pre-reverse-complement) space
+        let concatCodonStart, concatCodonEnd  // indices into positionMap/segmentMap
+
         if (isMinus) {
           // For minus strand after reverse complement:
           // Position i in rev-comp sequence came from position (mapLen - 1 - i) in original concat
           // Codon at rev-comp positions [p, p+2] came from concat positions [mapLen-1-p-2, mapLen-1-p]
-          const concatCodonEnd = mapLen - 1 - codonStartInConcat
-          const concatCodonStart = mapLen - 1 - (codonStartInConcat + 2)
+          concatCodonEnd = mapLen - 1 - codonStartInConcat
+          concatCodonStart = mapLen - 1 - (codonStartInConcat + 2)
 
           // Get absolute positions from position map
           const startIdx = Math.max(0, Math.min(concatCodonStart, mapLen - 1))
@@ -114,12 +124,49 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
           absolutePos = positionMap[centerIdx] + 0.5
         } else {
           // Plus strand: direct mapping
+          concatCodonStart = Math.floor(codonStartInConcat)
+          concatCodonEnd = Math.floor(codonStartInConcat + 2)
+
           const centerIdx = Math.min(Math.floor(codonCenterInConcat), mapLen - 1)
           absolutePos = positionMap[centerIdx] + 0.5
 
           // Codon boundaries
-          codonStart = positionMap[Math.min(Math.floor(codonStartInConcat), mapLen - 1)]
-          codonEnd = positionMap[Math.min(Math.floor(codonStartInConcat + 2), mapLen - 1)] + 1
+          codonStart = positionMap[Math.min(concatCodonStart, mapLen - 1)]
+          codonEnd = positionMap[Math.min(concatCodonEnd, mapLen - 1)] + 1
+        }
+
+        // Determine segment info for this codon
+        // Check which segment(s) this codon spans
+        const startSegIdx = Math.max(0, Math.min(concatCodonStart, mapLen - 1))
+        const endSegIdx = Math.max(0, Math.min(concatCodonEnd, mapLen - 1))
+        const codonStartSegment = segmentMap[startSegIdx]
+        const codonEndSegment = segmentMap[endSegIdx]
+
+        // Primary segment is where the center falls
+        const centerSegIdx = Math.max(0, Math.min(Math.floor((concatCodonStart + concatCodonEnd) / 2), mapLen - 1))
+        const segmentIndex = segmentMap[centerSegIdx]
+
+        // Is this codon at the start of its segment? (first codon whose center is in this segment)
+        // For plus strand, check if concat codon start is at or near segment start
+        // For minus strand, the direction is reversed
+        const segmentStartInConcat = segmentIndex === 0 ? 0 : segmentBoundaries[segmentIndex - 1]
+        const segmentEndInConcat = segmentBoundaries[segmentIndex]
+
+        // A codon is at segment start if its first base is at segment start (or within frame offset)
+        const isSegmentStart = concatCodonStart <= segmentStartInConcat + frame
+        // A codon is at segment end if its last base is at segment end
+        const isSegmentEnd = concatCodonEnd >= segmentEndInConcat - 1
+
+        // Check if codon spans segment boundary (split codon)
+        // This happens when codonStartSegment != codonEndSegment
+        let segmentSplitOffset = null
+        if (codonStartSegment !== codonEndSegment && numSegments > 1) {
+          // Find where the split is within the codon (in bases from codon start)
+          // The split is at the segment boundary
+          const boundaryInConcat = segmentBoundaries[codonStartSegment]
+          const splitPosInCodon = boundaryInConcat - concatCodonStart  // 0, 1, or 2
+          // Convert to offset from codon center (center is at 1.5)
+          segmentSplitOffset = splitPosInCodon - 1.5
         }
 
         // Calculate which line this element belongs to
@@ -145,7 +192,13 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
           aaIndex: aaIndex + 1,
           geneName,
           codonStart,
-          codonEnd
+          codonEnd,
+          // Segment boundary info for multi-range CDS
+          segmentIndex,
+          numSegments,
+          isSegmentStart,
+          isSegmentEnd,
+          segmentSplitOffset  // null or offset from center where segment boundary falls
         }
 
         if (!byLine.has(lineIndex)) {

@@ -182,16 +182,24 @@ const elementsByLine = computed(() => {
       // Add the main element
       let mainShowNotch
       let mainShowTail
+
+      // Check if this is a multi-segment annotation
+      const isMultiSegment = elem.numSegments > 1
+
       if (isPlus) {
         // Plus strand: show notch unless it would protrude past right edge or is last codon
-        mainShowNotch = !noseWouldProtrudeRight && !elem.isLastCodon
+        // Also no notch at segment end (each segment is independent)
+        mainShowNotch = !noseWouldProtrudeRight && !elem.isLastCodon && !(isMultiSegment && elem.isSegmentEnd)
         // Plus strand: show tail unless it would protrude past left edge or is first codon
-        mainShowTail = !tailWouldProtrudeLeft && !elem.isFirstCodon
+        // Also no tail at segment start (each segment is independent)
+        mainShowTail = !tailWouldProtrudeLeft && !elem.isFirstCodon && !(isMultiSegment && elem.isSegmentStart)
       } else {
         // Minus strand: show notch unless it would protrude past left edge or is last codon
-        mainShowNotch = !noseWouldProtrudeLeft && !elem.isLastCodon
+        // Also no notch at segment end
+        mainShowNotch = !noseWouldProtrudeLeft && !elem.isLastCodon && !(isMultiSegment && elem.isSegmentEnd)
         // Minus strand: show tail unless it would protrude past right edge or is first codon
-        mainShowTail = !tailWouldProtrudeRight && !elem.isFirstCodon
+        // Also no tail at segment start
+        mainShowTail = !tailWouldProtrudeRight && !elem.isFirstCodon && !(isMultiSegment && elem.isSegmentStart)
       }
 
       result.get(lineIndex).push({
@@ -383,6 +391,15 @@ defineExpose({ showTranslation, visible })
             :transform="`translate(0, ${-height})`"
             class="aa-chevron"
           />
+          <!-- Segment split line (vertical wall where codon spans segment boundary) -->
+          <line
+            v-if="element.segmentSplitOffset !== null && !element.isOverflow"
+            :x1="element.x + element.segmentSplitOffset * graphics.metrics.value.charWidth"
+            :y1="-height"
+            :x2="element.x + element.segmentSplitOffset * graphics.metrics.value.charWidth"
+            :y2="0"
+            class="segment-split-line"
+          />
           <!-- Amino acid letter (only for main element, not overflow) -->
           <text
             v-if="!element.isOverflow && element.aminoAcid !== '*'"
@@ -433,6 +450,12 @@ defineExpose({ showTranslation, visible })
 .aa-chevron {
   stroke: black;
   stroke-width: 0.5px;
+}
+
+/* Segment split line (vertical wall at exon boundary within a codon) */
+.segment-split-line {
+  stroke: black;
+  stroke-width: 1px;
 }
 
 /* Amino acid text - black */

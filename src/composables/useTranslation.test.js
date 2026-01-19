@@ -358,4 +358,139 @@ describe('useTranslation', () => {
       expect(elements[0].codonEnd).toBe(3)
     })
   })
+
+  describe('multi-segment CDS (join)', () => {
+    it('translates a two-segment CDS with codon-aligned boundary', () => {
+      // Sequence: ATG...GGT AAA (exon1: ATG at 0-3, exon2: GGTAAA at 10-16)
+      // When concatenated: ATGGGTAAA = M G K
+      editorState = createMockEditorState('ATG0000000GGTAAA')  // 16 chars
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..3 + 10..16',  // Two segments (+ syntax)
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      // Should translate full joined sequence
+      expect(elements).toHaveLength(3)
+      expect(elements[0].aminoAcid).toBe('M')
+      expect(elements[1].aminoAcid).toBe('G')
+      expect(elements[2].aminoAcid).toBe('K')
+    })
+
+    it('tracks segment index for each codon', () => {
+      // Two-segment CDS with 3 bases in each segment = 2 codons
+      // Segment 0: ATG (positions 0-3)
+      // Segment 1: GGT (positions 10-13)
+      editorState = createMockEditorState('ATG0000000GGT')  // positions 0-2, gap, 10-12
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..3 + 10..13',
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      expect(elements).toHaveLength(2)
+      // First codon is in segment 0
+      expect(elements[0].segmentIndex).toBe(0)
+      expect(elements[0].numSegments).toBe(2)
+      // Second codon is in segment 1
+      expect(elements[1].segmentIndex).toBe(1)
+    })
+
+    it('marks segment boundaries for codon-aligned splits', () => {
+      // Two segments, each with one complete codon
+      editorState = createMockEditorState('ATG0000000GGT')
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..3 + 10..13',
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      // First codon: start of segment 0, end of segment 0
+      expect(elements[0].isSegmentStart).toBe(true)
+      expect(elements[0].isSegmentEnd).toBe(true)
+      expect(elements[0].segmentSplitOffset).toBe(null)  // No split within codon
+
+      // Second codon: start of segment 1, end of segment 1
+      expect(elements[1].isSegmentStart).toBe(true)
+      expect(elements[1].isSegmentEnd).toBe(true)
+      expect(elements[1].segmentSplitOffset).toBe(null)
+    })
+
+    it('detects segment split within a codon', () => {
+      // Segment boundary falls in the middle of a codon
+      // Segment 0: AT (2 bases, positions 0-2)
+      // Segment 1: GGGTAAA (7 bases, positions 10-17)
+      // Concatenated: ATGGGTAAA
+      // First codon ATG spans both segments (AT from seg0, G from seg1)
+      editorState = createMockEditorState('AT00000000GGGTAAA')  // 17 chars
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..2 + 10..17',  // Split after 2 bases
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      // First codon ATG: split after position 2 (2 bases in seg0, 1 in seg1)
+      expect(elements[0].aminoAcid).toBe('M')
+      // Split offset: boundary at position 2 in codon (0-indexed), center at 1.5
+      // splitPosInCodon = 2, offset from center = 2 - 1.5 = 0.5
+      expect(elements[0].segmentSplitOffset).toBe(0.5)
+
+      // Second codon GGT: entirely in segment 1, no split
+      expect(elements[1].aminoAcid).toBe('G')
+      expect(elements[1].segmentSplitOffset).toBe(null)
+    })
+
+    it('handles minus strand multi-segment CDS', () => {
+      // Minus strand: ranges are reversed for translation (3'→5' becomes 5'→3')
+      // Span: (0..3) + (10..13) with sequence 'GGG0000000CAT'
+      // Ranges reversed: [(10..13), (0..3)]
+      // Extract: CAT + GGG = CATGGG
+      // Reverse complement: CCCATG = P M
+      editorState = createMockEditorState('GGG0000000CAT')
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '(0..3) + (10..13)',  // Both ranges minus strand
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      expect(elements).toHaveLength(2)
+      expect(elements[0].aminoAcid).toBe('P')
+      expect(elements[1].aminoAcid).toBe('M')
+    })
+  })
 })
