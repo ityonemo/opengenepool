@@ -104,46 +104,17 @@ function getChevronPath(x, width, h, orientation, showTail, showNotch) {
 const lineLeft = computed(() => graphics.metrics.value.lmargin)
 const lineRight = computed(() => graphics.metrics.value.lmargin + editorState.zoomLevel.value * graphics.metrics.value.charWidth)
 
-/**
- * Determine if an edge should be "walled off" (square edge, no chevron).
- * This unifies the logic for line breaks, segment breaks, and CDS boundaries.
- *
- * @param {Object} elem - The codon element
- * @param {string} edge - 'leading' or 'trailing' relative to translation direction
- * @param {boolean} crossesLineBoundary - Whether this edge crosses a line boundary
- * @returns {boolean} True if edge should be walled (square), false for chevron
- */
-function shouldWallEdge(elem, edge, crossesLineBoundary) {
-  const isMultiSegment = elem.numSegments > 1
-
-  if (edge === 'leading') {
-    // Leading edge = direction of translation (right for plus, left for minus)
-    // Wall if: last codon, segment end, or crosses line boundary
-    return elem.isLastCodon || (isMultiSegment && elem.isSegmentEnd) || crossesLineBoundary
-  } else {
-    // Trailing edge = opposite of translation direction
-    // Wall if: first codon, segment start, or crosses line boundary
-    return elem.isFirstCodon || (isMultiSegment && elem.isSegmentStart) || crossesLineBoundary
-  }
-}
-
-// Calculate clipped box for an element (clips to line boundaries)
-function getClippedBox(element) {
-  // Overflow elements have a specific width, not the full codon width
-  if (element.isOverflow) {
-    // Overflow on next line starts at left edge
-    // Overflow on previous line ends at right edge
-    const width = element.overflowWidth
-    // Determine if this is left-edge or right-edge overflow based on x position
-    if (element.x < (lineLeft.value + lineRight.value) / 2) {
-      // Left edge overflow (from previous line's codon)
-      return { x: lineLeft.value, width }
-    } else {
-      // Right edge overflow (from next line's codon)
-      return { x: lineRight.value - width, width }
+// Get slice box (already clipped to line by sliceCodon)
+function getSliceBox(element) {
+  // Slices have pre-computed bounds
+  if (element.sliceLeft !== undefined) {
+    return {
+      x: element.sliceLeft,
+      width: element.sliceWidth
     }
   }
 
+  // Fallback for elements without slice info
   const halfCodon = codonWidth.value / 2
   let left = element.x - halfCodon
   let right = element.x + halfCodon
@@ -167,97 +138,121 @@ watch(() => props.annotations, (newAnnotations) => {
 // Use translation composable for layout calculations
 const { elementsByLine: rawElementsByLine } = useTranslation(editorState, graphics, annotationsRef)
 
-// Augment elements with overflow portions for codons spanning line breaks
-const elementsByLine = computed(() => {
-  const result = new Map()
+/**
+ * Slice a codon into chunks at break points (line boundaries, segment boundaries).
+ * Each slice is rendered as an independent unit with walled edges at breaks.
+ *
+ * @param {Object} elem - The codon element from useTranslation
+ * @param {number} lineWidth - Width of a line in pixels
+ * @returns {Array} Array of slice objects, each assigned to a line
+ */
+function sliceCodon(elem, lineWidth) {
+  const slices = []
+  const m = graphics.metrics.value
   const halfCodon = codonWidth.value / 2
-  const noseProtrusion = notchProtrusion.value
-  const tailExt = tailExtension.value
+  const isPlus = elem.orientation === 1
 
-  for (const [lineIndex, elements] of rawElementsByLine.value) {
-    if (!result.has(lineIndex)) {
-      result.set(lineIndex, [])
+  // Calculate codon bounds in pixel space (absolute, not relative to line)
+  const codonLeft = elem.x - halfCodon
+  const codonRight = elem.x + halfCodon
+
+  // Collect all break points within the codon (in pixel x coordinates)
+  // Break points create walls - places where we split the codon
+  const breakPoints = []
+
+  // Add segment split if present (convert from offset to absolute x)
+  if (elem.segmentSplitOffset !== null) {
+    const splitX = elem.x + elem.segmentSplitOffset * m.charWidth
+    if (splitX > codonLeft && splitX < codonRight) {
+      breakPoints.push({ x: splitX, type: 'segment' })
+    }
+  }
+
+  // Add line boundaries that fall within the codon
+  // Find which lines this codon spans
+  const leftLine = Math.floor((codonLeft - lineLeft.value) / lineWidth)
+  const rightLine = Math.floor((codonRight - lineLeft.value) / lineWidth)
+
+  for (let line = leftLine; line < rightLine; line++) {
+    const lineBoundaryX = lineLeft.value + (line + 1) * lineWidth
+    if (lineBoundaryX > codonLeft && lineBoundaryX < codonRight) {
+      breakPoints.push({ x: lineBoundaryX, type: 'line' })
+    }
+  }
+
+  // Sort break points by x position
+  breakPoints.sort((a, b) => a.x - b.x)
+
+  // Create slices between break points
+  // Start with codon left edge, end with codon right edge
+  const edges = [codonLeft, ...breakPoints.map(bp => bp.x), codonRight]
+
+  for (let i = 0; i < edges.length - 1; i++) {
+    const sliceLeft = edges[i]
+    const sliceRight = edges[i + 1]
+    const sliceCenter = (sliceLeft + sliceRight) / 2
+    const sliceWidth = sliceRight - sliceLeft
+
+    // Determine which line this slice belongs to
+    const sliceLineIndex = Math.floor((sliceCenter - lineLeft.value) / lineWidth)
+
+    // Determine if edges are at breaks (walls)
+    const isFirstSlice = i === 0
+    const isLastSlice = i === edges.length - 2
+    const leftIsBreak = !isFirstSlice  // left edge is a break point
+    const rightIsBreak = !isLastSlice  // right edge is a break point
+
+    // Map left/right to leading/trailing based on strand
+    // Plus: leading=right, trailing=left
+    // Minus: leading=left, trailing=right
+    let wallLeading, wallTrailing
+
+    if (isPlus) {
+      // Leading edge is right, trailing is left
+      wallTrailing = leftIsBreak || elem.isFirstCodon || (elem.numSegments > 1 && elem.isSegmentStart && isFirstSlice)
+      wallLeading = rightIsBreak || elem.isLastCodon || (elem.numSegments > 1 && elem.isSegmentEnd && isLastSlice)
+    } else {
+      // Leading edge is left, trailing is right
+      wallLeading = leftIsBreak || elem.isLastCodon || (elem.numSegments > 1 && elem.isSegmentEnd && isFirstSlice)
+      wallTrailing = rightIsBreak || elem.isFirstCodon || (elem.numSegments > 1 && elem.isSegmentStart && isLastSlice)
     }
 
+    // Calculate x position relative to line
+    const lineStartX = lineLeft.value + sliceLineIndex * lineWidth
+    const xInLine = sliceCenter - lineStartX + lineLeft.value
+
+    slices.push({
+      ...elem,
+      x: xInLine,
+      sliceLeft: sliceLeft - lineStartX + lineLeft.value,
+      sliceRight: sliceRight - lineStartX + lineLeft.value,
+      sliceWidth,
+      lineIndex: sliceLineIndex,
+      showNotch: !wallLeading,
+      showTail: !wallTrailing,
+      isMainSlice: isFirstSlice || (sliceCenter >= elem.x - 1 && sliceCenter <= elem.x + 1),
+      // Remove the old segmentSplitOffset since we've handled it by slicing
+      segmentSplitOffset: null
+    })
+  }
+
+  return slices
+}
+
+// Process all codons into slices, grouped by line
+const elementsByLine = computed(() => {
+  const result = new Map()
+  const lineWidth = editorState.zoomLevel.value * graphics.metrics.value.charWidth
+
+  for (const [lineIndex, elements] of rawElementsByLine.value) {
     for (const elem of elements) {
-      const rightEdge = elem.x + halfCodon
-      const leftEdge = elem.x - halfCodon
-      const hasRightOverflow = rightEdge > lineRight.value
-      const hasLeftOverflow = leftEdge < lineLeft.value
-      const isPlus = elem.orientation === 1
+      const slices = sliceCodon(elem, lineWidth)
 
-      // Determine if edges cross line boundaries (including protrusion space)
-      const rightCrossesLine = rightEdge + noseProtrusion > lineRight.value
-      const leftCrossesLine = leftEdge - noseProtrusion < lineLeft.value
-
-      // For plus strand: leading edge = right, trailing edge = left
-      // For minus strand: leading edge = left, trailing edge = right
-      const leadingCrossesLine = isPlus ? rightCrossesLine : leftCrossesLine
-      const trailingCrossesLine = isPlus ? leftCrossesLine : rightCrossesLine
-
-      // Use unified wall logic for main element
-      const wallLeading = shouldWallEdge(elem, 'leading', leadingCrossesLine)
-      const wallTrailing = shouldWallEdge(elem, 'trailing', trailingCrossesLine)
-
-      // showNotch = don't wall leading edge, showTail = don't wall trailing edge
-      result.get(lineIndex).push({
-        ...elem,
-        isOverflow: false,
-        showNotch: !wallLeading,
-        showTail: !wallTrailing
-      })
-
-      // Create overflow elements for codons that span line boundaries
-      // These are partial renderings of the same codon on adjacent lines
-
-      if (hasRightOverflow) {
-        const overflowWidth = rightEdge - lineRight.value
-        const nextLine = lineIndex + 1
-        if (!result.has(nextLine)) {
-          result.set(nextLine, [])
+      for (const slice of slices) {
+        if (!result.has(slice.lineIndex)) {
+          result.set(slice.lineIndex, [])
         }
-
-        // Overflow on next line: trailing edge is at line boundary (walled)
-        // Leading edge continues into the line
-        const overflowRight = lineLeft.value + overflowWidth
-        const overflowLeadingCrossesLine = overflowRight + noseProtrusion > lineRight.value
-
-        result.get(nextLine).push({
-          ...elem,
-          x: lineLeft.value + overflowWidth / 2,
-          isOverflow: true,
-          overflowWidth,
-          // Trailing edge at line start is always walled (line boundary)
-          showTail: false,
-          // Leading edge: check if it would cross the far line boundary
-          showNotch: !shouldWallEdge(elem, 'leading', overflowLeadingCrossesLine)
-        })
-      }
-
-      if (hasLeftOverflow) {
-        const overflowWidth = lineLeft.value - leftEdge
-        const prevLine = lineIndex - 1
-        if (prevLine >= 0) {
-          if (!result.has(prevLine)) {
-            result.set(prevLine, [])
-          }
-
-          // Overflow on prev line: leading edge is at line boundary (walled)
-          // Trailing edge continues into the line
-          const overflowLeft = lineRight.value - overflowWidth
-          const overflowTrailingCrossesLine = overflowLeft - tailExt < lineLeft.value
-
-          result.get(prevLine).push({
-            ...elem,
-            x: lineRight.value - overflowWidth / 2,
-            isOverflow: true,
-            overflowWidth,
-            // Leading edge at line end is always walled (line boundary)
-            showNotch: false,
-            // Trailing edge: check if it would cross the far line boundary
-            showTail: !shouldWallEdge(elem, 'trailing', overflowTrailingCrossesLine)
-          })
-        }
+        result.get(slice.lineIndex).push(slice)
       }
     }
   }
@@ -301,10 +296,10 @@ function getGroupBounds(elements) {
   let minX = Infinity
   let maxX = -Infinity
   for (const elem of elements) {
-    const clipped = getClippedBox(elem)
-    if (clipped.width > 0) {
-      minX = Math.min(minX, clipped.x)
-      maxX = Math.max(maxX, clipped.x + clipped.width)
+    const box = getSliceBox(elem)
+    if (box.width > 0) {
+      minX = Math.min(minX, box.x)
+      maxX = Math.max(maxX, box.x + box.width)
     }
   }
   if (minX === Infinity) return { x: 0, width: 0 }
@@ -376,34 +371,25 @@ defineExpose({ showTranslation, visible })
           :height="height"
           class="aa-group-border"
         />
-        <!-- Each amino acid element in this group -->
+        <!-- Each slice of an amino acid (slices created at line/segment breaks) -->
         <g
           v-for="(element, elemIndex) in groupElements"
-          :key="`aa-${element.annotationId}-${elemIndex}`"
-          :class="{ 'aa-element': !element.isOverflow }"
-          @mouseenter="!element.isOverflow && handleMouseEnter($event, element)"
-          @mouseleave="!element.isOverflow && handleMouseLeave($event, element)"
-          @click="!element.isOverflow && handleClick($event, element)"
+          :key="`aa-${element.annotationId}-${element.aaIndex}-${elemIndex}`"
+          :class="{ 'aa-element': element.isMainSlice }"
+          @mouseenter="element.isMainSlice && handleMouseEnter($event, element)"
+          @mouseleave="element.isMainSlice && handleMouseLeave($event, element)"
+          @click="element.isMainSlice && handleClick($event, element)"
         >
-          <!-- Chevron path (nose/tail controlled by showNotch/showTail) -->
+          <!-- Slice path (walled edges at breaks, chevrons elsewhere) -->
           <path
-            :d="getChevronPath(getClippedBox(element).x, getClippedBox(element).width, height, element.orientation, element.showTail, element.showNotch)"
+            :d="getChevronPath(getSliceBox(element).x, getSliceBox(element).width, height, element.orientation, element.showTail, element.showNotch)"
             :fill="getAminoAcidColor(element.aminoAcid)"
             :transform="`translate(0, ${-height})`"
             class="aa-chevron"
           />
-          <!-- Segment split line (vertical wall where codon spans segment boundary) -->
-          <line
-            v-if="element.segmentSplitOffset !== null && !element.isOverflow"
-            :x1="element.x + element.segmentSplitOffset * graphics.metrics.value.charWidth"
-            :y1="-height"
-            :x2="element.x + element.segmentSplitOffset * graphics.metrics.value.charWidth"
-            :y2="0"
-            class="segment-split-line"
-          />
-          <!-- Amino acid letter (only for main element, not overflow) -->
+          <!-- Amino acid letter (only on main slice, not secondary slices) -->
           <text
-            v-if="!element.isOverflow && element.aminoAcid !== '*'"
+            v-if="element.isMainSlice && element.aminoAcid !== '*'"
             :x="element.x"
             :y="-height / 2 + 1"
             text-anchor="middle"
@@ -412,7 +398,7 @@ defineExpose({ showTranslation, visible })
           >{{ element.aminoAcid }}</text>
           <!-- Stop sign for stop codons (red octagon) -->
           <g
-            v-if="!element.isOverflow && element.aminoAcid === '*'"
+            v-if="element.isMainSlice && element.aminoAcid === '*'"
             :transform="`translate(${element.x}, ${-height / 2})`"
           >
             <polygon
@@ -451,12 +437,6 @@ defineExpose({ showTranslation, visible })
 .aa-chevron {
   stroke: black;
   stroke-width: 0.5px;
-}
-
-/* Segment split line (vertical wall at exon boundary within a codon) */
-.segment-split-line {
-  stroke: black;
-  stroke-width: 1px;
 }
 
 /* Amino acid text - black */
