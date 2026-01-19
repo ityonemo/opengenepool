@@ -424,8 +424,10 @@ function handleDragEnd() {
 
 // Selection path click handler
 function handlePathClick(event, rangeIndex) {
-  // Select this range as active
-  // Could emit event for context menu, etc.
+  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
+  if (event.shiftKey) {
+    handlePathContextMenu(event, rangeIndex)
+  }
 }
 
 function handlePathMouseDown(event, rangeIndex) {
@@ -444,6 +446,13 @@ function handlePathContextMenu(event, rangeIndex) {
     rangeIndex,
     range: selection.domain.value.ranges[rangeIndex]
   })
+}
+
+function handleHandleClick(event, rangeIndex, handleType) {
+  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
+  if (event.shiftKey) {
+    handleHandleContextMenu(event, rangeIndex, handleType)
+  }
 }
 
 function handleHandleContextMenu(event, rangeIndex, handleType) {
@@ -484,6 +493,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleStart.x, sel.handleStart.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'start')"
+        @click="handleHandleClick($event, sel.index, 'start')"
         @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'start')"
       />
 
@@ -492,6 +502,7 @@ defineExpose({
         :d="getTrianglePath(sel.handleEnd.x, sel.handleEnd.y)"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'end')"
+        @click="handleHandleClick($event, sel.index, 'end')"
         @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'end')"
       />
 

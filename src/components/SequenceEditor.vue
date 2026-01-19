@@ -671,10 +671,38 @@ function buildContextMenuItems(context) {
   const isSelected = selection.isSelected.value
   const domain = selection.domain.value
 
-  // Selection actions
+  // Group 1: Copy / Select none / Select all
+  if (isSelected && domain && domain.ranges.length > 0) {
+    items.push({
+      label: 'Copy selection',
+      action: () => {
+        handleCopy()
+      }
+    })
+    items.push({
+      label: 'Select none',
+      action: () => {
+        selection.unselect()
+      }
+    })
+  }
+  items.push({
+    label: 'Select all',
+    action: () => {
+      selection.selectAll()
+    }
+  })
+
+  // Group 2: Insert / Replace / Delete sequence
   if (isSelected && domain && domain.ranges.length > 0) {
     const firstRange = domain.ranges[0]
     const isZeroLength = firstRange.start === firstRange.end
+
+    const hasSequenceActions = (isZeroLength && !props.readonly) ||
+                               (!isZeroLength && !props.readonly)
+    if (hasSequenceActions) {
+      items.push({ separator: true })
+    }
 
     // Insert sequence option for zero-length selections (cursor position)
     if (isZeroLength && !props.readonly) {
@@ -687,7 +715,6 @@ function buildContextMenuItems(context) {
           insertModalVisible.value = true
         }
       })
-      items.push({ separator: true })
     }
 
     // Replace sequence option for single non-zero-length selections only
@@ -713,8 +740,18 @@ function buildContextMenuItems(context) {
         }
       })
     }
+  }
 
-    // Create annotation option when all ranges have non-zero length
+  // Group 3: Create / Edit / Delete Annotation
+  const hasAnnotationActions = (isSelected && domain && domain.ranges.length > 0 &&
+                                domain.ranges.every(r => r.start !== r.end) && !props.readonly) ||
+                               (context.source === 'annotation' && context.annotation && !props.readonly)
+  if (hasAnnotationActions) {
+    items.push({ separator: true })
+  }
+
+  // Create annotation option when all ranges have non-zero length
+  if (isSelected && domain && domain.ranges.length > 0) {
     const allRangesNonZero = domain.ranges.every(r => r.start !== r.end)
     if (allRangesNonZero && !props.readonly) {
       items.push({
@@ -723,70 +760,6 @@ function buildContextMenuItems(context) {
           openAnnotationModal()
         }
       })
-    }
-
-    items.push({
-      label: 'Copy selection',
-      action: () => {
-        handleCopy()
-      }
-    })
-    items.push({
-      label: 'Select none',
-      action: () => {
-        selection.unselect()
-      }
-    })
-    items.push({ separator: true })
-
-    // Selection-specific items when right-clicking on a selection
-    if (context.source === 'selection' && context.range) {
-      const range = context.range
-      const rangeIndex = context.rangeIndex
-
-      // Strand flip options
-      if (range.orientation === 1 || range.orientation === -1) {
-        items.push({
-          label: 'Flip strand',
-          action: () => selection.flip(rangeIndex)
-        })
-        items.push({
-          label: 'Make undirected',
-          action: () => selection.setOrientation(rangeIndex, 0)
-        })
-      } else {
-        items.push({
-          label: 'Set to plus strand',
-          action: () => selection.setOrientation(rangeIndex, 1)
-        })
-        items.push({
-          label: 'Set to minus strand',
-          action: () => selection.setOrientation(rangeIndex, -1)
-        })
-      }
-
-      // Multi-range operations
-      if (domain.ranges.length > 1) {
-        items.push({ separator: true })
-        items.push({
-          label: 'Delete this range',
-          action: () => selection.deleteRange(rangeIndex)
-        })
-        if (rangeIndex > 0) {
-          items.push({
-            label: 'Move range up',
-            action: () => selection.moveRange(rangeIndex, rangeIndex - 1)
-          })
-        }
-        if (rangeIndex < domain.ranges.length - 1) {
-          items.push({
-            label: 'Move range down',
-            action: () => selection.moveRange(rangeIndex, rangeIndex + 1)
-          })
-        }
-      }
-
-      items.push({ separator: true })
     }
   }
 
@@ -808,16 +781,56 @@ function buildContextMenuItems(context) {
         })
       }
     })
-    items.push({ separator: true })
   }
 
-  // Always available
-  items.push({
-    label: 'Select all',
-    action: () => {
-      selection.selectAll()
+  // Group 4: Strand and Multi-range operations
+  if (context.source === 'selection' && context.range && isSelected && domain) {
+    const range = context.range
+    const rangeIndex = context.rangeIndex
+
+    items.push({ separator: true })
+
+    // Strand flip options
+    if (range.orientation === 1 || range.orientation === -1) {
+      items.push({
+        label: 'Flip strand',
+        action: () => selection.flip(rangeIndex)
+      })
+      items.push({
+        label: 'Make undirected',
+        action: () => selection.setOrientation(rangeIndex, 0)
+      })
+    } else {
+      items.push({
+        label: 'Set to plus strand',
+        action: () => selection.setOrientation(rangeIndex, 1)
+      })
+      items.push({
+        label: 'Set to minus strand',
+        action: () => selection.setOrientation(rangeIndex, -1)
+      })
     }
-  })
+
+    // Multi-range operations
+    if (domain.ranges.length > 1) {
+      items.push({
+        label: 'Delete this range',
+        action: () => selection.deleteRange(rangeIndex)
+      })
+      if (rangeIndex > 0) {
+        items.push({
+          label: 'Move range up',
+          action: () => selection.moveRange(rangeIndex, rangeIndex - 1)
+        })
+      }
+      if (rangeIndex < domain.ranges.length - 1) {
+        items.push({
+          label: 'Move range down',
+          action: () => selection.moveRange(rangeIndex, rangeIndex + 1)
+        })
+      }
+    }
+  }
 
   return items
 }

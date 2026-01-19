@@ -237,7 +237,12 @@ function captionFits(element) {
 // Event handlers
 function handleClick(event, element) {
   event.stopPropagation()
-  emit('click', { event, annotation: element.annotation })
+  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
+  if (event.shiftKey) {
+    handleContextMenu(event, element)
+  } else {
+    emit('click', { event, annotation: element.annotation })
+  }
 }
 
 function handleContextMenu(event, element) {

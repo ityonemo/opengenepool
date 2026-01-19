@@ -449,6 +449,13 @@ function handleDragEnd() {
   }
 }
 
+function handlePathClick(event, rangeIndex) {
+  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
+  if (event.shiftKey) {
+    handlePathContextMenu(event, rangeIndex)
+  }
+}
+
 function handlePathContextMenu(event, rangeIndex) {
   event.preventDefault()
   emit('contextmenu', {
@@ -456,6 +463,13 @@ function handlePathContextMenu(event, rangeIndex) {
     rangeIndex,
     range: selection.domain.value.ranges[rangeIndex]
   })
+}
+
+function handleHandleClick(event, rangeIndex, handleType) {
+  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
+  if (event.shiftKey) {
+    handleHandleContextMenu(event, rangeIndex, handleType)
+  }
 }
 
 function handleHandleContextMenu(event, rangeIndex, handleType) {
@@ -480,6 +494,7 @@ function handleHandleContextMenu(event, rangeIndex, handleType) {
       <path
         :d="sel.path"
         :class="sel.cssClass"
+        @click="handlePathClick($event, sel.index)"
         @contextmenu="handlePathContextMenu($event, sel.index)"
       />
 
@@ -493,6 +508,7 @@ function handleHandleContextMenu(event, rangeIndex, handleType) {
         )"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'start')"
+        @click="handleHandleClick($event, sel.index, 'start')"
         @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'start')"
       />
 
@@ -507,6 +523,7 @@ function handleHandleContextMenu(event, rangeIndex, handleType) {
         )"
         :class="getHandleCssClass(sel.range)"
         @mousedown="startHandleDrag($event, sel.index, 'end')"
+        @click="handleHandleClick($event, sel.index, 'end')"
         @contextmenu.prevent="handleHandleContextMenu($event, sel.index, 'end')"
       />
 
