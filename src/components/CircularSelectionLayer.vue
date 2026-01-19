@@ -1,0 +1,522 @@
+<script setup>
+import { computed, inject, ref } from 'vue'
+import { Orientation } from '../utils/dna.js'
+import { getArcPath, polarToCartesian } from '../utils/circular.js'
+
+const props = defineProps({
+  /** Selection thickness (visual width of the arc) */
+  thickness: {
+    type: Number,
+    default: 20
+  }
+})
+
+const emit = defineEmits(['select', 'contextmenu'])
+
+// Inject from parent
+const editorState = inject('editorState')
+const circularGraphics = inject('circularGraphics')
+const selection = inject('selection')
+
+// Tab handle dimensions (smaller version)
+const tabWidth = 8
+const tabHeight = 6  // Triangle height
+const tabRectHeight = 8  // Square body height
+
+/**
+ * Compute selection arc paths for rendering.
+ * Selection extends from backbone to just past the outermost annotation row.
+ */
+const selectionPaths = computed(() => {
+  if (!selection.isSelected.value || !selection.domain.value) return []
+
+  const seqLen = editorState.sequenceLength.value
+  if (!seqLen) return []
+
+  const cx = circularGraphics.centerX.value
+  const cy = circularGraphics.centerY.value
+  const backboneRadius = circularGraphics.backboneRadius.value
+
+  // Selection starts just inside backbone and extends past the outermost annotation
+  // Use actual row count to find where annotations end, then add margin
+  const rowCount = circularGraphics.annotationRowCount.value || 0
+  const innerRadius = backboneRadius - 4
+  const outerRadius = circularGraphics.getRowRadius(Math.max(0, rowCount - 1)) + circularGraphics.annotationHeight.value / 2 + 8
+  const thickness = outerRadius - innerRadius
+  const centerRadius = (innerRadius + outerRadius) / 2
+
+  // Handle radius - junction of tab should be at the outer edge of selection
+  const handleBaseRadius = outerRadius
+
+  const paths = []
+
+  for (let i = 0; i < selection.domain.value.ranges.length; i++) {
+    const range = selection.domain.value.ranges[i]
+
+    // Skip zero-length selections for arc display (but show cursor)
+    if (range.start === range.end) {
+      // Cursor - show as a line
+      const angle = circularGraphics.positionToAngle(range.start)
+      const innerPoint = polarToCartesian(cx, cy, innerRadius, angle)
+      const outerPoint = polarToCartesian(cx, cy, outerRadius, angle)
+
+      paths.push({
+        index: i,
+        type: 'cursor',
+        path: `M ${innerPoint.x},${innerPoint.y} L ${outerPoint.x},${outerPoint.y}`,
+        cssClass: 'selection cursor',
+        range,
+        // Handle positions and angles for tab handles
+        startAngle: angle,
+        endAngle: angle,
+        handleRadius: handleBaseRadius
+      })
+      continue
+    }
+
+    // Generate arc path
+    const path = getArcPath(
+      range.start,
+      range.end,
+      seqLen,
+      cx,
+      cy,
+      centerRadius,
+      thickness
+    )
+
+    if (!path) continue
+
+    // Calculate handle angles and positions
+    const startAngle = circularGraphics.positionToAngle(range.start)
+    const endAngle = circularGraphics.positionToAngle(range.end)
+
+    paths.push({
+      index: i,
+      type: 'selection',
+      path,
+      cssClass: getCssClass(range),
+      range,
+      startAngle,
+      endAngle,
+      handleRadius: outerRadius
+    })
+  }
+
+  return paths
+})
+
+/**
+ * Generate post-it tab path at a given angle.
+ * Rectangle on outside with triangle pointing inward (toward center/selection).
+ * Matches the linear view's getTrianglePath style.
+ */
+function getTabPath(cx, cy, baseRadius, angle) {
+  const halfWidth = tabWidth / 2
+  const angleOffset = halfWidth / baseRadius  // Angular width of half the tab
+
+  // The tab sits at baseRadius, with rectangle outside and triangle pointing in
+  const outerRadius = baseRadius + tabRectHeight  // Top of rectangle (away from center)
+  const junctionRadius = baseRadius  // Junction between rect and triangle
+  const innerRadius = baseRadius - tabHeight  // Tip of triangle (toward center)
+
+  // Rectangle corners
+  const rectOuterLeft = polarToCartesian(cx, cy, outerRadius, angle - angleOffset)
+  const rectOuterRight = polarToCartesian(cx, cy, outerRadius, angle + angleOffset)
+  const rectInnerLeft = polarToCartesian(cx, cy, junctionRadius, angle - angleOffset)
+  const rectInnerRight = polarToCartesian(cx, cy, junctionRadius, angle + angleOffset)
+
+  // Triangle tip (pointing inward)
+  const triangleTip = polarToCartesian(cx, cy, innerRadius, angle)
+
+  // Path: outer edge of rectangle, down sides, triangle pointing in
+  return `M ${rectOuterLeft.x},${rectOuterLeft.y} ` +
+         `L ${rectOuterRight.x},${rectOuterRight.y} ` +
+         `L ${rectInnerRight.x},${rectInnerRight.y} ` +
+         `L ${triangleTip.x},${triangleTip.y} ` +
+         `L ${rectInnerLeft.x},${rectInnerLeft.y} ` +
+         `Z`
+}
+
+/**
+ * Get CSS class based on orientation.
+ */
+function getCssClass(range) {
+  if (range.start === range.end) {
+    return 'selection cursor'
+  }
+  switch (range.orientation) {
+    case Orientation.PLUS: return 'selection plus'
+    case Orientation.MINUS: return 'selection minus'
+    default: return 'selection undirected'
+  }
+}
+
+function getHandleCssClass(range) {
+  if (range.start === range.end) {
+    return 'sel_handle cursor'
+  }
+  switch (range.orientation) {
+    case Orientation.PLUS: return 'sel_handle plus'
+    case Orientation.MINUS: return 'sel_handle minus'
+    default: return 'sel_handle undirected'
+  }
+}
+
+// Handle dragging state
+const draggedHandle = ref(null)
+const dragLimits = ref({ low: 0, high: 0 })
+const lastDragPos = ref(null)
+const isWrapped = ref(false)
+const wrappedSecondRangeIndex = ref(null)
+
+function startHandleDrag(event, rangeIndex, handleType) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+
+  const range = selection.domain.value.ranges[rangeIndex]
+  const seqLen = editorState.sequenceLength.value
+
+  // Anchor is the opposite end
+  const anchor = handleType === 'start' ? range.end : range.start
+  const originalOrientation = range.orientation
+  const startedLeftOfAnchor = (handleType === 'start') ? (range.start < anchor) : (range.end < anchor)
+  const wasZeroWidth = range.start === range.end
+
+  // Get initial position of the handle being dragged
+  const initialPos = handleType === 'start' ? range.start : range.end
+
+  draggedHandle.value = { rangeIndex, type: handleType }
+  lastDragPos.value = initialPos
+  isWrapped.value = false
+  wrappedSecondRangeIndex.value = null
+
+  // Calculate drag limits (only relevant for non-wrapped mode)
+  let low = 0
+  let high = seqLen
+
+  const ranges = selection.domain.value.ranges
+  for (let i = 0; i < ranges.length; i++) {
+    if (i === rangeIndex) continue
+    const r = ranges[i]
+    if (r.end <= anchor && r.end > low) {
+      low = r.end
+    }
+    if (r.start >= anchor && r.start < high) {
+      high = r.start
+    }
+  }
+
+  dragLimits.value = { low, high, anchor, originalOrientation, startedLeftOfAnchor, wasZeroWidth, seqLen }
+
+  window.addEventListener('mousemove', handleDragMove)
+  window.addEventListener('mouseup', handleDragEnd)
+}
+
+function handleDragMove(event) {
+  if (!draggedHandle.value) return
+
+  const svg = document.querySelector('.circular-view')
+  if (!svg) return
+
+  const rect = svg.getBoundingClientRect()
+  const vbWidth = circularGraphics.viewBoxWidth.value
+  const vbHeight = circularGraphics.viewBoxHeight.value
+
+  // Match CircularView's coordinate calculation for preserveAspectRatio="xMidYMid meet"
+  const scaleX = vbWidth / rect.width
+  const scaleY = vbHeight / rect.height
+  const scale = Math.max(scaleX, scaleY)
+
+  const renderedWidth = vbWidth / scale
+  const renderedHeight = vbHeight / scale
+  const offsetX = (rect.width - renderedWidth) / 2
+  const offsetY = (rect.height - renderedHeight) / 2
+
+  const x = (event.clientX - rect.left - offsetX) * scale
+  const y = (event.clientY - rect.top - offsetY) * scale
+
+  let pos = circularGraphics.mouseToPosition(x, y)
+
+  const { rangeIndex } = draggedHandle.value
+  const { anchor, originalOrientation, startedLeftOfAnchor, wasZeroWidth, seqLen } = dragLimits.value
+
+  // Detect origin crossing: if position jumps by more than half the sequence
+  if (lastDragPos.value !== null) {
+    const delta = pos - lastDragPos.value
+    if (Math.abs(delta) > seqLen / 2) {
+      // We crossed the origin - toggle wrapped state
+      isWrapped.value = !isWrapped.value
+
+      if (isWrapped.value) {
+        // Create second range for the wrap
+        // Determine direction: if delta is negative but large, we went clockwise past origin
+        // if delta is positive but large, we went counter-clockwise past origin
+        const wentClockwise = delta < 0
+
+        if (wentClockwise) {
+          // Selection goes from anchor clockwise past origin to pos
+          // Range 1: anchor to seqLen, Range 2: 0 to pos
+          const ranges = selection.domain.value.ranges
+          const primaryRange = ranges[rangeIndex]
+          primaryRange.start = anchor
+          primaryRange.end = seqLen
+          primaryRange.orientation = originalOrientation
+
+          // Add second range
+          const secondRange = {
+            start: 0,
+            end: pos,
+            orientation: originalOrientation
+          }
+          ranges.push(secondRange)
+          wrappedSecondRangeIndex.value = ranges.length - 1
+        } else {
+          // Selection goes from anchor counter-clockwise past origin to pos
+          // Range 1: 0 to anchor, Range 2: pos to seqLen
+          const ranges = selection.domain.value.ranges
+          const primaryRange = ranges[rangeIndex]
+          primaryRange.start = 0
+          primaryRange.end = anchor
+          primaryRange.orientation = originalOrientation
+
+          // Add second range
+          const secondRange = {
+            start: pos,
+            end: seqLen,
+            orientation: originalOrientation
+          }
+          ranges.push(secondRange)
+          wrappedSecondRangeIndex.value = ranges.length - 1
+        }
+      } else {
+        // Unwrap: remove the second range and go back to single range
+        if (wrappedSecondRangeIndex.value !== null) {
+          const ranges = selection.domain.value.ranges
+          ranges.splice(wrappedSecondRangeIndex.value, 1)
+          wrappedSecondRangeIndex.value = null
+        }
+      }
+    }
+  }
+
+  lastDragPos.value = pos
+
+  // Update range(s) based on wrapped state
+  const ranges = selection.domain.value.ranges
+  const primaryRange = ranges[rangeIndex]
+
+  if (isWrapped.value && wrappedSecondRangeIndex.value !== null) {
+    // Update wrapped ranges
+    const secondRange = ranges[wrappedSecondRangeIndex.value]
+
+    // Determine which direction we wrapped
+    if (primaryRange.end === seqLen) {
+      // Clockwise wrap: primary is anchor..seqLen, secondary is 0..pos
+      secondRange.end = pos
+    } else if (primaryRange.start === 0) {
+      // Counter-clockwise wrap: primary is 0..anchor, secondary is pos..seqLen
+      secondRange.start = pos
+    }
+  } else {
+    // Non-wrapped: standard single-range logic
+    // Clamp to limits
+    pos = Math.max(dragLimits.value.low, Math.min(pos, dragLimits.value.high))
+
+    primaryRange.start = Math.min(anchor, pos)
+    primaryRange.end = Math.max(anchor, pos)
+
+    // Determine orientation
+    const nowLeftOfAnchor = pos < anchor
+    const nowRightOfAnchor = pos > anchor
+
+    if (pos === anchor) {
+      primaryRange.orientation = Orientation.NONE
+    } else if (wasZeroWidth) {
+      primaryRange.orientation = nowRightOfAnchor ? Orientation.PLUS : Orientation.MINUS
+    } else {
+      const crossed = (startedLeftOfAnchor && nowRightOfAnchor) || (!startedLeftOfAnchor && nowLeftOfAnchor)
+      if (crossed) {
+        primaryRange.orientation = originalOrientation === Orientation.PLUS ? Orientation.MINUS : Orientation.PLUS
+      } else {
+        primaryRange.orientation = originalOrientation
+      }
+    }
+  }
+
+  // Trigger reactivity
+  selection.domain.value = selection.domain.value
+}
+
+function handleDragEnd() {
+  draggedHandle.value = null
+  lastDragPos.value = null
+  isWrapped.value = false
+  wrappedSecondRangeIndex.value = null
+  window.removeEventListener('mousemove', handleDragMove)
+  window.removeEventListener('mouseup', handleDragEnd)
+
+  if (selection.isSelected.value) {
+    emit('select', { ranges: selection.domain.value.ranges })
+  }
+}
+
+function handlePathContextMenu(event, rangeIndex) {
+  event.preventDefault()
+  emit('contextmenu', {
+    event,
+    rangeIndex,
+    range: selection.domain.value.ranges[rangeIndex]
+  })
+}
+</script>
+
+<template>
+  <g class="circular-selection-layer">
+    <g v-for="sel in selectionPaths" :key="`sel-${sel.index}`">
+      <!-- Selection arc path -->
+      <path
+        :d="sel.path"
+        :class="sel.cssClass"
+        @contextmenu="handlePathContextMenu($event, sel.index)"
+      />
+
+      <!-- Start tab handle -->
+      <path
+        :d="getTabPath(
+          circularGraphics.centerX.value,
+          circularGraphics.centerY.value,
+          sel.handleRadius,
+          sel.startAngle
+        )"
+        :class="getHandleCssClass(sel.range)"
+        @mousedown="startHandleDrag($event, sel.index, 'start')"
+      />
+
+      <!-- End tab handle (only if different from start) -->
+      <path
+        v-if="sel.type !== 'cursor'"
+        :d="getTabPath(
+          circularGraphics.centerX.value,
+          circularGraphics.centerY.value,
+          sel.handleRadius,
+          sel.endAngle
+        )"
+        :class="getHandleCssClass(sel.range)"
+        @mousedown="startHandleDrag($event, sel.index, 'end')"
+      />
+
+      <!-- Range index tag for multi-range selections -->
+      <g
+        v-if="selectionPaths.length > 1"
+        class="sel_tag"
+      >
+        <rect
+          :x="polarToCartesian(circularGraphics.centerX.value, circularGraphics.centerY.value, sel.handleRadius + 12, sel.startAngle).x - 8"
+          :y="polarToCartesian(circularGraphics.centerX.value, circularGraphics.centerY.value, sel.handleRadius + 12, sel.startAngle).y - 8"
+          width="16"
+          height="16"
+          rx="2"
+          class="sel_tag_box"
+        />
+        <text
+          :x="polarToCartesian(circularGraphics.centerX.value, circularGraphics.centerY.value, sel.handleRadius + 12, sel.startAngle).x"
+          :y="polarToCartesian(circularGraphics.centerX.value, circularGraphics.centerY.value, sel.handleRadius + 12, sel.startAngle).y"
+          dominant-baseline="middle"
+          text-anchor="middle"
+          class="sel_tag_text"
+        >
+          {{ sel.index + 1 }}
+        </text>
+      </g>
+    </g>
+  </g>
+</template>
+
+<style scoped>
+.circular-selection-layer {
+  pointer-events: none;
+}
+
+/* Selection paths */
+.selection {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.selection.plus {
+  fill: rgba(0, 255, 0, 0.3);
+  stroke: rgba(0, 128, 0, 1);
+  stroke-width: 2px;
+}
+
+.selection.minus {
+  fill: rgba(255, 0, 0, 0.3);
+  stroke: rgba(255, 0, 0, 1);
+  stroke-width: 2px;
+}
+
+.selection.undirected {
+  fill: rgba(192, 192, 192, 0.3);
+  stroke: rgba(64, 64, 64, 1);
+  stroke-width: 2px;
+}
+
+.selection.cursor {
+  fill: none;
+  stroke: rgba(0, 0, 0, 1);
+  stroke-width: 2px;
+}
+
+/* Selection handles */
+.sel_handle {
+  pointer-events: all;
+  cursor: grab;
+}
+
+.sel_handle:hover {
+  filter: brightness(0.95);
+}
+
+.sel_handle.plus {
+  fill: rgba(200, 200, 200, 1);
+  stroke: rgba(0, 128, 0, 1);
+  stroke-width: 2px;
+}
+
+.sel_handle.minus {
+  fill: rgba(200, 200, 200, 1);
+  stroke: rgba(255, 0, 0, 1);
+  stroke-width: 2px;
+}
+
+.sel_handle.undirected {
+  fill: rgba(200, 200, 200, 1);
+  stroke: rgba(64, 64, 64, 1);
+  stroke-width: 2px;
+}
+
+.sel_handle.cursor {
+  fill: rgba(200, 200, 200, 1);
+  stroke: rgba(0, 0, 0, 1);
+  stroke-width: 2px;
+}
+
+/* Selection tags */
+.sel_tag {
+  pointer-events: none;
+}
+
+.sel_tag_box {
+  fill: white;
+  stroke: black;
+  stroke-width: 1px;
+}
+
+.sel_tag_text {
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 10px;
+  fill: black;
+}
+</style>

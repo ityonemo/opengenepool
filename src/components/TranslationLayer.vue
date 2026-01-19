@@ -19,16 +19,14 @@ const props = defineProps({
 // Inject from parent SequenceEditor
 const editorState = inject('editorState')
 const graphics = inject('graphics')
-
-// User intent (from config checkbox)
-const show = ref(true)
+const showTranslation = inject('showTranslation', ref(true))
 
 // Minimum codon width (3 bases) needed to display amino acid letter (~8px for 12px font)
 const MIN_CODON_WIDTH = 8
 
 // Display visibility - show only when user wants it AND zoom level allows readable text
 const visible = computed(() => {
-  if (!show.value) return false
+  if (!showTranslation.value) return false
   const codonWidth = 3 * graphics.metrics.value.charWidth
   return codonWidth >= MIN_CODON_WIDTH
 })
@@ -330,7 +328,7 @@ function handleClick(event, element) {
 }
 
 // Expose show and visible for parent to bind to
-defineExpose({ show, visible })
+defineExpose({ showTranslation, visible })
 </script>
 
 <template>

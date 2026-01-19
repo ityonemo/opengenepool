@@ -6,11 +6,11 @@ import { useAnnotations, generateArrowPath } from '../composables/useAnnotations
 // Height reserved for translation display (must match useAnnotations)
 const TRANSLATION_HEIGHT = 18
 
-// User intent (from config checkbox)
-const show = ref(true)
+// Inject shared visibility state from parent
+const showAnnotations = inject('showAnnotations', ref(true))
 
-// Display visibility - derived from show (always the same for annotations)
-const visible = computed(() => show.value)
+// Display visibility - derived from shared state
+const visible = computed(() => showAnnotations.value)
 
 const props = defineProps({
   /** Array of Annotation objects to render */
@@ -226,7 +226,7 @@ function handleMouseLeave(event, fragment) {
 
 // Expose for testing and visibility control
 defineExpose({
-  show,
+  showAnnotations,
   visible,
   fragments,
   fragmentsByLine,

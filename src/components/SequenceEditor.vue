@@ -11,6 +11,7 @@ import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon, CheckIcon
 import AnnotationLayer from './AnnotationLayer.vue'
 import TranslationLayer from './TranslationLayer.vue'
 import SelectionLayer from './SelectionLayer.vue'
+import CircularView from './CircularView.vue'
 import ContextMenu from './ContextMenu.vue'
 import InsertModal from './InsertModal.vue'
 import MetadataModal from './MetadataModal.vue'
@@ -102,6 +103,13 @@ const editingAnnotation = ref(null)  // null = create mode, annotation object = 
 const editingTitle = ref(false)
 const editTitleValue = ref('')
 const titleInputRef = ref(null)
+
+// View mode state ('linear' | 'circular')
+// Only circular sequences can switch to circular view
+const viewMode = ref('linear')
+
+// Computed: whether to show the view mode toggle
+const showViewModeToggle = computed(() => props.metadata?.circular === true)
 
 // Initialize composables
 const editorState = useEditorState()
@@ -205,7 +213,11 @@ const hiddenTypes = ref(loadHiddenTypes())
 const annotationColors = ref(loadAnnotationColors())
 const configPanelOpen = ref(false)
 
-// Refs to layer components (visibility is owned by layers)
+// Shared visibility state for layers (used by both linear and circular views)
+const showAnnotations = ref(true)
+const showTranslation = ref(true)
+
+// Refs to layer components
 const annotationLayerRef = ref(null)
 const translationLayerRef = ref(null)
 
@@ -392,6 +404,8 @@ provide('graphics', graphics)
 provide('eventBus', eventBus)
 provide('selection', selection)  // Single source of truth for selection
 provide('annotationColors', annotationColors)  // Colors persisted to localStorage
+provide('showAnnotations', showAnnotations)  // Shared visibility for annotation layers
+provide('showTranslation', showTranslation)  // Shared visibility for translation layer
 
 // Template refs
 const containerRef = ref(null)
@@ -1466,7 +1480,7 @@ defineExpose({
   <div class="sequence-editor" ref="containerRef">
     <!-- Toolbar -->
     <div class="toolbar">
-      <label class="zoom-control">
+      <label v-if="viewMode === 'linear'" class="zoom-control">
         Zoom:
         <select :value="editorState.zoomLevel.value" @change="handleZoomChange">
           <option
@@ -1523,6 +1537,24 @@ defineExpose({
         </button>
       </span>
 
+      <!-- View mode toggle (only for circular sequences) -->
+      <div v-if="showViewModeToggle" class="view-mode-toggle">
+        <button
+          :class="['view-mode-btn', { active: viewMode === 'linear' }]"
+          @click="viewMode = 'linear'"
+          title="Linear view"
+        >
+          Linear
+        </button>
+        <button
+          :class="['view-mode-btn', { active: viewMode === 'circular' }]"
+          @click="viewMode = 'circular'"
+          title="Circular view"
+        >
+          Circular
+        </button>
+      </div>
+
       <!-- Spacer to push config to right -->
       <div class="toolbar-spacer"></div>
 
@@ -1552,12 +1584,11 @@ defineExpose({
           <label class="config-header-toggle">
             <input
               type="checkbox"
-              :checked="annotationLayerRef?.show"
-              @change="annotationLayerRef && (annotationLayerRef.show = $event.target.checked)"
+              v-model="showAnnotations"
             >
             <span>Annotations</span>
           </label>
-          <div v-if="annotationLayerRef?.show && annotationTypes.length > 0" class="config-types">
+          <div v-if="showAnnotations && annotationTypes.length > 0" class="config-types">
             <label v-for="type in annotationTypes" :key="type" class="type-row">
               <input type="checkbox" :checked="!isTypeHidden(type)" @change="toggleAnnotationType(type)">
               <svg class="type-swatch" viewBox="0 0 14 14" width="14" height="14">
@@ -1572,12 +1603,11 @@ defineExpose({
             </label>
           </div>
 
-          <!-- Translation section -->
-          <label v-if="cdsAnnotations.length > 0" class="config-header-toggle">
+          <!-- Translation section (only in linear mode) -->
+          <label v-if="cdsAnnotations.length > 0 && viewMode === 'linear'" class="config-header-toggle">
             <input
               type="checkbox"
-              :checked="translationLayerRef?.show"
-              @change="translationLayerRef && (translationLayerRef.show = $event.target.checked)"
+              v-model="showTranslation"
             >
             <span>Translation</span>
           </label>
@@ -1585,8 +1615,21 @@ defineExpose({
       </div>
     </div>
 
-    <!-- SVG Editor -->
-    <div class="editor-container">
+    <!-- Circular View (only shown when viewMode is circular) -->
+    <div v-if="viewMode === 'circular'" class="editor-container circular-container">
+      <CircularView
+        :annotations="annotationInstances"
+        :show-annotation-captions="showAnnotationCaptions"
+        @select="handleSelectionChange"
+        @contextmenu="showContextMenu($event.event, $event)"
+        @annotation-click="handleAnnotationClick"
+        @annotation-contextmenu="handleAnnotationContextMenu"
+        @annotation-hover="handleAnnotationHover"
+      />
+    </div>
+
+    <!-- Linear SVG Editor (default view) -->
+    <div v-else class="editor-container">
       <svg
         ref="svgRef"
         class="editor-svg"
@@ -2254,5 +2297,43 @@ defineExpose({
   max-width: 350px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   pointer-events: none;
+}
+
+/* View mode toggle */
+.view-mode-toggle {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.view-mode-btn {
+  padding: 4px 12px;
+  border: none;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.view-mode-btn:hover {
+  background: #f0f0f0;
+}
+
+.view-mode-btn.active {
+  background: #4a90d9;
+  color: white;
+}
+
+.view-mode-btn:first-child {
+  border-right: 1px solid #ddd;
+}
+
+/* Circular container fills available space */
+.circular-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 </style>
