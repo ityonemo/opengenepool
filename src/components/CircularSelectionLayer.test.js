@@ -183,4 +183,60 @@ describe('CircularSelectionLayer', () => {
       expect(paths.length).toBe(2)
     })
   })
+
+  describe('merge bubbles', () => {
+    it('shows merge bubble when ranges touch', async () => {
+      const wrapper = createWrapper()
+      const selection = wrapper.vm.selection
+
+      // Create two touching ranges: 100..500 and 500..1000
+      selection.select('100..500')
+      selection.startSelection(500, true)
+      selection.updateSelection(1000)
+      selection.endSelection()
+
+      await wrapper.vm.$nextTick()
+
+      // Check that merge bubble is rendered
+      const mergeBubbles = wrapper.findAll('.merge_bubble')
+      expect(mergeBubbles.length).toBe(1)
+    })
+
+    it('does not show merge bubble for non-touching ranges', async () => {
+      const wrapper = createWrapper()
+      const selection = wrapper.vm.selection
+
+      // Create two non-touching ranges: 100..500 and 600..1000
+      selection.select('100..500')
+      selection.startSelection(600, true)
+      selection.updateSelection(1000)
+      selection.endSelection()
+
+      await wrapper.vm.$nextTick()
+
+      // No merge bubble should be shown
+      const mergeBubbles = wrapper.findAll('.merge_bubble')
+      expect(mergeBubbles.length).toBe(0)
+    })
+
+    it('emits merge event when merge bubble is clicked', async () => {
+      const wrapper = createWrapper()
+      const selection = wrapper.vm.selection
+
+      // Create two touching ranges
+      selection.select('100..500')
+      selection.startSelection(500, true)
+      selection.updateSelection(1000)
+      selection.endSelection()
+
+      await wrapper.vm.$nextTick()
+
+      const mergeBubble = wrapper.find('.merge_bubble')
+      await mergeBubble.trigger('click')
+
+      expect(wrapper.emitted('merge')).toBeTruthy()
+      // After merge, should only have one range
+      expect(selection.domain.value.ranges.length).toBe(1)
+    })
+  })
 })
