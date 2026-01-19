@@ -6,7 +6,7 @@ import { createEventBus } from '../composables/useEventBus.js'
 import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 import { useSelection, SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
-import { Span, Range, iterateSequence } from '../utils/dna.js'
+import { Span, Range, Orientation, iterateSequence } from '../utils/dna.js'
 import { iterateCodons } from '../utils/translation.js'
 import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import AnnotationLayer from './AnnotationLayer.vue'
@@ -119,6 +119,83 @@ const eventBus = createEventBus()
 
 // Selection is owned here and provided to children (single source of truth)
 const selection = useSelection(editorState, graphics, eventBus)
+
+// Helper to convert a range to GenBank notation (1-based)
+function rangeToGenBank(range) {
+  // Convert from 0-based fenced to 1-based GenBank
+  // In fenced: 0..10 means bases at positions 0-9 (end exclusive)
+  // In GenBank: 1..10 means bases 1-10 inclusive
+  const start = range.start + 1
+  const end = range.end  // fenced end is exclusive, so this is the last base
+
+  const baseStr = `${start}..${end}`
+
+  // MINUS strand → complement(), NONE treated as PLUS
+  if (range.orientation === Orientation.MINUS) {
+    return `complement(${baseStr})`
+  }
+  return baseStr
+}
+
+// Computed property for selection status text displayed in lower right corner
+const selectionStatusText = computed(() => {
+  if (!selection.isSelected.value || !selection.domain.value) {
+    return null
+  }
+
+  const domain = selection.domain.value
+  const ranges = domain.ranges
+
+  if (!ranges || ranges.length === 0) {
+    return null
+  }
+
+  // Filter out cursor ranges (length === 0) for composite selections
+  const nonCursorRanges = ranges.filter(r => r.length > 0)
+
+  // Check if ALL ranges are cursors
+  const allCursors = nonCursorRanges.length === 0
+
+  if (allCursors && ranges.length === 1) {
+    // Single cursor - show "cursor between X and Y"
+    const pos = ranges[0].start
+    const seq = editorState.sequence.value
+
+    if (pos === 0) {
+      // Cursor at start
+      const rightBase = seq[0]
+      return `cursor at start, before ${rightBase}${pos + 1}`
+    } else if (pos >= seq.length) {
+      // Cursor at end
+      const leftBase = seq[seq.length - 1]
+      return `cursor at end, after ${leftBase}${seq.length}`
+    } else {
+      // Cursor in middle
+      const leftBase = seq[pos - 1]
+      const rightBase = seq[pos]
+      return `cursor between ${leftBase}${pos} and ${rightBase}${pos + 1}`
+    }
+  }
+
+  if (nonCursorRanges.length === 0) {
+    return null // Multiple cursors only, no selection to show
+  }
+
+  // Calculate total length
+  const totalLength = nonCursorRanges.reduce((sum, r) => sum + r.length, 0)
+
+  // Build GenBank notation
+  let genbankStr
+  if (nonCursorRanges.length === 1) {
+    genbankStr = rangeToGenBank(nonCursorRanges[0])
+  } else {
+    const parts = nonCursorRanges.map(r => rangeToGenBank(r))
+    genbankStr = `join(${parts.join(', ')})`
+  }
+
+  const baseWord = totalLength === 1 ? 'base' : 'bases'
+  return `selected: ${genbankStr} (${totalLength} ${baseWord})`
+})
 
 // Set initial zoom from localStorage (fallback to prop)
 const { getInitialZoom, saveZoom } = usePersistedZoom(props.initialZoom)
@@ -1651,6 +1728,12 @@ defineExpose({
         @annotation-contextmenu="handleAnnotationContextMenu"
         @annotation-hover="handleAnnotationHover"
       />
+
+      <!-- Selection Status Display -->
+      <div
+        v-if="selectionStatusText"
+        class="selection-status"
+      >{{ selectionStatusText }}</div>
     </div>
 
     <!-- Linear SVG Editor (default view) -->
@@ -1797,6 +1880,12 @@ defineExpose({
         />
 
       </svg>
+
+      <!-- Selection Status Display -->
+      <div
+        v-if="selectionStatusText"
+        class="selection-status"
+      >{{ selectionStatusText }}</div>
     </div>
 
     <!-- Context Menu -->
@@ -1962,6 +2051,7 @@ defineExpose({
   flex: 1;
   overflow: auto;
   background: white;
+  position: relative;
 }
 
 .editor-svg {
@@ -2362,5 +2452,22 @@ defineExpose({
   align-items: center;
   justify-content: center;
   padding: 20px;
+}
+
+/* Selection status display in lower right corner */
+.selection-status {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: "Lucida Console", Monaco, monospace;
+  font-size: 12px;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  z-index: 10;
 }
 </style>
