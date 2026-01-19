@@ -372,7 +372,14 @@ function getTranslationString(annotationId) {
   const aminoAcids = translate(cdsSequence, frame)
 
   // Build string with * for stop codons
-  return aminoAcids.map(aa => aa.aminoAcid).join('')
+  let result = aminoAcids.map(aa => aa.aminoAcid).join('')
+
+  // For minus strand, reverse to match visual display order (genomic left-to-right)
+  if (isMinus) {
+    result = result.split('').reverse().join('')
+  }
+
+  return result
 }
 
 // Handle right-click on translation
