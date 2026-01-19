@@ -298,7 +298,7 @@ function getAnnotationGroups(elements) {
   return groups
 }
 
-const emit = defineEmits(['hover', 'click'])
+const emit = defineEmits(['hover', 'click', 'contextmenu'])
 
 // Get three-letter amino acid name
 function getAaName(aa) {
@@ -337,6 +337,51 @@ function handleClick(event, element) {
   })
 }
 
+// Get the full translation string for an annotation
+function getTranslationString(annotationId) {
+  const annotation = props.annotations.find(a => a.id === annotationId)
+  if (!annotation) return ''
+
+  const sequence = editorState.sequence.value
+  if (!sequence) return ''
+
+  // Parse span
+  const span = typeof annotation.span === 'string'
+    ? Span.parse(annotation.span)
+    : annotation.span
+
+  if (!span || span.ranges.length === 0) return ''
+
+  const ranges = span.ranges
+  const isMinus = ranges[0].orientation === Orientation.MINUS
+  const codingRanges = isMinus ? [...ranges].reverse() : ranges
+
+  // Build coding sequence
+  let cdsSequence = ''
+  for (const range of codingRanges) {
+    for (let p = range.start; p < range.end; p++) {
+      cdsSequence += sequence[p]
+    }
+  }
+  if (isMinus) {
+    cdsSequence = reverseComplement(cdsSequence)
+  }
+
+  // Translate
+  const frame = (annotation.attributes?.codon_start || 1) - 1
+  const aminoAcids = translate(cdsSequence, frame)
+
+  // Build string with * for stop codons
+  return aminoAcids.map(aa => aa.aminoAcid).join('')
+}
+
+// Handle right-click on translation
+function handleContextMenu(event, element) {
+  event.preventDefault()
+  const translation = getTranslationString(element.annotationId)
+  emit('contextmenu', { event, element, translation })
+}
+
 // Expose show and visible for parent to bind to
 defineExpose({ showTranslation, visible })
 </script>
@@ -363,6 +408,7 @@ defineExpose({ showTranslation, visible })
           @mouseenter="comp.letter !== null && handleMouseEnter($event, comp)"
           @mouseleave="comp.letter !== null && handleMouseLeave($event, comp)"
           @click="comp.letter !== null && handleClick($event, comp)"
+          @contextmenu="handleContextMenu($event, comp)"
         >
           <!-- Component path (flat edges at breaks, chevrons elsewhere) -->
           <path

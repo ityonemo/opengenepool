@@ -894,6 +894,24 @@ function handleTranslationClick(data) {
   }
 }
 
+function handleTranslationContextMenu(data) {
+  const { event, translation } = data
+
+  contextMenuItems.value = [{
+    label: 'Copy translation',
+    action: async () => {
+      try {
+        await navigator.clipboard.writeText(translation)
+      } catch (err) {
+        console.error('Failed to copy translation:', err)
+      }
+    }
+  }]
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+  contextMenuVisible.value = true
+}
+
 function handleContextMenu(event, lineIndex) {
   event.preventDefault()
 
@@ -1755,6 +1773,7 @@ defineExpose({
           :annotation-delta-y-by-line="annotationLayerRef?.annotationDeltaYByLine"
           @hover="handleTranslationHover"
           @click="handleTranslationClick"
+          @contextmenu="handleTranslationContextMenu"
         />
 
         <!-- Annotation Layer -->
