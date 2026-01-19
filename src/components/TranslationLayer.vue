@@ -104,6 +104,29 @@ function getChevronPath(x, width, h, orientation, showTail, showNotch) {
 const lineLeft = computed(() => graphics.metrics.value.lmargin)
 const lineRight = computed(() => graphics.metrics.value.lmargin + editorState.zoomLevel.value * graphics.metrics.value.charWidth)
 
+/**
+ * Determine if an edge should be "walled off" (square edge, no chevron).
+ * This unifies the logic for line breaks, segment breaks, and CDS boundaries.
+ *
+ * @param {Object} elem - The codon element
+ * @param {string} edge - 'leading' or 'trailing' relative to translation direction
+ * @param {boolean} crossesLineBoundary - Whether this edge crosses a line boundary
+ * @returns {boolean} True if edge should be walled (square), false for chevron
+ */
+function shouldWallEdge(elem, edge, crossesLineBoundary) {
+  const isMultiSegment = elem.numSegments > 1
+
+  if (edge === 'leading') {
+    // Leading edge = direction of translation (right for plus, left for minus)
+    // Wall if: last codon, segment end, or crosses line boundary
+    return elem.isLastCodon || (isMultiSegment && elem.isSegmentEnd) || crossesLineBoundary
+  } else {
+    // Trailing edge = opposite of translation direction
+    // Wall if: first codon, segment start, or crosses line boundary
+    return elem.isFirstCodon || (isMultiSegment && elem.isSegmentStart) || crossesLineBoundary
+  }
+}
+
 // Calculate clipped box for an element (clips to line boundaries)
 function getClippedBox(element) {
   // Overflow elements have a specific width, not the full codon width
@@ -147,9 +170,9 @@ const { elementsByLine: rawElementsByLine } = useTranslation(editorState, graphi
 // Augment elements with overflow portions for codons spanning line breaks
 const elementsByLine = computed(() => {
   const result = new Map()
-  const zoom = editorState.zoomLevel.value
-  const m = graphics.metrics.value
   const halfCodon = codonWidth.value / 2
+  const noseProtrusion = notchProtrusion.value
+  const tailExt = tailExtension.value
 
   for (const [lineIndex, elements] of rawElementsByLine.value) {
     if (!result.has(lineIndex)) {
@@ -163,77 +186,54 @@ const elementsByLine = computed(() => {
       const hasLeftOverflow = leftEdge < lineLeft.value
       const isPlus = elem.orientation === 1
 
-      // Check if nose/tail would protrude past line boundaries
-      // (even if box doesn't overflow, the protrusion might)
-      const noseProtrusion = notchProtrusion.value
-      const tailExt = tailExtension.value
-      const noseWouldProtrudeRight = rightEdge + noseProtrusion > lineRight.value
-      const noseWouldProtrudeLeft = leftEdge - noseProtrusion < lineLeft.value
-      const tailWouldProtrudeRight = rightEdge + tailExt > lineRight.value
-      const tailWouldProtrudeLeft = leftEdge - tailExt < lineLeft.value
+      // Determine if edges cross line boundaries (including protrusion space)
+      const rightCrossesLine = rightEdge + noseProtrusion > lineRight.value
+      const leftCrossesLine = leftEdge - noseProtrusion < lineLeft.value
 
-      // For plus strand: notch is on higher line (further along sequence)
-      // For minus strand: notch is on lower line (further along in translation direction)
+      // For plus strand: leading edge = right, trailing edge = left
+      // For minus strand: leading edge = left, trailing edge = right
+      const leadingCrossesLine = isPlus ? rightCrossesLine : leftCrossesLine
+      const trailingCrossesLine = isPlus ? leftCrossesLine : rightCrossesLine
 
-      // For banner tail:
-      // Plus strand: tail on segment with LEFT edge (earlier line for splits)
-      // Minus strand: tail on segment with RIGHT edge (later line for splits)
+      // Use unified wall logic for main element
+      const wallLeading = shouldWallEdge(elem, 'leading', leadingCrossesLine)
+      const wallTrailing = shouldWallEdge(elem, 'trailing', trailingCrossesLine)
 
-      // Add the main element
-      let mainShowNotch
-      let mainShowTail
-
-      // Check if this is a multi-segment annotation
-      const isMultiSegment = elem.numSegments > 1
-
-      if (isPlus) {
-        // Plus strand: show notch unless it would protrude past right edge or is last codon
-        // Also no notch at segment end (each segment is independent)
-        mainShowNotch = !noseWouldProtrudeRight && !elem.isLastCodon && !(isMultiSegment && elem.isSegmentEnd)
-        // Plus strand: show tail unless it would protrude past left edge or is first codon
-        // Also no tail at segment start (each segment is independent)
-        mainShowTail = !tailWouldProtrudeLeft && !elem.isFirstCodon && !(isMultiSegment && elem.isSegmentStart)
-      } else {
-        // Minus strand: show notch unless it would protrude past left edge or is last codon
-        // Also no notch at segment end
-        mainShowNotch = !noseWouldProtrudeLeft && !elem.isLastCodon && !(isMultiSegment && elem.isSegmentEnd)
-        // Minus strand: show tail unless it would protrude past right edge or is first codon
-        // Also no tail at segment start
-        mainShowTail = !tailWouldProtrudeRight && !elem.isFirstCodon && !(isMultiSegment && elem.isSegmentStart)
-      }
-
+      // showNotch = don't wall leading edge, showTail = don't wall trailing edge
       result.get(lineIndex).push({
         ...elem,
         isOverflow: false,
-        showNotch: mainShowNotch,
-        showTail: mainShowTail
+        showNotch: !wallLeading,
+        showTail: !wallTrailing
       })
 
-      // Check if this codon extends past the right edge (overflow to next line)
+      // Create overflow elements for codons that span line boundaries
+      // These are partial renderings of the same codon on adjacent lines
+
       if (hasRightOverflow) {
         const overflowWidth = rightEdge - lineRight.value
         const nextLine = lineIndex + 1
         if (!result.has(nextLine)) {
           result.set(nextLine, [])
         }
-        // Overflow element is at left edge of next line
-        // Plus strand: nose on right (into line), tail on left (at lineLeft - would protrude)
-        // Minus strand: nose on left (at lineLeft - would protrude), tail on right (into line)
-        // Also check if nose/tail would protrude past the far edge (lineRight)
+
+        // Overflow on next line: trailing edge is at line boundary (walled)
+        // Leading edge continues into the line
         const overflowRight = lineLeft.value + overflowWidth
-        const plusNoseOK = overflowRight + noseProtrusion <= lineRight.value
-        const minusTailOK = overflowRight + tailExt <= lineRight.value
+        const overflowLeadingCrossesLine = overflowRight + noseProtrusion > lineRight.value
+
         result.get(nextLine).push({
           ...elem,
           x: lineLeft.value + overflowWidth / 2,
           isOverflow: true,
           overflowWidth,
-          showNotch: isPlus && plusNoseOK && !elem.isLastCodon,
-          showTail: !isPlus && !elem.isFirstCodon && minusTailOK
+          // Trailing edge at line start is always walled (line boundary)
+          showTail: false,
+          // Leading edge: check if it would cross the far line boundary
+          showNotch: !shouldWallEdge(elem, 'leading', overflowLeadingCrossesLine)
         })
       }
 
-      // Check if this codon extends past the left edge (overflow from previous line)
       if (hasLeftOverflow) {
         const overflowWidth = lineLeft.value - leftEdge
         const prevLine = lineIndex - 1
@@ -241,20 +241,21 @@ const elementsByLine = computed(() => {
           if (!result.has(prevLine)) {
             result.set(prevLine, [])
           }
-          // Overflow element is at right edge of prev line
-          // Plus strand: nose on right (at lineRight - would protrude), tail on left (into line)
-          // Minus strand: nose on left (into line), tail on right (at lineRight - would protrude)
-          // Also check if nose/tail would protrude past the far edge (lineLeft)
+
+          // Overflow on prev line: leading edge is at line boundary (walled)
+          // Trailing edge continues into the line
           const overflowLeft = lineRight.value - overflowWidth
-          const minusNoseOK = overflowLeft - noseProtrusion >= lineLeft.value
-          const plusTailOK = overflowLeft - tailExt >= lineLeft.value
+          const overflowTrailingCrossesLine = overflowLeft - tailExt < lineLeft.value
+
           result.get(prevLine).push({
             ...elem,
             x: lineRight.value - overflowWidth / 2,
             isOverflow: true,
             overflowWidth,
-            showNotch: !isPlus && minusNoseOK && !elem.isLastCodon,
-            showTail: isPlus && !elem.isFirstCodon && plusTailOK
+            // Leading edge at line end is always walled (line boundary)
+            showNotch: false,
+            // Trailing edge: check if it would cross the far line boundary
+            showTail: !shouldWallEdge(elem, 'trailing', overflowTrailingCrossesLine)
           })
         }
       }
