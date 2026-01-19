@@ -24,6 +24,36 @@
  *   (0..N) → full sequence, minus strand (reverse complement)
  */
 
+// Complement map for DNA bases (shared by complement and reverseComplement)
+const COMPLEMENT_MAP = {
+  // Standard bases
+  'a': 't', 't': 'a', 'c': 'g', 'g': 'c',
+  'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C',
+  // Wildcards
+  'n': 'n', 'x': 'x', 'N': 'N', 'X': 'X',
+  // IUPAC two-letter codes
+  'r': 'y', 'y': 'r', 'm': 'k', 'k': 'm', 's': 's', 'w': 'w',
+  'R': 'Y', 'Y': 'R', 'M': 'K', 'K': 'M', 'S': 'S', 'W': 'W',
+  // IUPAC three-letter codes
+  'h': 'd', 'd': 'h', 'b': 'v', 'v': 'b',
+  'H': 'D', 'D': 'H', 'B': 'V', 'V': 'B'
+}
+
+/**
+ * Complement a single DNA base.
+ * Supports standard bases (A, T, G, C) and IUPAC ambiguity codes.
+ * @param {string} base - A single DNA base
+ * @returns {string} The complementary base
+ * @throws {Error} If the base is not a valid DNA base or IUPAC code
+ */
+export function complementBase(base) {
+  const complement = COMPLEMENT_MAP[base]
+  if (complement === undefined) {
+    throw new Error(`Invalid DNA base: ${base}`)
+  }
+  return complement
+}
+
 /**
  * Reverse complement of a DNA sequence.
  * Handles IUPAC ambiguity codes and preserves case.
@@ -31,24 +61,9 @@
  * @returns {string} The reverse complement
  */
 export function reverseComplement(sequence) {
-  const complementMap = {
-    // Standard bases
-    'a': 't', 't': 'a', 'c': 'g', 'g': 'c',
-    'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C',
-    // Wildcards
-    'n': 'n', 'x': 'x', 'N': 'N', 'X': 'X',
-    // IUPAC two-letter codes
-    'r': 'y', 'y': 'r', 'm': 'k', 'k': 'm', 's': 's', 'w': 'w',
-    'R': 'Y', 'Y': 'R', 'M': 'K', 'K': 'M', 'S': 'S', 'W': 'W',
-    // IUPAC three-letter codes
-    'h': 'd', 'd': 'h', 'b': 'v', 'v': 'b',
-    'H': 'D', 'D': 'H', 'B': 'V', 'V': 'B'
-  }
-
   let result = ''
   for (let i = sequence.length - 1; i >= 0; i--) {
-    const base = sequence[i]
-    result += complementMap[base] || base
+    result += COMPLEMENT_MAP[sequence[i]] || sequence[i]
   }
   return result
 }
@@ -299,5 +314,50 @@ export class Span {
    */
   toString() {
     return this.ranges.map(r => r.toString()).join(' + ')
+  }
+}
+
+/**
+ * Iterate over bases in a span in coding order.
+ * Plus strand: low to high genomic position
+ * Minus strand: high to low genomic position (with complemented bases)
+ *
+ * @param {Span} span - The annotation span
+ * @param {string} sequence - The full DNA sequence
+ * @yields {{letter: string, direction: boolean, position: number}}
+ */
+export function* iterateSequence(span, sequence) {
+  if (!span || !span.ranges || span.ranges.length === 0) return
+
+  const ranges = span.ranges
+
+  // Determine overall direction from first range (for range ordering)
+  const overallMinus = ranges[0].orientation === Orientation.MINUS
+
+  // For minus strand CDS, reverse the range order (last exon first in coding order)
+  const codingRanges = overallMinus ? [...ranges].reverse() : ranges
+
+  for (const range of codingRanges) {
+    const rangeIsMinus = range.orientation === Orientation.MINUS
+
+    if (rangeIsMinus) {
+      // Walk high to low for minus strand range, yielding complemented bases
+      for (let p = range.end - 1; p >= range.start; p--) {
+        yield {
+          letter: complementBase(sequence[p]),
+          direction: false,
+          position: p
+        }
+      }
+    } else {
+      // Walk low to high for plus strand range
+      for (let p = range.start; p < range.end; p++) {
+        yield {
+          letter: sequence[p],
+          direction: true,
+          position: p
+        }
+      }
+    }
   }
 }

@@ -3,7 +3,8 @@ import {
   reverseComplement,
   Range,
   Span,
-  Orientation
+  Orientation,
+  iterateSequence
 } from './dna.js'
 
 /**
@@ -335,6 +336,92 @@ describe('Span', () => {
     it('handles empty span', () => {
       const span = new Span()
       expect(span.contains(10)).toBe(false)
+    })
+  })
+})
+
+describe('iterateSequence', () => {
+  describe('plus strand', () => {
+    it('yields bases low to high for single range', () => {
+      const span = Span.parse('0..6')
+      const sequence = 'ATGAAA'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      expect(bases).toHaveLength(6)
+      expect(bases.map(b => b.position)).toEqual([0, 1, 2, 3, 4, 5])
+      expect(bases.map(b => b.letter)).toEqual(['A', 'T', 'G', 'A', 'A', 'A'])
+      expect(bases.every(b => b.direction === true)).toBe(true)
+    })
+
+    it('yields bases in range order for multi-range', () => {
+      const span = Span.parse('0..3 + 6..9')
+      const sequence = 'ATGXXXTAA'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      expect(bases.map(b => b.position)).toEqual([0, 1, 2, 6, 7, 8])
+      expect(bases.map(b => b.letter)).toEqual(['A', 'T', 'G', 'T', 'A', 'A'])
+    })
+  })
+
+  describe('minus strand', () => {
+    it('yields complemented bases high to low for single range', () => {
+      const span = Span.parse('(0..6)')
+      const sequence = 'ATGAAA'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      expect(bases).toHaveLength(6)
+      expect(bases.map(b => b.position)).toEqual([5, 4, 3, 2, 1, 0])
+      // Yields complemented bases: A→T, A→T, A→T, G→C, T→A, A→T
+      expect(bases.map(b => b.letter)).toEqual(['T', 'T', 'T', 'C', 'A', 'T'])
+      expect(bases.every(b => b.direction === false)).toBe(true)
+    })
+
+    it('yields complemented bases in reversed range order for multi-range', () => {
+      const span = Span.parse('(0..2) + (5..9)')
+      const sequence = 'ATXXXXGTAA'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      // For minus strand, ranges are reversed AND positions within each range are reversed
+      // Range order: (5..9) first, then (0..2)
+      // Within (5..9): positions 8,7,6,5 → letters A,T,G,X → complemented T,A,C,X
+      // Within (0..2): positions 1,0 → letters T,A → complemented A,T
+      expect(bases.map(b => b.position)).toEqual([8, 7, 6, 5, 1, 0])
+      expect(bases.map(b => b.letter)).toEqual(['T', 'A', 'C', 'X', 'A', 'T'])
+    })
+
+    it('handles three ranges in scrambled order', () => {
+      const span = Span.parse('(4..6) + (0..2) + (8..10)')
+      const sequence = 'ATXXCGXXTA'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      // Ranges reversed: (8..10), (0..2), (4..6)
+      // Within each, walk high to low and complement:
+      // [9,8] → A,T → complemented T,A
+      // [1,0] → T,A → complemented A,T
+      // [5,4] → G,C → complemented C,G
+      expect(bases.map(b => b.position)).toEqual([9, 8, 1, 0, 5, 4])
+      expect(bases.map(b => b.letter)).toEqual(['T', 'A', 'A', 'T', 'C', 'G'])
+    })
+  })
+
+  describe('mixed strand', () => {
+    it('handles mixed plus and minus ranges', () => {
+      const span = Span.parse('1..4 + (6..10)')
+      const sequence = 'XATGXXCATG'
+
+      const bases = [...iterateSequence(span, sequence)]
+
+      // Plus range 1..4: positions 1,2,3 (low to high), no complement → A,T,G
+      // Minus range (6..10): positions 9,8,7,6 (high to low), complemented
+      // Letters at 6,7,8,9 are C,A,T,G → complemented G,T,A,C
+      expect(bases.map(b => b.position)).toEqual([1, 2, 3, 9, 8, 7, 6])
+      expect(bases.map(b => b.letter)).toEqual(['A', 'T', 'G', 'C', 'A', 'T', 'G'])
+      expect(bases.map(b => b.direction)).toEqual([true, true, true, false, false, false, false])
     })
   })
 })

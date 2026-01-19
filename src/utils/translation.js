@@ -99,3 +99,170 @@ export function translate(sequence, frame = 0) {
 
   return result
 }
+
+/**
+ * Group bases into codons and translate to amino acids.
+ * Bases are already complemented by the sequence iterator for minus strand.
+ *
+ * @param {Iterator} baseIterator - Iterator from iterateSequence
+ * @param {Object} [result] - Optional object to accumulate amino acid string
+ * @yields {{bases: Array, aminoAcid: string, codon: string}}
+ */
+export function* iterateCodons(baseIterator, result = null) {
+  const bases = []
+
+  for (const base of baseIterator) {
+    bases.push(base)
+
+    if (bases.length === 3) {
+      // Build codon string from the 3 bases
+      // For minus strand, bases are already complemented by the sequence iterator
+      const codon = bases.map(b => b.letter).join('')
+
+      // Translate single codon
+      const aminoAcids = translate(codon, 0)
+      const aminoAcid = aminoAcids.length > 0 ? aminoAcids[0].aminoAcid : '?'
+
+      // Accumulate for copy/paste if result object provided
+      if (result) {
+        result.aminoAcids += aminoAcid
+      }
+
+      yield {
+        bases: [...bases],
+        aminoAcid,
+        codon
+      }
+
+      bases.length = 0  // Clear for next codon
+    }
+  }
+  // Incomplete codon at end is discarded
+}
+
+/**
+ * Chunk codons into renderable fragments at segment/line boundaries.
+ * Segment boundaries are detected via position discontinuity.
+ *
+ * @param {Iterable} codonIterator - Iterator/array from iterateCodons
+ * @param {number} zoom - Bases per line
+ * @yields {Object} Fragment with rendering info
+ */
+export function* iterateCodonFragments(codonIterator, zoom) {
+  // Convert to array to know when we're at the last codon
+  const codons = Array.isArray(codonIterator) ? codonIterator : [...codonIterator]
+
+  for (let codonIdx = 0; codonIdx < codons.length; codonIdx++) {
+    const codon = codons[codonIdx]
+    const isFirstCodon = codonIdx === 0
+    const isLastCodon = codonIdx === codons.length - 1
+    const isMinus = !codon.bases[0].direction
+
+    // Compute codon bounds (genomic positions, half-open interval)
+    const codonPositions = codon.bases.map(b => b.position)
+    const codonStart = Math.min(...codonPositions)
+    const codonEnd = Math.max(...codonPositions) + 1
+
+    // Track which bases are at boundaries within this codon
+    const baseBoundaries = []
+    for (let i = 0; i < codon.bases.length; i++) {
+      const base = codon.bases[i]
+      const nextBase = i < codon.bases.length - 1 ? codon.bases[i + 1] : null
+
+      let hasRightBoundary = false
+
+      // Check for segment boundary (position discontinuity)
+      if (nextBase !== null) {
+        const expectedNext = isMinus ? base.position - 1 : base.position + 1
+        if (nextBase.position !== expectedNext) {
+          hasRightBoundary = true
+        }
+      }
+
+      // Check for line boundary
+      if (nextBase !== null) {
+        const currentLine = Math.floor(base.position / zoom)
+        const nextLine = Math.floor(nextBase.position / zoom)
+        if (currentLine !== nextLine) {
+          hasRightBoundary = true
+        }
+      }
+
+      baseBoundaries.push(hasRightBoundary)
+    }
+
+    // Split codon into fragments at boundaries
+    let compStart = 0
+    for (let i = 0; i < codon.bases.length; i++) {
+      const isLastBase = i === codon.bases.length - 1
+      const hasRightBoundary = baseBoundaries[i]
+
+      if (hasRightBoundary || isLastBase) {
+        const compBases = codon.bases.slice(compStart, i + 1)
+        const width = compBases.length
+
+        // Determine positions for this fragment
+        const positions = compBases.map(b => b.position)
+        const minPos = Math.min(...positions)
+
+        // Start position (leftmost for display)
+        const start = minPos
+
+        // Line index based on leftmost position
+        const lineIndex = Math.floor(minPos / zoom)
+        const posInLine = minPos - lineIndex * zoom
+
+        // Letter positioning: which base in this fragment is the middle of the codon (base index 1)?
+        const codonMiddleIndex = 1
+        const middleInComp = codonMiddleIndex - compStart
+        const containsMiddle = middleInComp >= 0 && middleInComp < width
+        const letter = containsMiddle ? middleInComp : null
+
+        // Edge styles in coding order (start = N-terminus side, end = C-terminus side)
+        // Uses "fenced" indexing for line boundaries:
+        //   - Sequence positions are 0-indexed base positions
+        //   - Line boundaries are "fences" between bases
+        //   - For zoom=100: fence 0 is before pos 0, fence 100 is after pos 99
+        //
+        // startFence/endFence are in CODING order:
+        //   - Plus strand: startFence < endFence (start is left, end is right)
+        //   - Minus strand: startFence > endFence (start is right, end is left)
+        const codingStartPos = compBases[0].position
+        const codingEndPos = compBases[compBases.length - 1].position
+
+        // Fences in coding order
+        const startFence = isMinus ? codingStartPos + 1 : codingStartPos
+        const endFence = isMinus ? codingEndPos : codingEndPos + 1
+
+        // Check line boundaries at each fence
+        const atStartLineBoundary = startFence % zoom === 0
+        const atEndLineBoundary = endFence % zoom === 0
+
+        // Flat if at codon boundary (first/last codon, or split within codon)
+        const hasBoundaryBefore = compStart > 0
+        const isStartTerminus = isFirstCodon && compStart === 0
+        const isEndTerminus = isLastCodon && isLastBase
+
+        const startEdge = isStartTerminus || hasBoundaryBefore || atStartLineBoundary ? 'flat' : 'chevron'
+        const endEdge = isEndTerminus || hasRightBoundary || atEndLineBoundary ? 'flat' : 'chevron'
+
+        yield {
+          aminoAcid: codon.aminoAcid,
+          codon: codon.codon,
+          width,
+          start,
+          startEdge,  // Edge at N-terminus / coding start
+          endEdge,    // Edge at C-terminus / coding end
+          letter,
+          lineIndex,
+          posInLine,
+          orientation: isMinus ? -1 : 1,
+          codonStart,  // Genomic start of full codon (for selection)
+          codonEnd     // Genomic end of full codon (half-open)
+        }
+
+        compStart = i + 1
+      }
+    }
+  }
+}

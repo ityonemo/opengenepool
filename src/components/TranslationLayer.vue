@@ -1,7 +1,7 @@
 <script setup>
 import { computed, inject, watch, ref } from 'vue'
-import { translate, AA_THREE_LETTER } from '../utils/translation.js'
-import { reverseComplement, Span, Orientation } from '../utils/dna.js'
+import { AA_THREE_LETTER, iterateCodons, iterateCodonFragments } from '../utils/translation.js'
+import { Span, Orientation, iterateSequence } from '../utils/dna.js'
 
 const props = defineProps({
   /** Array of CDS Annotation objects to translate */
@@ -96,7 +96,7 @@ function getChevronPath(x, width, h, orientation, leftEdge, rightEdge) {
 }
 
 /**
- * Walk a CDS annotation and produce components.
+ * Walk a CDS annotation and produce components using the translation iterators.
  * Each component represents a piece of a codon, bounded by segment or line boundaries.
  *
  * @param {Object} annotation - CDS annotation with span
@@ -112,40 +112,7 @@ function walkCDS(annotation, sequence, zoom) {
 
   if (!span || span.ranges.length === 0) return []
 
-  const ranges = span.ranges
-  const isMinus = ranges[0].orientation === Orientation.MINUS
-
-  // For minus strand, reverse the ranges for walking in coding order
-  const codingRanges = isMinus ? [...ranges].reverse() : ranges
-
-  // Build position map and segment boundaries
-  const positions = []  // positions[i] = absolute position of base i in coding order
-  const segBoundaries = new Set()
-
-  for (const range of codingRanges) {
-    for (let p = range.start; p < range.end; p++) {
-      positions.push(p)
-    }
-    segBoundaries.add(positions.length)
-  }
-
-  // Build the coding sequence for translation
-  let cdsSequence = ''
-  for (const pos of positions) {
-    cdsSequence += sequence[pos]
-  }
-  if (isMinus) {
-    cdsSequence = reverseComplement(cdsSequence)
-  }
-
-  // Get reading frame from codon_start attribute
-  const codonStartAttr = annotation.attributes?.codon_start || 1
-  const frame = codonStartAttr - 1
-
-  // Translate to get amino acids
-  const aminoAcids = translate(cdsSequence, frame)
-
-  // Get gene name
+  // Get gene name for annotation metadata
   const geneName = annotation.attributes?.gene ||
                    annotation.attributes?.label ||
                    annotation.caption ||
@@ -153,85 +120,50 @@ function walkCDS(annotation, sequence, zoom) {
                    annotation.name ||
                    'Unknown'
 
-  // Now walk the CDS and produce components
-  const components = []
+  // Use the three-level iterator pipeline
+  const bases = iterateSequence(span, sequence)
+  const codons = [...iterateCodons(bases)]
+  const rawComponents = [...iterateCodonFragments(codons, zoom)]
 
-  let i = 0              // position in concatenated CDS
-  let codonBase = frame  // which base of current codon (0, 1, 2)
-  let compStart = 0      // start index of current component
-  let compCodonBase = frame  // which codon base the current component started at
-  let aaIndex = 0        // which amino acid we're on
-  let leftAtLineBoundary = false  // did we just cross a line boundary?
+  // Enrich components with annotation metadata
+  const isMinus = span.ranges[0].orientation === Orientation.MINUS
+  const totalCodons = codons.length
 
-  while (i < positions.length) {
-    i++
-    codonBase++
+  // Track which codon each component belongs to for aaIndex
+  let currentCodonIdx = 0
+  let componentsInCurrentCodon = 0
 
-    const atSegBoundary = segBoundaries.has(i)
-    const codonDone = codonBase === 3
-
-    // Check for line boundaries
-    let atLineBoundary = false
-    if (i < positions.length) {
-      const prevPos = positions[i - 1]
-      const nextPos = positions[i]
-      const prevLine = Math.floor(prevPos / zoom)
-      const nextLine = Math.floor(nextPos / zoom)
-      atLineBoundary = prevLine !== nextLine
+  return rawComponents.map((comp, idx) => {
+    // Count components per codon to track amino acid index
+    // Components from the same codon have the same aminoAcid
+    if (idx > 0 && rawComponents[idx - 1].aminoAcid !== comp.aminoAcid) {
+      currentCodonIdx++
+      componentsInCurrentCodon = 0
     }
+    componentsInCurrentCodon++
 
-    const emitComponent = atSegBoundary || atLineBoundary || codonDone
+    // For display, show the actual amino acid position (1-based)
+    // For minus strand, the amino acids are already in coding order (N to C terminus)
+    // but displayed genomically left to right, so we reverse the index for display
+    const displayAaIndex = isMinus
+      ? totalCodons - currentCodonIdx
+      : currentCodonIdx + 1
 
-    if (emitComponent) {
-      const width = i - compStart
-      const startPos = positions[compStart]
+    // Map startEdge/endEdge (coding order) to left/right (visual position)
+    // Plus strand: start is left, end is right
+    // Minus strand: start is right, end is left
+    const left = isMinus ? comp.endEdge : comp.startEdge
+    const right = isMinus ? comp.startEdge : comp.endEdge
 
-      // Determine which line this component belongs to
-      const lineIndex = Math.floor(startPos / zoom)
-      const lineStart = lineIndex * zoom
-      const posInLine = startPos - lineStart
-
-      // Does this component contain the middle base (codon base 1)?
-      const containsMiddle = compCodonBase <= 1 && compCodonBase + width > 1
-      const letter = containsMiddle ? (1 - compCodonBase) : null
-
-      // Edge styles: flat at segment OR line boundaries, chevron otherwise
-      const isFirstComp = compStart === 0
-      const leftAtBoundary = isFirstComp || segBoundaries.has(compStart) || leftAtLineBoundary
-      const rightAtBoundary = atSegBoundary || atLineBoundary
-
-      // Get the amino acid for this codon
-      const aa = aminoAcids[aaIndex]
-
-      components.push({
-        aminoAcid: aa ? aa.aminoAcid : '?',
-        codon: aa ? aa.codon : '???',
-        width,
-        start: startPos,
-        left: leftAtBoundary ? 'flat' : 'chevron',
-        right: rightAtBoundary ? 'flat' : 'chevron',
-        letter,
-        lineIndex,
-        posInLine,
-        orientation: isMinus ? -1 : 1,
-        annotationId: annotation.id,
-        aaIndex: aaIndex + 1,
-        geneName
-      })
-
-      // Reset for next component
-      compStart = i
-      compCodonBase = codonDone ? 0 : codonBase
-      leftAtLineBoundary = atLineBoundary  // next component starts after line boundary
-
-      if (codonDone) {
-        codonBase = 0
-        aaIndex++
-      }
+    return {
+      ...comp,
+      left,
+      right,
+      annotationId: annotation.id,
+      aaIndex: displayAaIndex,
+      geneName
     }
-  }
-
-  return components
+  })
 }
 
 // Process all CDS annotations into components, grouped by line
@@ -265,6 +197,24 @@ function toPixels(comp) {
   const x = m.lmargin + comp.posInLine * m.charWidth
   const width = comp.width * m.charWidth
   return { x, width }
+}
+
+// Get the X position for the amino acid letter within a component
+// For plus strand: letter index from left
+// For minus strand: letter index from right (coding order is reversed visually)
+function getLetterX(comp) {
+  const m = graphics.metrics.value
+  const baseX = m.lmargin + comp.posInLine * m.charWidth
+
+  if (comp.orientation === -1) {
+    // Minus strand: subtract from right edge
+    // visual index = width - 1 - letter
+    const visualIndex = comp.width - 1 - comp.letter
+    return baseX + (visualIndex + 0.5) * m.charWidth
+  } else {
+    // Plus strand: add from left edge
+    return baseX + (comp.letter + 0.5) * m.charWidth
+  }
 }
 
 // Lines that have translation elements
@@ -337,7 +287,7 @@ function handleClick(event, element) {
   })
 }
 
-// Get the full translation string for an annotation
+// Get the full translation string for an annotation using the iterator pipeline
 function getTranslationString(annotationId) {
   const annotation = props.annotations.find(a => a.id === annotationId)
   if (!annotation) return ''
@@ -352,34 +302,19 @@ function getTranslationString(annotationId) {
 
   if (!span || span.ranges.length === 0) return ''
 
-  const ranges = span.ranges
-  const isMinus = ranges[0].orientation === Orientation.MINUS
-  const codingRanges = isMinus ? [...ranges].reverse() : ranges
-
-  // Build coding sequence
-  let cdsSequence = ''
-  for (const range of codingRanges) {
-    for (let p = range.start; p < range.end; p++) {
-      cdsSequence += sequence[p]
-    }
-  }
-  if (isMinus) {
-    cdsSequence = reverseComplement(cdsSequence)
-  }
-
-  // Translate
-  const frame = (annotation.attributes?.codon_start || 1) - 1
-  const aminoAcids = translate(cdsSequence, frame)
-
-  // Build string with * for stop codons
-  let result = aminoAcids.map(aa => aa.aminoAcid).join('')
+  // Use the translation cache feature of iterateCodons
+  const result = { aminoAcids: '' }
+  const bases = iterateSequence(span, sequence)
+  // Consume the iterator to populate result.aminoAcids
+  for (const _ of iterateCodons(bases, result)) { /* just consume */ }
 
   // For minus strand, reverse to match visual display order (genomic left-to-right)
+  const isMinus = span.ranges[0].orientation === Orientation.MINUS
   if (isMinus) {
-    result = result.split('').reverse().join('')
+    return result.aminoAcids.split('').reverse().join('')
   }
 
-  return result
+  return result.aminoAcids
 }
 
 // Handle right-click on translation
@@ -427,7 +362,7 @@ defineExpose({ showTranslation, visible })
           <!-- Amino acid letter (only on component with letter !== null) -->
           <text
             v-if="comp.letter !== null && comp.aminoAcid !== '*'"
-            :x="toPixels(comp).x + (comp.letter + 0.5) * graphics.metrics.value.charWidth"
+            :x="getLetterX(comp)"
             :y="-height / 2 + 1"
             text-anchor="middle"
             dominant-baseline="middle"
@@ -436,7 +371,7 @@ defineExpose({ showTranslation, visible })
           <!-- Stop sign for stop codons (red octagon) -->
           <g
             v-if="comp.letter !== null && comp.aminoAcid === '*'"
-            :transform="`translate(${toPixels(comp).x + (comp.letter + 0.5) * graphics.metrics.value.charWidth}, ${-height / 2})`"
+            :transform="`translate(${getLetterX(comp)}, ${-height / 2})`"
           >
             <polygon
               points="-2,-5 2,-5 5,-2 5,2 2,5 -2,5 -5,2 -5,-2"

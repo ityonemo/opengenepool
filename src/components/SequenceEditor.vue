@@ -6,7 +6,8 @@ import { createEventBus } from '../composables/useEventBus.js'
 import { usePersistedZoom } from '../composables/usePersistedZoom.js'
 import { useSelection, SelectionDomain } from '../composables/useSelection.js'
 import { Annotation } from '../utils/annotation.js'
-import { reverseComplement, Span, Range } from '../utils/dna.js'
+import { Span, Range, iterateSequence } from '../utils/dna.js'
+import { iterateCodons } from '../utils/translation.js'
 import { InformationCircleIcon, Cog6ToothIcon, QuestionMarkCircleIcon, CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import AnnotationLayer from './AnnotationLayer.vue'
 import TranslationLayer from './TranslationLayer.vue'
@@ -363,13 +364,25 @@ function handleAnnotationCreate(data) {
   // Generate a new UUID for the annotation
   const annotationId = crypto.randomUUID()
 
+  // For CDS annotations, compute the translation string
+  let attributes = data.attributes || {}
+  if (data.type?.toUpperCase() === 'CDS') {
+    const span = Span.parse(data.span)
+    const seq = editorState.sequence.value
+    const result = { aminoAcids: '' }
+    const bases = iterateSequence(span, seq)
+    // Consume the iterator to populate result.aminoAcids
+    for (const _ of iterateCodons(bases, result)) { /* just consume */ }
+    attributes = { ...attributes, translation: result.aminoAcids }
+  }
+
   // Send to backend
   effectiveBackend.value?.annotationCreated?.({
     id: annotationId,
     caption: data.caption,
     type: data.type,
     span: data.span,
-    attributes: data.attributes
+    attributes
   })
 
   annotationModalOpen.value = false
@@ -964,16 +977,10 @@ function getSelectedSequenceText() {
   const domain = selection.domain.value
 
   if (domain && domain.ranges && domain.ranges.length > 0) {
+    const span = new Span(domain.ranges)
     const seq = editorState.sequence.value
-    // Extract sequence for each range and concatenate
-    return domain.ranges.map(range => {
-      const slice = seq.slice(range.start, range.end)
-      // Reverse complement if minus strand
-      if (range.orientation === -1) {
-        return reverseComplement(slice)
-      }
-      return slice
-    }).join('')
+    // Use iterateSequence to handle coding order and complementation
+    return [...iterateSequence(span, seq)].map(b => b.letter).join('')
   }
 
   return ''
