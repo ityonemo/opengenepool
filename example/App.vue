@@ -340,6 +340,22 @@ html, body, #app {
   height: 100%;
 }
 
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .main-content {
+    height: calc(100% - 100px); /* Account for mobile header */
+  }
+
+  .placeholder {
+    padding: 20px;
+    text-align: center;
+  }
+}
+
 .main-content {
   flex: 1;
   display: flex;
@@ -488,5 +504,16 @@ html, body, #app {
 .nav-btn:hover {
   background: #f5f5f5;
   border-color: #999;
+}
+
+/* Mobile search modal */
+@media (max-width: 768px) {
+  .search-modal {
+    top: 120px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+    max-width: none;
+  }
 }
 </style>

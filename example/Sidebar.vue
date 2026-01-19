@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   sequences: {
@@ -16,8 +16,19 @@ const emit = defineEmits(['select', 'upload', 'delete'])
 
 const fileInput = ref(null)
 
+const selectedSequence = computed(() =>
+  props.sequences.find(s => s.id === props.selectedId)
+)
+
 function selectSequence(id) {
   emit('select', id)
+}
+
+function handleSelectChange(event) {
+  const id = event.target.value
+  if (id) {
+    emit('select', id)
+  }
 }
 
 function deleteSequence(event, id) {
@@ -40,6 +51,40 @@ function handleFileChange(event) {
 </script>
 
 <template>
+  <!-- Mobile Header -->
+  <header class="mobile-header">
+    <div class="mobile-branding">
+      <span class="mobile-title">OpenGenePool</span>
+      <span class="mobile-by">by</span>
+      <a href="https://vidalalabs.com" target="_blank">
+        <img src="./vidala-labs.svg" alt="Vidala Labs" class="mobile-logo" />
+      </a>
+    </div>
+    <div class="mobile-controls">
+      <select
+        class="sequence-select"
+        :value="props.selectedId || ''"
+        @change="handleSelectChange"
+      >
+        <option value="" disabled>Select sequence...</option>
+        <option v-for="seq in props.sequences" :key="seq.id" :value="seq.id">
+          {{ seq.name }}
+        </option>
+      </select>
+      <button class="upload-btn" @click="triggerUpload" title="Upload GenBank file">
+        +
+      </button>
+    </div>
+    <input
+      ref="fileInput"
+      type="file"
+      accept=".gb,.gbk,.genbank,.txt"
+      style="display: none"
+      @change="handleFileChange"
+    />
+  </header>
+
+  <!-- Desktop Sidebar -->
   <aside class="sidebar">
     <div class="branding">
       <div class="brand-title">OpenGenePool</div>
@@ -94,6 +139,52 @@ function handleFileChange(event) {
 </template>
 
 <style scoped>
+/* Mobile Header - hidden on desktop */
+.mobile-header {
+  display: none;
+  background: #e0e8e0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.mobile-branding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.mobile-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mobile-by {
+  font-size: 11px;
+  color: #666;
+}
+
+.mobile-logo {
+  height: 20px;
+  width: auto;
+}
+
+.mobile-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.sequence-select {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+}
+
+/* Desktop Sidebar */
 .sidebar {
   width: 250px;
   background: #f5f5f5;
@@ -101,6 +192,17 @@ function handleFileChange(event) {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .mobile-header {
+    display: block;
+  }
+
+  .sidebar {
+    display: none;
+  }
 }
 
 .branding {
