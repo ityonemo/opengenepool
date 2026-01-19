@@ -321,6 +321,17 @@ export function useAnnotations(editorState, graphics, eventBus, options = {}) {
 
     // Report extra height needed per line to graphics system
     if (graphics.setLineExtraHeight) {
+      // First, reset all lines that previously had extra height but no longer have annotations
+      const currentExtraHeights = graphics.lineExtraHeight?.value
+      if (currentExtraHeights) {
+        for (const [line] of currentExtraHeights) {
+          if (!byLine.has(line)) {
+            graphics.setLineExtraHeight(line, 0)
+          }
+        }
+      }
+
+      // Then set extra heights for lines with annotations
       for (const [line, elements] of byLine) {
         // Find how far up annotations extend (most negative top + deltaY)
         let minTop = 0
