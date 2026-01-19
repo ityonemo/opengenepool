@@ -1,10 +1,10 @@
-<3 Copyheart 2012 by Isaac Yonemoto.
+<3 Copyheart 2012-2025 by Isaac Yonemoto and Vidala Labs.
 You are free to copy and share this software.
 
-the files jquery.js and raphael.js or portions thereof are subject to separate licensing.
+This software depends on the following packages, which are subject to separate licensing:
 
-jquery.js is unmodified and copyright 2012 jQuery foundation
-raphael.js is modified from the original, which was copyright 2008 Dimitry Baranovskiy
+- Vue.js (MIT License) - Copyright (c) 2013-present Evan You
+- Heroicons (MIT License) - Copyright (c) 2020 Refactoring UI Inc.
 
 Detailed explanation of copyheart available at:
 www.copyheart.org

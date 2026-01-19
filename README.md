@@ -212,6 +212,12 @@ bun test
 bun test --watch
 ```
 
+## Support
+
+If you find OpenGenePool useful, consider supporting development:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/vidalalabs)
+
 ## License
 
 See [LICENCE.txt](LICENCE.txt)

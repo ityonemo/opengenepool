@@ -41,6 +41,22 @@ function handleFileChange(event) {
 
 <template>
   <aside class="sidebar">
+    <div class="branding">
+      <div class="brand-title">OpenGenePool</div>
+      <div class="brand-by">by</div>
+      <a href="https://vidalalabs.com" target="_blank" class="vidala-link">
+        <img src="./vidala-labs.svg" alt="Vidala Labs" class="vidala-logo" />
+      </a>
+      <div class="brand-links">
+        <a href="https://github.com/Vidala-Labs/opengenepool" target="_blank" class="brand-link">
+          GitHub
+        </a>
+        <span class="link-separator">•</span>
+        <a href="https://buymeacoffee.com/vidalalabs" target="_blank" class="brand-link">
+          Buy Me a Coffee
+        </a>
+      </div>
+    </div>
     <div class="sidebar-header">
       <h2>Sequences</h2>
       <button class="upload-btn" @click="triggerUpload" title="Upload GenBank file">
@@ -85,6 +101,54 @@ function handleFileChange(event) {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.branding {
+  padding: 16px;
+  background: #e0e8e0;
+  color: #333;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.brand-by {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.vidala-link {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.vidala-logo {
+  width: 180px;
+  height: auto;
+}
+
+.brand-links {
+  font-size: 12px;
+}
+
+.brand-link {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.brand-link:hover {
+  text-decoration: underline;
+}
+
+.link-separator {
+  margin: 0 6px;
+  color: #999;
 }
 
 .sidebar-header {
