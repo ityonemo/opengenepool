@@ -208,12 +208,7 @@ function getArrowPath(fragment) {
 // Event handlers
 function handleClick(event, fragment) {
   event.stopPropagation()  // Prevent bubbling to SVG mousedown
-  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
-  if (event.shiftKey) {
-    handleContextMenu(event, fragment)
-  } else {
-    emit('click', { event, annotation: fragment.annotation, fragment })
-  }
+  emit('click', { event, annotation: fragment.annotation, fragment })
 }
 
 function handleContextMenu(event, fragment) {

@@ -1091,10 +1091,16 @@ function handleAnnotationClick(data) {
   // Create a selection from the annotation's span
   if (annotation.span) {
     if (event?.shiftKey) {
-      // Shift-click extends existing selection to include annotation bounds
-      const bounds = annotation.span.bounds
-      selection.extendToPosition(bounds.start)
-      selection.extendToPosition(bounds.end)
+      // Shift-click: extend selection if one exists, otherwise show context menu
+      if (selection.isSelected.value) {
+        const bounds = annotation.span.bounds
+        selection.extendToPosition(bounds.start)
+        selection.extendToPosition(bounds.end)
+      } else {
+        // No selection - trigger context menu (Mac-friendly right-click alternative)
+        handleAnnotationContextMenu(data)
+        return
+      }
     } else if (event?.ctrlKey) {
       // Ctrl-click adds/merges annotation to existing selection
       const newDomain = new SelectionDomain(annotation.span)

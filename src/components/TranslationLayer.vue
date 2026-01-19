@@ -279,17 +279,12 @@ function handleMouseLeave(event, element) {
 
 function handleClick(event, element) {
   event.stopPropagation()  // Prevent bubbling to SVG mousedown
-  // Shift-click triggers context menu (Mac-friendly alternative to right-click)
-  if (event.shiftKey) {
-    handleContextMenu(event, element)
-  } else {
-    emit('click', {
-      event,
-      element,
-      codonStart: element.codonStart,
-      codonEnd: element.codonEnd
-    })
-  }
+  emit('click', {
+    event,
+    element,
+    codonStart: element.codonStart,
+    codonEnd: element.codonEnd
+  })
 }
 
 // Get the full translation string for an annotation using the iterator pipeline
