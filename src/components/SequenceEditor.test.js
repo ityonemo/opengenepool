@@ -663,6 +663,268 @@ describe('SequenceEditor', () => {
 
       expect(wrapper.emitted('annotation-click')).toBeTruthy()
     })
+
+    it('regular click on annotation selects annotation span', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '10..50'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      layer.vm.$emit('click', { annotation, event: {}, fragment: {} })
+      await wrapper.vm.$nextTick()
+
+      expect(selection.isSelected.value).toBe(true)
+      expect(selection.domain.value.ranges[0].start).toBe(10)
+      expect(selection.domain.value.ranges[0].end).toBe(50)
+    })
+
+    it('shift-click on annotation with existing selection extends selection', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '100..150'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Create initial selection at 10..50
+      selection.select('10..50')
+      await wrapper.vm.$nextTick()
+      expect(selection.isSelected.value).toBe(true)
+
+      // Shift-click on annotation at 100..150 should extend selection
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      layer.vm.$emit('click', { annotation, event: { shiftKey: true }, fragment: {} })
+      await wrapper.vm.$nextTick()
+
+      // Selection should now span from 10 to 150
+      expect(selection.domain.value.ranges[0].start).toBe(10)
+      expect(selection.domain.value.ranges[0].end).toBe(150)
+    })
+
+    it('shift-click on annotation with no selection shows context menu', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '10..50'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Ensure no selection
+      expect(selection.isSelected.value).toBe(false)
+
+      // Shift-click should trigger context menu behavior
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      layer.vm.$emit('click', {
+        annotation,
+        event: { shiftKey: true, clientX: 100, clientY: 100 },
+        fragment: {}
+      })
+      await wrapper.vm.$nextTick()
+
+      // Context menu should be visible
+      expect(wrapper.find('.context-menu').exists()).toBe(true)
+    })
+
+    it('ctrl-click on annotation adds to existing selection', async () => {
+      const annotation = new Annotation({
+        id: 'ann1',
+        caption: 'GFP',
+        type: 'gene',
+        span: '100..150'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('A'.repeat(500))
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Create initial selection at 10..50
+      selection.select('10..50')
+      await wrapper.vm.$nextTick()
+
+      // Ctrl-click on annotation should add it as a new range
+      const layer = wrapper.findComponent({ name: 'AnnotationLayer' })
+      layer.vm.$emit('click', { annotation, event: { ctrlKey: true }, fragment: {} })
+      await wrapper.vm.$nextTick()
+
+      // Should now have two ranges
+      expect(selection.domain.value.ranges).toHaveLength(2)
+      expect(selection.domain.value.ranges[0].start).toBe(10)
+      expect(selection.domain.value.ranges[0].end).toBe(50)
+      expect(selection.domain.value.ranges[1].start).toBe(100)
+      expect(selection.domain.value.ranges[1].end).toBe(150)
+    })
+  })
+
+  describe('translation click behavior', () => {
+    it('regular click on translation codon selects the codon', async () => {
+      const annotation = new Annotation({
+        id: 'cds1',
+        caption: 'GFP',
+        type: 'CDS',
+        span: '0..30'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('ATGATGATGATGATGATGATGATGATGATG')
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Simulate translation click (codon at positions 0-3)
+      const layer = wrapper.findComponent({ name: 'TranslationLayer' })
+      layer.vm.$emit('click', {
+        event: {},
+        element: { orientation: 1, codonStart: 0, codonEnd: 3 },
+        codonStart: 0,
+        codonEnd: 3
+      })
+      await wrapper.vm.$nextTick()
+
+      expect(selection.isSelected.value).toBe(true)
+      expect(selection.domain.value.ranges[0].start).toBe(0)
+      expect(selection.domain.value.ranges[0].end).toBe(3)
+    })
+
+    it('shift-click on translation codon extends selection', async () => {
+      const annotation = new Annotation({
+        id: 'cds1',
+        caption: 'GFP',
+        type: 'CDS',
+        span: '0..30'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('ATGATGATGATGATGATGATGATGATGATG')
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Create initial selection at first codon
+      selection.select('0..3')
+      await wrapper.vm.$nextTick()
+
+      // Shift-click on a later codon (positions 9-12)
+      const layer = wrapper.findComponent({ name: 'TranslationLayer' })
+      layer.vm.$emit('click', {
+        event: { shiftKey: true },
+        element: { orientation: 1, codonStart: 9, codonEnd: 12 },
+        codonStart: 9,
+        codonEnd: 12
+      })
+      await wrapper.vm.$nextTick()
+
+      // Selection should extend from 0 to 12
+      expect(selection.domain.value.ranges[0].start).toBe(0)
+      expect(selection.domain.value.ranges[0].end).toBe(12)
+    })
+
+    it('ctrl-click on translation codon adds to selection', async () => {
+      const annotation = new Annotation({
+        id: 'cds1',
+        caption: 'GFP',
+        type: 'CDS',
+        span: '0..30'
+      })
+
+      const wrapper = mount(SequenceEditor, {
+        props: {
+          initialZoom: 100,
+          annotations: [annotation]
+        }
+      })
+
+      wrapper.vm.setSequence('ATGATGATGATGATGATGATGATGATGATG')
+      await wrapper.vm.$nextTick()
+
+      const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+      const selection = selectionLayer.vm.selection
+
+      // Create initial selection at first codon
+      selection.select('0..3')
+      await wrapper.vm.$nextTick()
+
+      // Ctrl-click on a later codon (positions 9-12)
+      const layer = wrapper.findComponent({ name: 'TranslationLayer' })
+      layer.vm.$emit('click', {
+        event: { ctrlKey: true },
+        element: { orientation: 1, codonStart: 9, codonEnd: 12 },
+        codonStart: 9,
+        codonEnd: 12
+      })
+      await wrapper.vm.$nextTick()
+
+      // Should have two separate ranges
+      expect(selection.domain.value.ranges).toHaveLength(2)
+      expect(selection.domain.value.ranges[0].start).toBe(0)
+      expect(selection.domain.value.ranges[0].end).toBe(3)
+      expect(selection.domain.value.ranges[1].start).toBe(9)
+      expect(selection.domain.value.ranges[1].end).toBe(12)
+    })
   })
 
   describe('config panel', () => {
