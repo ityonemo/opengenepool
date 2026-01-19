@@ -1,7 +1,7 @@
 <script setup>
 import { computed, inject, watch, ref } from 'vue'
-import { useTranslation } from '../composables/useTranslation.js'
-import { AA_THREE_LETTER } from '../utils/translation.js'
+import { translate, AA_THREE_LETTER } from '../utils/translation.js'
+import { reverseComplement, Span, Orientation } from '../utils/dna.js'
 
 const props = defineProps({
   /** Array of CDS Annotation objects to translate */
@@ -60,205 +60,212 @@ function getAminoAcidColor(aminoAcid) {
   return AA_COLORS[aminoAcid] || '#FFFFFF'
 }
 
-// Get codon box width (3 bases)
-const codonWidth = computed(() => 3 * graphics.metrics.value.charWidth)
+// Chevron extension (quarter letter width)
+const chevronExtension = computed(() => graphics.metrics.value.charWidth / 4)
 
-// Chevron dimensions (quarter letter)
-const notchProtrusion = computed(() => graphics.metrics.value.charWidth / 4)  // Nose protrudes 0.25
-const tailExtension = computed(() => graphics.metrics.value.charWidth / 4)    // Tail extends back 0.25
-
-// Generate chevron path for a codon box
+// Generate chevron path for a component box
 // orientation: 1 = plus strand (chevron points right), -1 = minus strand (chevron points left)
-// showTail: if true, extend the tail corners outward like a banner's swallowtail
-// showNotch: if true, show the chevron nose; if false, square edge
-function getChevronPath(x, width, h, orientation, showTail, showNotch) {
-  const nose = showNotch ? notchProtrusion.value : 0
-  const tail = showTail ? tailExtension.value : 0
+// leftEdge: 'chevron' or 'flat'
+// rightEdge: 'chevron' or 'flat'
+function getChevronPath(x, width, h, orientation, leftEdge, rightEdge) {
+  const ext = chevronExtension.value
 
   if (orientation === 1) {
-    // Plus strand: chevron points right (nose on right edge, tail on left)
-    // Fork indent recessed by tail amount to receive previous codon's nose
-    const forkIndent = showTail ? tail : 0
-    return `M ${x - tail} 0 ` +                // top-left corner (extended if showTail)
-           `L ${x + width} 0 ` +               // top-right edge
-           `L ${x + width + nose} ${h / 2} ` + // nose point (protrudes if showNotch)
-           `L ${x + width} ${h} ` +            // bottom-right edge
-           `L ${x - tail} ${h} ` +             // bottom-left corner (extended if showTail)
-           `L ${x + forkIndent} ${h / 2} ` +   // middle-left (recessed to receive nose)
+    // Plus strand: nose on right, fork on left
+    const leftExt = leftEdge === 'chevron' ? ext : 0
+    const rightExt = rightEdge === 'chevron' ? ext : 0
+    return `M ${x - leftExt} 0 ` +              // top-left corner
+           `L ${x + width} 0 ` +                // top-right edge
+           `L ${x + width + rightExt} ${h / 2} ` + // right point (nose or flat)
+           `L ${x + width} ${h} ` +             // bottom-right edge
+           `L ${x - leftExt} ${h} ` +           // bottom-left corner
+           `L ${x + leftExt} ${h / 2} ` +       // left indent (fork or flat)
            `Z`
   } else {
-    // Minus strand: chevron points left (nose on left edge, tail on right)
-    // Fork indent recessed by tail amount to receive previous codon's nose
-    const forkIndent = showTail ? tail : 0
-    return `M ${x} 0 ` +                       // top-left edge
-           `L ${x + width + tail} 0 ` +        // top-right corner (extended if showTail)
-           `L ${x + width - forkIndent} ${h / 2} ` + // middle-right (recessed to receive nose)
-           `L ${x + width + tail} ${h} ` +     // bottom-right corner (extended if showTail)
-           `L ${x} ${h} ` +                    // bottom-left edge
-           `L ${x - nose} ${h / 2} ` +         // nose point (protrudes if showNotch)
+    // Minus strand: nose on left, fork on right
+    const leftExt = leftEdge === 'chevron' ? ext : 0
+    const rightExt = rightEdge === 'chevron' ? ext : 0
+    return `M ${x} 0 ` +                        // top-left edge
+           `L ${x + width + rightExt} 0 ` +     // top-right corner
+           `L ${x + width - rightExt} ${h / 2} ` + // right indent (fork or flat)
+           `L ${x + width + rightExt} ${h} ` +  // bottom-right corner
+           `L ${x} ${h} ` +                     // bottom-left edge
+           `L ${x - leftExt} ${h / 2} ` +       // left point (nose or flat)
            `Z`
   }
 }
 
-// Get line boundaries for clipping
-const lineLeft = computed(() => graphics.metrics.value.lmargin)
-const lineRight = computed(() => graphics.metrics.value.lmargin + editorState.zoomLevel.value * graphics.metrics.value.charWidth)
-
-// Get slice box (already clipped to line by sliceCodon)
-function getSliceBox(element) {
-  // Slices have pre-computed bounds
-  if (element.sliceLeft !== undefined) {
-    return {
-      x: element.sliceLeft,
-      width: element.sliceWidth
-    }
-  }
-
-  // Fallback for elements without slice info
-  const halfCodon = codonWidth.value / 2
-  let left = element.x - halfCodon
-  let right = element.x + halfCodon
-
-  // Clip to line boundaries
-  left = Math.max(left, lineLeft.value)
-  right = Math.min(right, lineRight.value)
-
-  return {
-    x: left,
-    width: Math.max(0, right - left)
-  }
-}
-
-// Ref wrapper for annotations (useTranslation expects a ref)
-const annotationsRef = ref([])
-watch(() => props.annotations, (newAnnotations) => {
-  annotationsRef.value = newAnnotations
-}, { immediate: true })
-
-// Use translation composable for layout calculations
-const { elementsByLine: rawElementsByLine } = useTranslation(editorState, graphics, annotationsRef)
-
 /**
- * Slice a codon into chunks at break points (line boundaries, segment boundaries).
- * Each slice is rendered as an independent unit with walled edges at breaks.
+ * Walk a CDS annotation and produce components.
+ * Each component represents a piece of a codon, bounded by segment or line boundaries.
  *
- * @param {Object} elem - The codon element from useTranslation
- * @param {number} lineWidth - Width of a line in pixels
- * @returns {Array} Array of slice objects, each assigned to a line
+ * @param {Object} annotation - CDS annotation with span
+ * @param {string} sequence - Full sequence string
+ * @param {number} zoom - Bases per line
+ * @returns {Array} Array of component objects
  */
-function sliceCodon(elem, lineWidth) {
-  const slices = []
-  const m = graphics.metrics.value
-  const halfCodon = codonWidth.value / 2
-  const isPlus = elem.orientation === 1
+function walkCDS(annotation, sequence, zoom) {
+  // Parse span to get ranges
+  const span = typeof annotation.span === 'string'
+    ? Span.parse(annotation.span)
+    : annotation.span
 
-  // Calculate codon bounds in pixel space (absolute, not relative to line)
-  const codonLeft = elem.x - halfCodon
-  const codonRight = elem.x + halfCodon
+  if (!span || span.ranges.length === 0) return []
 
-  // Collect all break points within the codon (in pixel x coordinates)
-  // Break points create walls - places where we split the codon
-  const breakPoints = []
+  const ranges = span.ranges
+  const isMinus = ranges[0].orientation === Orientation.MINUS
 
-  // Add segment split if present (convert from offset to absolute x)
-  if (elem.segmentSplitOffset !== null) {
-    const splitX = elem.x + elem.segmentSplitOffset * m.charWidth
-    if (splitX > codonLeft && splitX < codonRight) {
-      breakPoints.push({ x: splitX, type: 'segment' })
+  // For minus strand, reverse the ranges for walking in coding order
+  const codingRanges = isMinus ? [...ranges].reverse() : ranges
+
+  // Build position map and segment boundaries
+  const positions = []  // positions[i] = absolute position of base i in coding order
+  const segBoundaries = new Set()
+
+  for (const range of codingRanges) {
+    for (let p = range.start; p < range.end; p++) {
+      positions.push(p)
+    }
+    segBoundaries.add(positions.length)
+  }
+
+  // Build the coding sequence for translation
+  let cdsSequence = ''
+  for (const pos of positions) {
+    cdsSequence += sequence[pos]
+  }
+  if (isMinus) {
+    cdsSequence = reverseComplement(cdsSequence)
+  }
+
+  // Get reading frame from codon_start attribute
+  const codonStartAttr = annotation.attributes?.codon_start || 1
+  const frame = codonStartAttr - 1
+
+  // Translate to get amino acids
+  const aminoAcids = translate(cdsSequence, frame)
+
+  // Get gene name
+  const geneName = annotation.attributes?.gene ||
+                   annotation.attributes?.label ||
+                   annotation.caption ||
+                   annotation.attributes?.product ||
+                   annotation.name ||
+                   'Unknown'
+
+  // Now walk the CDS and produce components
+  const components = []
+
+  let i = 0              // position in concatenated CDS
+  let codonBase = frame  // which base of current codon (0, 1, 2)
+  let compStart = 0      // start index of current component
+  let compCodonBase = frame  // which codon base the current component started at
+  let aaIndex = 0        // which amino acid we're on
+  let leftAtLineBoundary = false  // did we just cross a line boundary?
+
+  while (i < positions.length) {
+    i++
+    codonBase++
+
+    const atSegBoundary = segBoundaries.has(i)
+    const codonDone = codonBase === 3
+
+    // Check for line boundaries
+    let atLineBoundary = false
+    if (i < positions.length) {
+      const prevPos = positions[i - 1]
+      const nextPos = positions[i]
+      const prevLine = Math.floor(prevPos / zoom)
+      const nextLine = Math.floor(nextPos / zoom)
+      atLineBoundary = prevLine !== nextLine
+    }
+
+    const emitComponent = atSegBoundary || atLineBoundary || codonDone
+
+    if (emitComponent) {
+      const width = i - compStart
+      const startPos = positions[compStart]
+
+      // Determine which line this component belongs to
+      const lineIndex = Math.floor(startPos / zoom)
+      const lineStart = lineIndex * zoom
+      const posInLine = startPos - lineStart
+
+      // Does this component contain the middle base (codon base 1)?
+      const containsMiddle = compCodonBase <= 1 && compCodonBase + width > 1
+      const letter = containsMiddle ? (1 - compCodonBase) : null
+
+      // Edge styles: flat at segment OR line boundaries, chevron otherwise
+      const isFirstComp = compStart === 0
+      const leftAtBoundary = isFirstComp || segBoundaries.has(compStart) || leftAtLineBoundary
+      const rightAtBoundary = atSegBoundary || atLineBoundary
+
+      // Get the amino acid for this codon
+      const aa = aminoAcids[aaIndex]
+
+      components.push({
+        aminoAcid: aa ? aa.aminoAcid : '?',
+        codon: aa ? aa.codon : '???',
+        width,
+        start: startPos,
+        left: leftAtBoundary ? 'flat' : 'chevron',
+        right: rightAtBoundary ? 'flat' : 'chevron',
+        letter,
+        lineIndex,
+        posInLine,
+        orientation: isMinus ? -1 : 1,
+        annotationId: annotation.id,
+        aaIndex: aaIndex + 1,
+        geneName
+      })
+
+      // Reset for next component
+      compStart = i
+      compCodonBase = codonDone ? 0 : codonBase
+      leftAtLineBoundary = atLineBoundary  // next component starts after line boundary
+
+      if (codonDone) {
+        codonBase = 0
+        aaIndex++
+      }
     }
   }
 
-  // Add line boundaries that fall within the codon
-  // Find which lines this codon spans
-  const leftLine = Math.floor((codonLeft - lineLeft.value) / lineWidth)
-  const rightLine = Math.floor((codonRight - lineLeft.value) / lineWidth)
-
-  for (let line = leftLine; line < rightLine; line++) {
-    const lineBoundaryX = lineLeft.value + (line + 1) * lineWidth
-    if (lineBoundaryX > codonLeft && lineBoundaryX < codonRight) {
-      breakPoints.push({ x: lineBoundaryX, type: 'line' })
-    }
-  }
-
-  // Sort break points by x position
-  breakPoints.sort((a, b) => a.x - b.x)
-
-  // Create slices between break points
-  // Start with codon left edge, end with codon right edge
-  const edges = [codonLeft, ...breakPoints.map(bp => bp.x), codonRight]
-
-  for (let i = 0; i < edges.length - 1; i++) {
-    const sliceLeft = edges[i]
-    const sliceRight = edges[i + 1]
-    const sliceCenter = (sliceLeft + sliceRight) / 2
-    const sliceWidth = sliceRight - sliceLeft
-
-    // Determine which line this slice belongs to
-    const sliceLineIndex = Math.floor((sliceCenter - lineLeft.value) / lineWidth)
-
-    // Determine if edges are at breaks (walls)
-    const isFirstSlice = i === 0
-    const isLastSlice = i === edges.length - 2
-    const leftIsBreak = !isFirstSlice  // left edge is a break point
-    const rightIsBreak = !isLastSlice  // right edge is a break point
-
-    // Map left/right to leading/trailing based on strand
-    // Plus: leading=right, trailing=left
-    // Minus: leading=left, trailing=right
-    let wallLeading, wallTrailing
-
-    if (isPlus) {
-      // Leading edge is right, trailing is left
-      wallTrailing = leftIsBreak || elem.isFirstCodon || (elem.numSegments > 1 && elem.isSegmentStart && isFirstSlice)
-      wallLeading = rightIsBreak || elem.isLastCodon || (elem.numSegments > 1 && elem.isSegmentEnd && isLastSlice)
-    } else {
-      // Leading edge is left, trailing is right
-      wallLeading = leftIsBreak || elem.isLastCodon || (elem.numSegments > 1 && elem.isSegmentEnd && isFirstSlice)
-      wallTrailing = rightIsBreak || elem.isFirstCodon || (elem.numSegments > 1 && elem.isSegmentStart && isLastSlice)
-    }
-
-    // Calculate x position relative to line
-    const lineStartX = lineLeft.value + sliceLineIndex * lineWidth
-    const xInLine = sliceCenter - lineStartX + lineLeft.value
-
-    slices.push({
-      ...elem,
-      x: xInLine,
-      sliceLeft: sliceLeft - lineStartX + lineLeft.value,
-      sliceRight: sliceRight - lineStartX + lineLeft.value,
-      sliceWidth,
-      lineIndex: sliceLineIndex,
-      showNotch: !wallLeading,
-      showTail: !wallTrailing,
-      isMainSlice: isFirstSlice || (sliceCenter >= elem.x - 1 && sliceCenter <= elem.x + 1),
-      // Remove the old segmentSplitOffset since we've handled it by slicing
-      segmentSplitOffset: null
-    })
-  }
-
-  return slices
+  return components
 }
 
-// Process all codons into slices, grouped by line
+// Process all CDS annotations into components, grouped by line
 const elementsByLine = computed(() => {
   const result = new Map()
-  const lineWidth = editorState.zoomLevel.value * graphics.metrics.value.charWidth
+  const zoom = editorState.zoomLevel.value
+  const sequence = editorState.sequence.value
 
-  for (const [lineIndex, elements] of rawElementsByLine.value) {
-    for (const elem of elements) {
-      const slices = sliceCodon(elem, lineWidth)
+  if (!zoom || !sequence) return result
 
-      for (const slice of slices) {
-        if (!result.has(slice.lineIndex)) {
-          result.set(slice.lineIndex, [])
-        }
-        result.get(slice.lineIndex).push(slice)
+  for (const annotation of props.annotations) {
+    // Only process CDS annotations
+    if (annotation.type?.toUpperCase() !== 'CDS') continue
+
+    const components = walkCDS(annotation, sequence, zoom)
+
+    for (const comp of components) {
+      if (!result.has(comp.lineIndex)) {
+        result.set(comp.lineIndex, [])
       }
+      result.get(comp.lineIndex).push(comp)
     }
   }
 
   return result
 })
+
+// Convert a component to pixel coordinates for rendering
+function toPixels(comp) {
+  const m = graphics.metrics.value
+  const x = m.lmargin + comp.posInLine * m.charWidth
+  const width = comp.width * m.charWidth
+  return { x, width }
+}
 
 // Lines that have translation elements
 const lines = computed(() => {
@@ -289,21 +296,6 @@ function getAnnotationGroups(elements) {
     groups.get(elem.annotationId).push(elem)
   }
   return groups
-}
-
-// Get bounding box for a group of elements (using clipped bounds)
-function getGroupBounds(elements) {
-  let minX = Infinity
-  let maxX = -Infinity
-  for (const elem of elements) {
-    const box = getSliceBox(elem)
-    if (box.width > 0) {
-      minX = Math.min(minX, box.x)
-      maxX = Math.max(maxX, box.x + box.width)
-    }
-  }
-  if (minX === Infinity) return { x: 0, width: 0 }
-  return { x: minX, width: maxX - minX }
 }
 
 const emit = defineEmits(['hover', 'click'])
@@ -363,43 +355,35 @@ defineExpose({ showTranslation, visible })
         :key="`group-${annotationId}`"
         :transform="`translate(0, ${getAnnotationDeltaY(lineIndex, annotationId)})`"
       >
-        <!-- Border rect for the group -->
-        <rect
-          :x="getGroupBounds(groupElements).x"
-          :y="-height"
-          :width="getGroupBounds(groupElements).width"
-          :height="height"
-          class="aa-group-border"
-        />
-        <!-- Each slice of an amino acid (slices created at line/segment breaks) -->
+        <!-- Each component of an amino acid (components created at line/segment breaks) -->
         <g
-          v-for="(element, elemIndex) in groupElements"
-          :key="`aa-${element.annotationId}-${element.aaIndex}-${elemIndex}`"
-          :class="{ 'aa-element': element.isMainSlice }"
-          @mouseenter="element.isMainSlice && handleMouseEnter($event, element)"
-          @mouseleave="element.isMainSlice && handleMouseLeave($event, element)"
-          @click="element.isMainSlice && handleClick($event, element)"
+          v-for="(comp, compIndex) in groupElements"
+          :key="`aa-${comp.annotationId}-${comp.aaIndex}-${compIndex}`"
+          :class="{ 'aa-element': comp.letter !== null }"
+          @mouseenter="comp.letter !== null && handleMouseEnter($event, comp)"
+          @mouseleave="comp.letter !== null && handleMouseLeave($event, comp)"
+          @click="comp.letter !== null && handleClick($event, comp)"
         >
-          <!-- Slice path (walled edges at breaks, chevrons elsewhere) -->
+          <!-- Component path (flat edges at breaks, chevrons elsewhere) -->
           <path
-            :d="getChevronPath(getSliceBox(element).x, getSliceBox(element).width, height, element.orientation, element.showTail, element.showNotch)"
-            :fill="getAminoAcidColor(element.aminoAcid)"
+            :d="getChevronPath(toPixels(comp).x, toPixels(comp).width, height, comp.orientation, comp.left, comp.right)"
+            :fill="getAminoAcidColor(comp.aminoAcid)"
             :transform="`translate(0, ${-height})`"
             class="aa-chevron"
           />
-          <!-- Amino acid letter (only on main slice, not secondary slices) -->
+          <!-- Amino acid letter (only on component with letter !== null) -->
           <text
-            v-if="element.isMainSlice && element.aminoAcid !== '*'"
-            :x="element.x"
+            v-if="comp.letter !== null && comp.aminoAcid !== '*'"
+            :x="toPixels(comp).x + (comp.letter + 0.5) * graphics.metrics.value.charWidth"
             :y="-height / 2 + 1"
             text-anchor="middle"
             dominant-baseline="middle"
             class="translation-text"
-          >{{ element.aminoAcid }}</text>
+          >{{ comp.aminoAcid }}</text>
           <!-- Stop sign for stop codons (red octagon) -->
           <g
-            v-if="element.isMainSlice && element.aminoAcid === '*'"
-            :transform="`translate(${element.x}, ${-height / 2})`"
+            v-if="comp.letter !== null && comp.aminoAcid === '*'"
+            :transform="`translate(${toPixels(comp).x + (comp.letter + 0.5) * graphics.metrics.value.charWidth}, ${-height / 2})`"
           >
             <polygon
               points="-2,-5 2,-5 5,-2 5,2 2,5 -2,5 -5,2 -5,-2"
@@ -420,20 +404,7 @@ defineExpose({ showTranslation, visible })
   pointer-events: none;
 }
 
-/* Border around each annotation's translation group */
-.aa-group-border {
-  fill: none;
-  stroke: black;
-  stroke-width: 0.5px;
-}
-
-/* Amino acid background box (for overflow elements) */
-.aa-box {
-  stroke: black;
-  stroke-width: 0.5px;
-}
-
-/* Amino acid chevron (for main elements) */
+/* Amino acid chevron */
 .aa-chevron {
   stroke: black;
   stroke-width: 0.5px;
