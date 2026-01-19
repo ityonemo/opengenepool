@@ -355,30 +355,6 @@ describe('SequenceEditor', () => {
       expect(wrapper.vm.getSequence()).toBe('ATCG')
     })
 
-    it('moves cursor left with ArrowLeft', async () => {
-      const wrapper = mount(SequenceEditor, {
-        props: { initialZoom: 100 }
-      })
-      wrapper.vm.setSequence('ATCG')
-      wrapper.vm.editorState.setCursor(3)
-      await wrapper.vm.$nextTick()
-
-      await wrapper.find('.editor-svg').trigger('keydown', { key: 'ArrowLeft' })
-      expect(wrapper.vm.editorState.cursor.value).toBe(2)
-    })
-
-    it('moves cursor right with ArrowRight', async () => {
-      const wrapper = mount(SequenceEditor, {
-        props: { initialZoom: 100 }
-      })
-      wrapper.vm.setSequence('ATCG')
-      wrapper.vm.editorState.setCursor(1)
-      await wrapper.vm.$nextTick()
-
-      await wrapper.find('.editor-svg').trigger('keydown', { key: 'ArrowRight' })
-      expect(wrapper.vm.editorState.cursor.value).toBe(2)
-    })
-
     it('ignores non-DNA characters', async () => {
       const wrapper = mount(SequenceEditor, {
         props: { initialZoom: 100 }
@@ -3018,7 +2994,7 @@ describe('SequenceEditor', () => {
         props: { initialZoom: 100 }
       })
       wrapper.vm.setSequence('ATCGATCG')
-      wrapper.vm.editorState.setCursor(4)
+      wrapper.vm.setCursor(4)  // Creates a cursor selection at position 4
       await wrapper.vm.$nextTick()
 
       // Trigger Ctrl+V
@@ -3067,6 +3043,7 @@ describe('SequenceEditor', () => {
         props: { initialZoom: 100 }
       })
       wrapper.vm.setSequence('ATCGATCG')
+      wrapper.vm.setCursor(4)  // Creates a cursor selection at position 4
       await wrapper.vm.$nextTick()
 
       // Trigger Ctrl+V - should not throw
@@ -3093,6 +3070,7 @@ describe('SequenceEditor', () => {
         props: { initialZoom: 100 }
       })
       wrapper.vm.setSequence('ATCGATCG')
+      wrapper.vm.setCursor(4)  // Creates a cursor selection at position 4
       await wrapper.vm.$nextTick()
 
       // Trigger Ctrl+V
@@ -3116,6 +3094,7 @@ describe('SequenceEditor', () => {
         props: { initialZoom: 100 }
       })
       wrapper.vm.setSequence('ATCGATCG')
+      wrapper.vm.setCursor(4)  // Creates a cursor selection at position 4
       await wrapper.vm.$nextTick()
 
       // Trigger Cmd+V (metaKey instead of ctrlKey)

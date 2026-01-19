@@ -591,6 +591,7 @@ provide('showTranslation', showTranslation)  // Shared visibility for translatio
 // Template refs
 const containerRef = ref(null)
 const svgRef = ref(null)
+const circularContainerRef = ref(null)
 const measureRef = ref(null)
 const selectionLayerRef = ref(null)
 
@@ -917,6 +918,10 @@ function handleMouseUp() {
 
 // Selection layer event handlers
 function handleSelectionChange(data) {
+  // Focus the appropriate container so keyboard shortcuts work
+  if (viewMode.value === 'circular') {
+    circularContainerRef.value?.focus()
+  }
   emit('select', data)
 }
 
@@ -1272,31 +1277,52 @@ function getSelectedSequenceText() {
   return ''
 }
 
-function handleCopy() {
+async function handleCopy() {
   const selectedSeq = getSelectedSequenceText()
-  if (selectedSeq) {
-    navigator.clipboard.writeText(selectedSeq)
+  if (!selectedSeq) return
+
+  if (effectiveBackend.value?.copy) {
+    // Backend handles copy (may do additional processing)
+    await effectiveBackend.value.copy({
+      text: selectedSeq,
+      selection: selection.domain.value
+    })
+  } else {
+    // Default: write to system clipboard
+    await navigator.clipboard.writeText(selectedSeq)
   }
 }
 
-function handleCut() {
+async function handleCut() {
   const selectedSeq = getSelectedSequenceText()
   if (selectedSeq && selection.isSelected.value) {
-    navigator.clipboard.writeText(selectedSeq)
+    await handleCopy()  // Use the copy logic (backend or default)
     deleteSelectedRange()
     emit('edit', { type: 'cut', text: selectedSeq })
   }
 }
 
 async function handlePaste() {
+  // Only allow paste with cursor (zero-width) or single range selection
+  const domain = selection.domain.value
+  if (!domain || domain.ranges.length !== 1) return
+
   try {
-    const clipboardText = await navigator.clipboard.readText()
+    let clipboardText
+
+    if (effectiveBackend.value?.paste) {
+      // Backend provides paste content (may transform or fetch from server)
+      clipboardText = await effectiveBackend.value.paste()
+    } else {
+      // Default: read from system clipboard
+      clipboardText = await navigator.clipboard.readText()
+    }
+
     if (clipboardText) {
       showInsertModal(clipboardText)
     }
   } catch (err) {
-    // Clipboard access denied or empty - silently ignore
-    console.warn('Clipboard access failed:', err)
+    console.warn('Clipboard/paste operation failed:', err)
   }
 }
 
@@ -1526,6 +1552,10 @@ function focusSvg() {
   svgRef.value?.focus()
 }
 
+function focusCircular() {
+  circularContainerRef.value?.focus()
+}
+
 // Keyboard handling
 function handleKeyDown(event) {
   const key = event.key
@@ -1577,38 +1607,6 @@ function handleKeyDown(event) {
       if (props.readonly) break
       event.preventDefault()
       handleDelete()
-      break
-
-    case 'ArrowLeft':
-      event.preventDefault()
-      editorState.setCursor(editorState.cursor.value - 1)
-      if (!event.shiftKey) {
-        selection.unselect()
-      }
-      break
-
-    case 'ArrowRight':
-      event.preventDefault()
-      editorState.setCursor(editorState.cursor.value + 1)
-      if (!event.shiftKey) {
-        selection.unselect()
-      }
-      break
-
-    case 'Home':
-      event.preventDefault()
-      editorState.setCursor(0)
-      if (!event.shiftKey) {
-        selection.unselect()
-      }
-      break
-
-    case 'End':
-      event.preventDefault()
-      editorState.setCursor(editorState.sequenceLength.value)
-      if (!event.shiftKey) {
-        selection.unselect()
-      }
       break
 
     case 'Escape':
@@ -1869,6 +1867,9 @@ defineExpose({
       <!-- Spacer to push config to right -->
       <div class="toolbar-spacer"></div>
 
+      <!-- Slot for external toolbar content (appears left of help button) -->
+      <slot name="toolbar"></slot>
+
       <!-- Help button with selection instructions tooltip -->
       <button
         class="help-button"
@@ -1928,7 +1929,14 @@ defineExpose({
 
     <!-- Circular View (only shown when viewMode is circular) -->
     <div v-if="viewMode === 'circular'" class="editor-wrapper">
-      <div class="editor-container circular-container">
+      <div
+        ref="circularContainerRef"
+        class="editor-container circular-container"
+        tabindex="0"
+        @keydown="handleKeyDown"
+        @click="focusCircular"
+        @paste.prevent
+      >
         <CircularView
           :annotations="annotationInstances"
           :show-annotation-captions="showAnnotationCaptions"
@@ -1962,6 +1970,7 @@ defineExpose({
         @selectstart.prevent
         @dragstart.prevent
         @contextmenu.prevent
+        @paste.prevent
         onselectstart="return false"
         ondragstart="return false"
       >
@@ -2683,6 +2692,12 @@ defineExpose({
   align-items: center;
   justify-content: center;
   padding: 20px;
+  outline: none;
+}
+
+.circular-container:focus {
+  outline: 2px solid #4285f4;
+  outline-offset: -2px;
 }
 
 /* Selection status display in lower right corner */
