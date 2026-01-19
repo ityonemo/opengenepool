@@ -275,4 +275,87 @@ describe('useTranslation', () => {
       expect(elements).toHaveLength(6)
     })
   })
+
+  describe('codon positions', () => {
+    it('calculates correct codonStart and codonEnd for plus strand', () => {
+      // Sequence: ATG GGT AAA (positions 0-8)
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..9', // Same format as other working tests
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      // First codon (M): positions 0-2 (3 bases)
+      expect(elements[0].aminoAcid).toBe('M')
+      expect(elements[0].codonStart).toBe(0)
+      expect(elements[0].codonEnd).toBe(3)
+
+      // Second codon (G): positions 3-5 (3 bases)
+      expect(elements[1].aminoAcid).toBe('G')
+      expect(elements[1].codonStart).toBe(3)
+      expect(elements[1].codonEnd).toBe(6)
+
+      // Third codon (K): positions 6-8 (3 bases)
+      expect(elements[2].aminoAcid).toBe('K')
+      expect(elements[2].codonStart).toBe(6)
+      expect(elements[2].codonEnd).toBe(9)
+    })
+
+    it('calculates correct codonStart and codonEnd with codon_start offset', () => {
+      // Sequence: A TGG GTA AA (with frame=1, skip first base)
+      // CDS at 0..9 with codon_start=2 (frame=1)
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '0..9',
+          caption: 'TestCDS',
+          attributes: { codon_start: 2 } // frame = 1
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      // First codon (W = TGG): positions 1-3 (3 bases)
+      expect(elements[0].aminoAcid).toBe('W')
+      expect(elements[0].codonStart).toBe(1)
+      expect(elements[0].codonEnd).toBe(4)
+
+      // Second codon (V = GTA): positions 4-6 (3 bases)
+      expect(elements[1].aminoAcid).toBe('V')
+      expect(elements[1].codonStart).toBe(4)
+      expect(elements[1].codonEnd).toBe(7)
+    })
+
+    it('calculates correct codonStart and codonEnd for minus strand', () => {
+      // Sequence: CATGGG (6 bases)
+      // Minus strand CDS: extract CAT, reverse complement to ATG = M
+      editorState = createMockEditorState('CATGGG')
+
+      const annotations = ref([
+        new Annotation({
+          id: 'cds1',
+          type: 'CDS',
+          span: '(0..3)', // Minus strand
+          caption: 'TestCDS'
+        })
+      ])
+
+      const { elementsByLine } = useTranslation(editorState, graphics, annotations)
+      const elements = elementsByLine.value.get(0)
+
+      expect(elements).toHaveLength(1)
+      expect(elements[0].aminoAcid).toBe('M')
+      // For minus strand, codon should still reference the original sequence positions
+      expect(elements[0].codonStart).toBe(0)
+      expect(elements[0].codonEnd).toBe(3)
+    })
+  })
 })

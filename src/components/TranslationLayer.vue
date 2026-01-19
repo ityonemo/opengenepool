@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, watch, ref } from 'vue'
 import { useTranslation } from '../composables/useTranslation.js'
+import { AA_THREE_LETTER } from '../utils/translation.js'
 
 const props = defineProps({
   /** Array of CDS Annotation objects to translate */
@@ -285,6 +286,45 @@ function getGroupBounds(elements) {
   return { x: minX, width: maxX - minX }
 }
 
+const emit = defineEmits(['hover', 'click'])
+
+// Get three-letter amino acid name
+function getAaName(aa) {
+  return AA_THREE_LETTER[aa] || aa
+}
+
+// Handle hover events - emit to parent like AnnotationLayer does
+function handleMouseEnter(event, element) {
+  const aaName = getAaName(element.aminoAcid)
+  const aaLabel = element.aminoAcid === '*' ? 'Stop' : `${aaName}${element.aaIndex}`
+  const tooltipText = `${element.geneName}: ${aaLabel} [${element.codon}]`
+
+  emit('hover', {
+    event,
+    element,
+    tooltipText,
+    entering: true
+  })
+}
+
+function handleMouseLeave(event, element) {
+  emit('hover', {
+    event,
+    element,
+    entering: false
+  })
+}
+
+function handleClick(event, element) {
+  event.stopPropagation()  // Prevent bubbling to SVG mousedown
+  emit('click', {
+    event,
+    element,
+    codonStart: element.codonStart,
+    codonEnd: element.codonEnd
+  })
+}
+
 // Expose show and visible for parent to bind to
 defineExpose({ show, visible })
 </script>
@@ -311,6 +351,10 @@ defineExpose({ show, visible })
       <g
         v-for="(element, elemIndex) in elementsByLine.get(lineIndex)"
         :key="`aa-${element.annotationId}-${elemIndex}`"
+        :class="{ 'aa-element': !element.isOverflow }"
+        @mouseenter="!element.isOverflow && handleMouseEnter($event, element)"
+        @mouseleave="!element.isOverflow && handleMouseLeave($event, element)"
+        @click="!element.isOverflow && handleClick($event, element)"
       >
         <!-- Chevron path (nose/tail controlled by showNotch/showTail) -->
         <path
@@ -376,5 +420,17 @@ defineExpose({ show, visible })
   font-size: 12px;
   fill: black;
   user-select: none;
+  pointer-events: none;
 }
+
+/* Interactive amino acid elements */
+.aa-element {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.aa-element:hover .aa-chevron {
+  filter: brightness(0.9);
+}
+
 </style>

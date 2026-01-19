@@ -83,6 +83,27 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
         // Calculate x coordinate
         const x = m.lmargin + posInLine * m.charWidth
 
+        // Get gene name from annotation (try gene attribute, then label, caption, product, name)
+        const geneName = annotation.attributes?.gene ||
+                         annotation.attributes?.label ||
+                         annotation.caption ||
+                         annotation.attributes?.product ||
+                         annotation.name ||
+                         'Unknown'
+
+        // Calculate the absolute start/end positions of this codon
+        // Note: aa.position already includes the frame offset
+        let codonStart, codonEnd
+        if (isMinus) {
+          // For minus strand, the codon is at the end of the range, going backwards
+          codonEnd = range.end - aa.position
+          codonStart = codonEnd - 3
+        } else {
+          // For plus strand, codon starts at range.start + position
+          codonStart = range.start + aa.position
+          codonEnd = codonStart + 3
+        }
+
         const element = {
           aminoAcid: aa.aminoAcid,
           isStart: aa.isStart,
@@ -93,7 +114,11 @@ export function useTranslation(editorState, graphics, cdsAnnotations) {
           codon: aa.codon,
           orientation: isMinus ? -1 : 1,  // -1 for minus strand, 1 for plus strand
           isFirstCodon: aaIndex === 0,  // First codon in translation
-          isLastCodon: aaIndex === lastAaIndex  // Last codon in translation
+          isLastCodon: aaIndex === lastAaIndex,  // Last codon in translation
+          aaIndex: aaIndex + 1,  // 1-based amino acid index for display
+          geneName,
+          codonStart,  // Absolute position of codon start
+          codonEnd     // Absolute position of codon end
         }
 
         if (!byLine.has(lineIndex)) {

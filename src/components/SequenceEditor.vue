@@ -840,6 +840,46 @@ function handleAnnotationHover(data) {
   emit('annotation-hover', data)
 }
 
+function handleTranslationHover(data) {
+  const { event, tooltipText, entering } = data
+
+  if (entering) {
+    tooltipContent.value = tooltipText
+    tooltipX.value = event.clientX + 12
+    tooltipY.value = event.clientY + 12
+    tooltipVisible.value = true
+  } else {
+    tooltipVisible.value = false
+  }
+}
+
+function handleTranslationClick(data) {
+  const { event, element, codonStart, codonEnd } = data
+
+  // Create span for the codon with correct orientation
+  // Minus strand uses parentheses: (start..end)
+  const isMinus = element.orientation === -1
+  const spanStr = isMinus
+    ? `(${codonStart}..${codonEnd})`
+    : `${codonStart}..${codonEnd}`
+
+  if (event?.shiftKey) {
+    // Shift-click extends existing selection to include codon
+    selection.extendToPosition(codonStart)
+    selection.extendToPosition(codonEnd)
+  } else if (event?.ctrlKey) {
+    // Ctrl-click adds codon to existing selection
+    const codonSpan = Span.parse(spanStr)
+    const newDomain = new SelectionDomain(codonSpan)
+    selection.extendSelection(newDomain)
+  } else {
+    // Regular click replaces selection with codon
+    const codonSpan = Span.parse(spanStr)
+    const newDomain = new SelectionDomain(codonSpan)
+    selection.select(newDomain)
+  }
+}
+
 function handleContextMenu(event, lineIndex) {
   event.preventDefault()
 
@@ -1669,6 +1709,8 @@ defineExpose({
           v-if="cdsAnnotations.length > 0"
           ref="translationLayerRef"
           :annotations="cdsAnnotations"
+          @hover="handleTranslationHover"
+          @click="handleTranslationClick"
         />
 
         <!-- Annotation Layer -->
