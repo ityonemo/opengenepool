@@ -516,14 +516,26 @@ function openAnnotationModalForEdit(annotation) {
 }
 
 function handleAnnotationUpdate(data) {
+  const annotationId = editingAnnotation.value.id
+
   effectiveBackend.value?.annotationUpdate?.({
     id: crypto.randomUUID(),
-    annotationId: editingAnnotation.value.id,
+    annotationId,
     caption: data.caption,
     type: data.type,
     span: data.span,
     attributes: data.attributes
   })
+
+  // Update local state for optimistic UI
+  localAnnotations.value = localAnnotations.value.map(ann =>
+    ann.id === annotationId
+      ? { ...ann, caption: data.caption, type: data.type, span: data.span, attributes: data.attributes }
+      : ann
+  )
+  // Emit for parent components (standalone mode)
+  emit('annotations-update', localAnnotations.value)
+
   annotationModalOpen.value = false
   editingAnnotation.value = null
 }
@@ -544,14 +556,21 @@ function handleAnnotationCreate(data) {
     attributes = { ...attributes, translation: result.aminoAcids }
   }
 
-  // Send to backend
-  effectiveBackend.value?.annotationCreated?.({
+  const newAnnotation = {
     id: annotationId,
     caption: data.caption,
     type: data.type,
     span: data.span,
     attributes
-  })
+  }
+
+  // Send to backend
+  effectiveBackend.value?.annotationCreated?.(newAnnotation)
+
+  // Update local state for optimistic UI
+  localAnnotations.value = [...localAnnotations.value, newAnnotation]
+  // Emit for parent components (standalone mode)
+  emit('annotations-update', localAnnotations.value)
 
   annotationModalOpen.value = false
 }
@@ -780,6 +799,11 @@ function buildContextMenuItems(context) {
           id: crypto.randomUUID(),
           annotationId: annotation.id
         })
+
+        // Update local state for optimistic UI
+        localAnnotations.value = localAnnotations.value.filter(ann => ann.id !== annotation.id)
+        // Emit for parent components (standalone mode)
+        emit('annotations-update', localAnnotations.value)
       }
     })
   }

@@ -1843,6 +1843,299 @@ describe('SequenceEditor', () => {
     })
   })
 
+  describe('annotation CRUD operations', () => {
+    describe('create annotation', () => {
+      it('adds annotation to local state when created via modal', async () => {
+        const wrapper = mount(SequenceEditor, {
+          props: { initialZoom: 100 }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Make a selection
+        const selectionLayer = wrapper.findComponent({ name: 'SelectionLayer' })
+        selectionLayer.vm.selection.select('10..50')
+        await wrapper.vm.$nextTick()
+
+        // Open context menu and click Create Annotation
+        const overlay = wrapper.find('.sequence-overlay')
+        await overlay.trigger('contextmenu', { clientX: 100, clientY: 20 })
+        await wrapper.vm.$nextTick()
+
+        const menuItems = wrapper.findAll('.menu-item')
+        const createItem = menuItems.find(item => item.text().includes('Create Annotation'))
+        await createItem.trigger('click')
+        await wrapper.vm.$nextTick()
+
+        // Fill out and submit the annotation modal
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('create', {
+          caption: 'Test Gene',
+          type: 'gene',
+          span: '10..50',
+          attributes: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        // Should emit annotations-update with the new annotation
+        const emitted = wrapper.emitted('annotations-update')
+        expect(emitted).toBeTruthy()
+        expect(emitted[0][0]).toHaveLength(1)
+        expect(emitted[0][0][0].caption).toBe('Test Gene')
+        expect(emitted[0][0][0].type).toBe('gene')
+        expect(emitted[0][0][0].span).toBe('10..50')
+      })
+
+      it('generates unique ID for new annotation', async () => {
+        const wrapper = mount(SequenceEditor, {
+          props: { initialZoom: 100 }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Trigger annotation creation via modal emit
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('create', {
+          caption: 'Test',
+          type: 'gene',
+          span: '10..20',
+          attributes: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        const emitted = wrapper.emitted('annotations-update')
+        expect(emitted[0][0][0].id).toBeTruthy()
+        expect(typeof emitted[0][0][0].id).toBe('string')
+      })
+
+      it('computes translation for CDS annotations', async () => {
+        const wrapper = mount(SequenceEditor, {
+          props: { initialZoom: 100 }
+        })
+        // ATG = M (Methionine start codon)
+        wrapper.vm.setSequence('ATGATGATG' + 'A'.repeat(91))
+        await wrapper.vm.$nextTick()
+
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('create', {
+          caption: 'Test CDS',
+          type: 'CDS',
+          span: '0..9',
+          attributes: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        const emitted = wrapper.emitted('annotations-update')
+        expect(emitted[0][0][0].attributes.translation).toBe('MMM')
+      })
+
+      it('calls backend.annotationCreated when backend provided', async () => {
+        const mockBackend = {
+          annotationCreated: mock(() => {})
+        }
+        const wrapper = mount(SequenceEditor, {
+          props: { initialZoom: 100, backend: mockBackend }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('create', {
+          caption: 'Test',
+          type: 'gene',
+          span: '10..20',
+          attributes: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        expect(mockBackend.annotationCreated).toHaveBeenCalledTimes(1)
+        const call = mockBackend.annotationCreated.mock.calls[0][0]
+        expect(call.caption).toBe('Test')
+        expect(call.type).toBe('gene')
+      })
+    })
+
+    describe('update annotation', () => {
+      it('updates annotation in local state when edited via modal', async () => {
+        const annotations = [
+          { id: 'ann1', caption: 'Original', type: 'gene', span: '10..50' }
+        ]
+        const wrapper = mount(SequenceEditor, {
+          props: { annotations, initialZoom: 100 }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Simulate opening edit modal and submitting update
+        // First, we need to set the editingAnnotation by clicking on annotation context menu
+        const annotationLayer = wrapper.findComponent({ name: 'AnnotationLayer' })
+        annotationLayer.vm.$emit('contextmenu', {
+          annotation: annotations[0],
+          event: { clientX: 100, clientY: 100, preventDefault: () => {} },
+          fragment: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        // Click Edit Annotation
+        const menuItems = wrapper.findAll('.menu-item')
+        const editItem = menuItems.find(item => item.text().includes('Edit Annotation'))
+        await editItem.trigger('click')
+        await wrapper.vm.$nextTick()
+
+        // Submit update via modal
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('update', {
+          caption: 'Updated',
+          type: 'CDS',
+          span: '10..60',
+          attributes: { gene: 'testGene' }
+        })
+        await wrapper.vm.$nextTick()
+
+        const emitted = wrapper.emitted('annotations-update')
+        expect(emitted).toBeTruthy()
+        expect(emitted[0][0]).toHaveLength(1)
+        expect(emitted[0][0][0].id).toBe('ann1')
+        expect(emitted[0][0][0].caption).toBe('Updated')
+        expect(emitted[0][0][0].type).toBe('CDS')
+        expect(emitted[0][0][0].span).toBe('10..60')
+        expect(emitted[0][0][0].attributes.gene).toBe('testGene')
+      })
+
+      it('calls backend.annotationUpdate when backend provided', async () => {
+        const mockBackend = {
+          annotationUpdate: mock(() => {})
+        }
+        const annotations = [
+          { id: 'ann1', caption: 'Original', type: 'gene', span: '10..50' }
+        ]
+        const wrapper = mount(SequenceEditor, {
+          props: { annotations, initialZoom: 100, backend: mockBackend }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Open edit modal
+        const annotationLayer = wrapper.findComponent({ name: 'AnnotationLayer' })
+        annotationLayer.vm.$emit('contextmenu', {
+          annotation: annotations[0],
+          event: { clientX: 100, clientY: 100, preventDefault: () => {} },
+          fragment: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        const menuItems = wrapper.findAll('.menu-item')
+        const editItem = menuItems.find(item => item.text().includes('Edit Annotation'))
+        await editItem.trigger('click')
+        await wrapper.vm.$nextTick()
+
+        const annotationModal = wrapper.findComponent({ name: 'AnnotationModal' })
+        annotationModal.vm.$emit('update', {
+          caption: 'Updated',
+          type: 'CDS',
+          span: '10..60',
+          attributes: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        expect(mockBackend.annotationUpdate).toHaveBeenCalledTimes(1)
+        const call = mockBackend.annotationUpdate.mock.calls[0][0]
+        expect(call.annotationId).toBe('ann1')
+        expect(call.caption).toBe('Updated')
+      })
+    })
+
+    describe('delete annotation', () => {
+      it('removes annotation from local state when deleted via context menu', async () => {
+        const annotations = [
+          { id: 'ann1', caption: 'Gene1', type: 'gene', span: '10..50' },
+          { id: 'ann2', caption: 'Gene2', type: 'gene', span: '60..90' }
+        ]
+        const wrapper = mount(SequenceEditor, {
+          props: { annotations, initialZoom: 100 }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Right-click on annotation
+        const annotationLayer = wrapper.findComponent({ name: 'AnnotationLayer' })
+        annotationLayer.vm.$emit('contextmenu', {
+          annotation: annotations[0],
+          event: { clientX: 100, clientY: 100, preventDefault: () => {} },
+          fragment: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        // Click Delete Annotation
+        const menuItems = wrapper.findAll('.menu-item')
+        const deleteItem = menuItems.find(item => item.text().includes('Delete Annotation'))
+        await deleteItem.trigger('click')
+        await wrapper.vm.$nextTick()
+
+        const emitted = wrapper.emitted('annotations-update')
+        expect(emitted).toBeTruthy()
+        expect(emitted[0][0]).toHaveLength(1)
+        expect(emitted[0][0][0].id).toBe('ann2')
+      })
+
+      it('calls backend.annotationDeleted when backend provided', async () => {
+        const mockBackend = {
+          annotationDeleted: mock(() => {})
+        }
+        const annotations = [
+          { id: 'ann1', caption: 'Gene1', type: 'gene', span: '10..50' }
+        ]
+        const wrapper = mount(SequenceEditor, {
+          props: { annotations, initialZoom: 100, backend: mockBackend }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Right-click on annotation
+        const annotationLayer = wrapper.findComponent({ name: 'AnnotationLayer' })
+        annotationLayer.vm.$emit('contextmenu', {
+          annotation: annotations[0],
+          event: { clientX: 100, clientY: 100, preventDefault: () => {} },
+          fragment: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        const menuItems = wrapper.findAll('.menu-item')
+        const deleteItem = menuItems.find(item => item.text().includes('Delete Annotation'))
+        await deleteItem.trigger('click')
+        await wrapper.vm.$nextTick()
+
+        expect(mockBackend.annotationDeleted).toHaveBeenCalledTimes(1)
+        const call = mockBackend.annotationDeleted.mock.calls[0][0]
+        expect(call.annotationId).toBe('ann1')
+      })
+
+      it('does not show delete option in readonly mode', async () => {
+        const annotations = [
+          { id: 'ann1', caption: 'Gene1', type: 'gene', span: '10..50' }
+        ]
+        const wrapper = mount(SequenceEditor, {
+          props: { annotations, initialZoom: 100, readonly: true }
+        })
+        wrapper.vm.setSequence('A'.repeat(100))
+        await wrapper.vm.$nextTick()
+
+        // Right-click on annotation
+        const annotationLayer = wrapper.findComponent({ name: 'AnnotationLayer' })
+        annotationLayer.vm.$emit('contextmenu', {
+          annotation: annotations[0],
+          event: { clientX: 100, clientY: 100, preventDefault: () => {} },
+          fragment: {}
+        })
+        await wrapper.vm.$nextTick()
+
+        const menuText = wrapper.find('.context-menu').text()
+        expect(menuText).not.toContain('Delete Annotation')
+        expect(menuText).not.toContain('Edit Annotation')
+      })
+    })
+  })
+
   describe('backend integration', () => {
     function createMockBackend() {
       return {
