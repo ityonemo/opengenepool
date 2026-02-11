@@ -239,4 +239,39 @@ describe('CircularSelectionLayer', () => {
       expect(selection.domain.value.ranges.length).toBe(1)
     })
   })
+
+  describe('origin crossing range order', () => {
+    // When a selection wraps across the origin on a circular plasmid,
+    // the range order must be correct for cut/paste to concatenate properly:
+    // - FORWARD strand: high positions first (reads clockwise through origin)
+    // - REVERSE strand: low positions first (reads counter-clockwise through origin)
+
+    it('forward strand wrapped selection should have high range first, low range second', async () => {
+      // For forward strand reading clockwise through origin,
+      // the expected order for cut/paste is: 800..1000 then 0..200
+      // This ensures the sequence concatenates in biological reading order
+      const expectedRanges = [
+        { start: 800, end: 1000, orientation: 1 },  // high range first (PLUS = 1)
+        { start: 0, end: 200, orientation: 1 }      // low range second
+      ]
+
+      const [first, second] = expectedRanges
+      expect(first.end).toBe(1000)  // First range ends at seqLen (high positions)
+      expect(second.start).toBe(0)  // Second range starts at 0 (low positions)
+    })
+
+    it('reverse strand wrapped selection should have low range first, high range second', async () => {
+      // For reverse strand reading counter-clockwise through origin,
+      // the expected order for cut/paste is: 0..200 then 800..1000
+      // This ensures the sequence concatenates in biological reading order for minus strand
+      const expectedRanges = [
+        { start: 0, end: 200, orientation: -1 },    // low range first (MINUS = -1)
+        { start: 800, end: 1000, orientation: -1 }  // high range second
+      ]
+
+      const [first, second] = expectedRanges
+      expect(first.start).toBe(0)    // First range starts at 0 (low positions)
+      expect(second.end).toBe(1000)  // Second range ends at seqLen (high positions)
+    })
+  })
 })

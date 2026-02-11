@@ -256,6 +256,7 @@ const dragLimits = ref({ low: 0, high: 0 })
 const lastDragPos = ref(null)
 const isWrapped = ref(false)
 const wrappedSecondRangeIndex = ref(null)
+const wrapDirection = ref(null)  // 'clockwise' or 'counterclockwise'
 
 function startHandleDrag(event, rangeIndex, handleType) {
   if (event.button !== 0) return
@@ -278,6 +279,7 @@ function startHandleDrag(event, rangeIndex, handleType) {
   lastDragPos.value = initialPos
   isWrapped.value = false
   wrappedSecondRangeIndex.value = null
+  wrapDirection.value = null
 
   // Calculate drag limits (only relevant for non-wrapped mode)
   let low = 0
@@ -344,37 +346,57 @@ function handleDragMove(event) {
 
         if (wentClockwise) {
           // Selection goes from anchor clockwise past origin to pos
-          // Range 1: anchor to seqLen, Range 2: 0 to pos
+          // Creates: high range (anchor..seqLen) + low range (0..pos)
+          wrapDirection.value = 'clockwise'
           const ranges = selection.domain.value.ranges
           const primaryRange = ranges[rangeIndex]
-          primaryRange.start = anchor
-          primaryRange.end = seqLen
-          primaryRange.orientation = originalOrientation
 
-          // Add second range
-          const secondRange = {
-            start: 0,
-            end: pos,
-            orientation: originalOrientation
+          const highRange = { start: anchor, end: seqLen, orientation: originalOrientation }
+          const lowRange = { start: 0, end: pos, orientation: originalOrientation }
+
+          // For cut/paste ordering:
+          // - FORWARD reads high→origin→low, so high range should be first
+          // - REVERSE reads low→origin→high, so low range should be first
+          if (originalOrientation === Orientation.MINUS) {
+            // Reverse: low range first, high range second
+            primaryRange.start = lowRange.start
+            primaryRange.end = lowRange.end
+            primaryRange.orientation = originalOrientation
+            ranges.push(highRange)
+          } else {
+            // Forward (or none): high range first, low range second
+            primaryRange.start = highRange.start
+            primaryRange.end = highRange.end
+            primaryRange.orientation = originalOrientation
+            ranges.push(lowRange)
           }
-          ranges.push(secondRange)
           wrappedSecondRangeIndex.value = ranges.length - 1
         } else {
           // Selection goes from anchor counter-clockwise past origin to pos
-          // Range 1: 0 to anchor, Range 2: pos to seqLen
+          // Creates: low range (0..anchor) + high range (pos..seqLen)
+          wrapDirection.value = 'counterclockwise'
           const ranges = selection.domain.value.ranges
           const primaryRange = ranges[rangeIndex]
-          primaryRange.start = 0
-          primaryRange.end = anchor
-          primaryRange.orientation = originalOrientation
 
-          // Add second range
-          const secondRange = {
-            start: pos,
-            end: seqLen,
-            orientation: originalOrientation
+          const lowRange = { start: 0, end: anchor, orientation: originalOrientation }
+          const highRange = { start: pos, end: seqLen, orientation: originalOrientation }
+
+          // For cut/paste ordering:
+          // - FORWARD reads high→origin→low, so high range should be first
+          // - REVERSE reads low→origin→high, so low range should be first
+          if (originalOrientation === Orientation.MINUS) {
+            // Reverse: low range first, high range second
+            primaryRange.start = lowRange.start
+            primaryRange.end = lowRange.end
+            primaryRange.orientation = originalOrientation
+            ranges.push(highRange)
+          } else {
+            // Forward (or none): high range first, low range second
+            primaryRange.start = highRange.start
+            primaryRange.end = highRange.end
+            primaryRange.orientation = originalOrientation
+            ranges.push(lowRange)
           }
-          ranges.push(secondRange)
           wrappedSecondRangeIndex.value = ranges.length - 1
         }
       } else {
@@ -383,6 +405,7 @@ function handleDragMove(event) {
           const ranges = selection.domain.value.ranges
           ranges.splice(wrappedSecondRangeIndex.value, 1)
           wrappedSecondRangeIndex.value = null
+          wrapDirection.value = null
         }
       }
     }
@@ -396,11 +419,16 @@ function handleDragMove(event) {
 
   if (isWrapped.value && wrappedSecondRangeIndex.value !== null) {
     // Update wrapped ranges
+    // The dynamic range (containing pos) may be primary or secondary depending on orientation
     const secondRange = ranges[wrappedSecondRangeIndex.value]
 
-    // Determine which direction we wrapped
-    if (primaryRange.end === seqLen) {
-      // Clockwise wrap: primary is anchor..seqLen, secondary is 0..pos
+    // Use tracked wrap direction instead of inferring from range positions
+    // (range positions vary based on orientation for correct cut/paste ordering)
+    if (wrapDirection.value === 'clockwise') {
+      // Clockwise wrap: pos moves in the 0..anchor region (low range)
+      // Find the low range - it has start=0
+      const lowRange = primaryRange.start === 0 ? primaryRange : secondRange
+
       // Find the minimum start of any OTHER range in the 0..anchor region
       let maxEnd = anchor
       for (let i = 0; i < ranges.length; i++) {
@@ -411,9 +439,12 @@ function handleDragMove(event) {
           maxEnd = r.start
         }
       }
-      secondRange.end = Math.min(pos, maxEnd)
-    } else if (primaryRange.start === 0) {
-      // Counter-clockwise wrap: primary is 0..anchor, secondary is pos..seqLen
+      lowRange.end = Math.min(pos, maxEnd)
+    } else if (wrapDirection.value === 'counterclockwise') {
+      // Counter-clockwise wrap: pos moves in the anchor..seqLen region (high range)
+      // Find the high range - it has end=seqLen
+      const highRange = primaryRange.end === seqLen ? primaryRange : secondRange
+
       // Find the maximum end of any OTHER range in the anchor..seqLen region
       let minStart = anchor
       for (let i = 0; i < ranges.length; i++) {
@@ -424,7 +455,7 @@ function handleDragMove(event) {
           minStart = r.end
         }
       }
-      secondRange.start = Math.max(pos, minStart)
+      highRange.start = Math.max(pos, minStart)
     }
   } else {
     // Non-wrapped: standard single-range logic
@@ -461,6 +492,7 @@ function handleDragEnd() {
   lastDragPos.value = null
   isWrapped.value = false
   wrappedSecondRangeIndex.value = null
+  wrapDirection.value = null
   window.removeEventListener('mousemove', handleDragMove)
   window.removeEventListener('mouseup', handleDragEnd)
 
