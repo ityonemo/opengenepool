@@ -1,5 +1,7 @@
 # OpenGenePool
 
+[![CI](https://github.com/Vidala-Labs/opengenepool/actions/workflows/ci.yml/badge.svg)](https://github.com/Vidala-Labs/opengenepool/actions/workflows/ci.yml)
+
 A Vue.js DNA sequence editor component for viewing and editing genetic sequences with professional annotation support.
 
 ## Features
