@@ -32,7 +32,6 @@ jobs:
         run: cd example && bun run build
 
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy example/dist --project-name=opengenepool
+        run: npx wrangler pages deploy example/dist --project-name=opengenepool --account-id=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
