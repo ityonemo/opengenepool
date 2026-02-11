@@ -31,9 +31,17 @@ jobs:
       - name: Build
         run: cd example && bun run build
 
+      - name: Create Pages project (if needed)
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create opengenepool --production-branch=master
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create opengenepool --production-branch=master || true && pages deploy example/dist --project-name=opengenepool --commit-dirty=true
+          command: pages deploy example/dist --project-name=opengenepool --commit-dirty=true
