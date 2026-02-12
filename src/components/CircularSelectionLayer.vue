@@ -362,15 +362,17 @@ function handleDragMove(event) {
             primaryRange.start = lowRange.start
             primaryRange.end = lowRange.end
             primaryRange.orientation = originalOrientation
-            ranges.push(highRange)
+            // Insert adjacent to partner range, not at end
+            ranges.splice(rangeIndex + 1, 0, highRange)
           } else {
             // Forward (or none): high range first, low range second
             primaryRange.start = highRange.start
             primaryRange.end = highRange.end
             primaryRange.orientation = originalOrientation
-            ranges.push(lowRange)
+            // Insert adjacent to partner range, not at end
+            ranges.splice(rangeIndex + 1, 0, lowRange)
           }
-          wrappedSecondRangeIndex.value = ranges.length - 1
+          wrappedSecondRangeIndex.value = rangeIndex + 1
         } else {
           // Selection goes from anchor counter-clockwise past origin to pos
           // Creates: low range (0..anchor) + high range (pos..seqLen)
@@ -389,15 +391,17 @@ function handleDragMove(event) {
             primaryRange.start = lowRange.start
             primaryRange.end = lowRange.end
             primaryRange.orientation = originalOrientation
-            ranges.push(highRange)
+            // Insert adjacent to partner range, not at end
+            ranges.splice(rangeIndex + 1, 0, highRange)
           } else {
             // Forward (or none): high range first, low range second
             primaryRange.start = highRange.start
             primaryRange.end = highRange.end
             primaryRange.orientation = originalOrientation
-            ranges.push(lowRange)
+            // Insert adjacent to partner range, not at end
+            ranges.splice(rangeIndex + 1, 0, lowRange)
           }
-          wrappedSecondRangeIndex.value = ranges.length - 1
+          wrappedSecondRangeIndex.value = rangeIndex + 1
         }
       } else {
         // Unwrap: remove the second range and go back to single range
